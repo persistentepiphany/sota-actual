@@ -15,38 +15,41 @@ export default async function Home() {
   return (
     <main className="mx-auto flex max-w-6xl flex-col gap-10 px-6 pb-16 pt-10">
       <section className="glass rounded-3xl px-8 py-10">
-        <div className="mb-3 pill inline-flex">Blue & White // SpoonOS x Neo</div>
+        <div className="mb-3 pill inline-flex">SOTA — Powered by Flare</div>
         <h1 className="text-4xl font-semibold leading-tight text-[var(--foreground)] md:text-5xl">
-          Publish your agent. Get hired. Settle in crypto.
+          AI Agent Marketplace with FTSO Pricing & FDC Verification
         </h1>
         <p className="mt-4 max-w-3xl text-lg text-[var(--muted)]">
-          A freelance-style hub for AI agents. Showcase capabilities, let buyers
-          connect wallets, and settle payments on EVM testnet (Sepolia) while we
-          keep login + data in a secure DB.
+          Post jobs, let autonomous agents bid, and settle in FLR.
+          FTSO provides real-time USD→FLR pricing. FDC attestations
+          gate trustless escrow release — no backend required.
         </p>
         <div className="mt-6 flex flex-wrap gap-3">
-          <Link href="/agents/publish" className="btn-primary">
-            Publish an agent
+          <Link href="/jobs" className="btn-primary">
+            Create a Job
           </Link>
-          <Link href={user ? "/dashboard" : "/login"} className="btn-secondary">
-            {user ? "Go to dashboard" : "Log in"}
+          <Link href="/flare-dashboard" className="btn-secondary">
+            Job Dashboard
+          </Link>
+          <Link href="/agents/publish" className="btn-secondary">
+            Publish an Agent
           </Link>
         </div>
       </section>
 
       <section className="grid gap-4 rounded-2xl bg-white/80 p-6 shadow-sm sm:grid-cols-3">
         <div>
-          <div className="text-2xl font-semibold text-[var(--foreground)]">1k+</div>
-          <div className="text-sm text-[var(--muted)]">Runs tracked via Neo</div>
+          <div className="text-2xl font-semibold text-[var(--foreground)]">FTSO</div>
+          <div className="text-sm text-[var(--muted)]">Real-time FLR/USD pricing</div>
         </div>
         <div>
-          <div className="text-2xl font-semibold text-[var(--foreground)]">EVM</div>
-          <div className="text-sm text-[var(--muted)]">Crypto transfers on Sepolia</div>
+          <div className="text-2xl font-semibold text-[var(--foreground)]">FDC</div>
+          <div className="text-sm text-[var(--muted)]">Trustless delivery attestation</div>
         </div>
         <div>
-          <div className="text-2xl font-semibold text-[var(--foreground)]">DB</div>
+          <div className="text-2xl font-semibold text-[var(--foreground)]">FLR</div>
           <div className="text-sm text-[var(--muted)]">
-            Password login stored in our database
+            Native Flare escrow payments
           </div>
         </div>
       </section>
@@ -66,7 +69,7 @@ export default async function Home() {
           </Link>
         </div>
         <div className="grid gap-4 md:grid-cols-2">
-          {agents.map((agent) => (
+          {agents.map((agent: any) => (
             <AgentCard key={agent.id} agent={agent} />
           ))}
         </div>

@@ -1,14 +1,13 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { agentSchema } from "@/lib/validators";
 import { getUserFromRequest } from "@/lib/auth";
 
-type Params = {
-  params: { id: string };
-};
+type RouteCtx = { params: Promise<{ id: string }> };
 
-export async function GET(_: Request, { params }: Params) {
-  const id = Number(params.id);
+export async function GET(_: NextRequest, ctx: RouteCtx) {
+  const { id: rawId } = await ctx.params;
+  const id = Number(rawId);
   if (Number.isNaN(id)) {
     return NextResponse.json({ error: "Invalid id" }, { status: 400 });
   }
@@ -27,14 +26,15 @@ export async function GET(_: Request, { params }: Params) {
   return NextResponse.json({ agent });
 }
 
-export async function PATCH(req: Request, { params }: Params) {
+export async function PATCH(req: NextRequest, ctx: RouteCtx) {
   const user = await getUserFromRequest();
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
+  const { id: rawId } = await ctx.params;
   const body = await req.json();
 
   // Allow id either from the path param or body fallback to avoid NaN issues from the client.
-  const pathId = Number(params.id);
+  const pathId = Number(rawId);
   const bodyId = body?.id !== undefined ? Number(body.id) : NaN;
   const id = !Number.isNaN(pathId) ? pathId : bodyId;
   if (Number.isNaN(id)) {

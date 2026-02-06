@@ -3,11 +3,18 @@
 /* eslint-disable */
 import type * as escrowSol from "./Escrow.sol";
 export type { escrowSol };
+import type * as flareEscrowSol from "./FlareEscrow.sol";
+export type { flareEscrowSol };
 import type * as orderBookSol from "./OrderBook.sol";
 export type { orderBookSol };
 import type * as reputationTokenSol from "./ReputationToken.sol";
 export type { reputationTokenSol };
+import type * as interfaces from "./interfaces";
+export type { interfaces };
 import type * as mocks from "./mocks";
 export type { mocks };
 export type { AgentRegistry } from "./AgentRegistry";
+export type { FDCVerifier } from "./FDCVerifier";
+export type { FTSOPriceConsumer } from "./FTSOPriceConsumer";
+export type { FlareOrderBook } from "./FlareOrderBook";
 export type { JobRegistry } from "./JobRegistry";

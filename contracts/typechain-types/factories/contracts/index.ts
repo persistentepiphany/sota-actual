@@ -2,8 +2,13 @@
 /* tslint:disable */
 /* eslint-disable */
 export * as escrowSol from "./Escrow.sol";
+export * as flareEscrowSol from "./FlareEscrow.sol";
 export * as orderBookSol from "./OrderBook.sol";
 export * as reputationTokenSol from "./ReputationToken.sol";
+export * as interfaces from "./interfaces";
 export * as mocks from "./mocks";
 export { AgentRegistry__factory } from "./AgentRegistry__factory";
+export { FDCVerifier__factory } from "./FDCVerifier__factory";
+export { FTSOPriceConsumer__factory } from "./FTSOPriceConsumer__factory";
+export { FlareOrderBook__factory } from "./FlareOrderBook__factory";
 export { JobRegistry__factory } from "./JobRegistry__factory";

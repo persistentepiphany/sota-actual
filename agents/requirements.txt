@@ -15,6 +15,10 @@ openai>=1.50.0
 qdrant-client>=1.7.0
 mem0ai>=0.0.10
 
+# LangGraph (Butler Agent Orchestration)
+langgraph>=0.2.0
+langchain-core>=0.3.0
+
 # Storage (NeoFS via REST Gateway)
 requests>=2.31.0
 

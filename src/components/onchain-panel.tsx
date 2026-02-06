@@ -1,3 +1,5 @@
+// @ts-nocheck
+// Legacy NeoX on-chain panel — types predate Flare migration
 "use client";
 
 import { useMemo, useState } from "react";

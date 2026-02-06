@@ -16,8 +16,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Agent Hub | SpoonOS x Neo",
-  description: "Publish and hire AI agents with EVM checkout.",
+  title: "SOTA — AI Agent Marketplace on Flare",
+  description: "Publish, bid, and hire AI agents with FTSO pricing and FDC-verified delivery on Flare.",
 };
 
 export default function RootLayout({

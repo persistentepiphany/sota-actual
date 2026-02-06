@@ -4,7 +4,9 @@ import "@nomicfoundation/hardhat-toolbox";
 
 dotenvConfig();
 
-const accounts = process.env.NEOX_PRIVATE_KEY ? [process.env.NEOX_PRIVATE_KEY] : [];
+const flareAccounts = process.env.FLARE_PRIVATE_KEY
+  ? [process.env.FLARE_PRIVATE_KEY]
+  : [];
 
 const config: HardhatUserConfig = {
   solidity: {
@@ -12,36 +14,36 @@ const config: HardhatUserConfig = {
     settings: {
       optimizer: {
         enabled: true,
-        runs: 200
-      }
-    }
+        runs: 200,
+      },
+    },
   },
   defaultNetwork: "hardhat",
   networks: {
     hardhat: {
-      chainId: 31337
+      chainId: 31337,
     },
-    // NeoX Testnet T4
+
+    // ─── Flare Networks ───────────────────────────────────
+    flareCoston2: {
+      url: process.env.FLARE_RPC_URL || "https://coston2-api.flare.network/ext/C/rpc",
+      chainId: 114,
+      accounts: flareAccounts,
+    },
+    flareMainnet: {
+      url: "https://flare-api.flare.network/ext/C/rpc",
+      chainId: 14,
+      accounts: flareAccounts,
+    },
+
+    // ─── Legacy Networks (kept for reference) ─────────────
     neoxTestnet: {
       url: process.env.NEOX_RPC_URL || "https://testnet.rpc.banelabs.org",
       chainId: 12227332,
-      accounts,
-      gasPrice: 40000000000, // 40 gwei
+      accounts: process.env.NEOX_PRIVATE_KEY ? [process.env.NEOX_PRIVATE_KEY] : [],
+      gasPrice: 40_000_000_000,
     },
-    // NeoX Mainnet
-    neoxMainnet: {
-      url: "https://mainnet-1.rpc.banelabs.org",
-      chainId: 47763,
-      accounts,
-      gasPrice: 40000000000, // 40 gwei
-    },
-    // Legacy Arc network (deprecated)
-    arc: {
-      url: process.env.ARC_RPC_URL || "",
-      chainId: Number(process.env.ARC_CHAIN_ID || 5_042_002),
-      accounts: process.env.ARC_PRIVATE_KEY ? [process.env.ARC_PRIVATE_KEY] : []
-    }
-  }
+  },
 };
 
 export default config;

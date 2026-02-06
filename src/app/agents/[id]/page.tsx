@@ -35,7 +35,7 @@ export default async function AgentDetail({ params }: Params) {
         </h1>
         <p className="mt-2 text-[var(--muted)]">{agent.description}</p>
         <div className="mt-4 flex flex-wrap gap-2 text-xs text-[var(--muted)]">
-          {agent.tags?.split(",").map((tag) => (
+          {agent.tags?.split(",").map((tag: string) => (
             <span key={tag} className="rounded-full bg-[var(--pill)] px-3 py-1">
               {tag.trim()}
             </span>

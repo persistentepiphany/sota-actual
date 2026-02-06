@@ -58,9 +58,57 @@ declare module "hardhat/types/runtime" {
       signerOrOptions?: ethers.Signer | FactoryOptions
     ): Promise<Contracts.IReputationEmitter__factory>;
     getContractFactory(
+      name: "FDCVerifier",
+      signerOrOptions?: ethers.Signer | FactoryOptions
+    ): Promise<Contracts.FDCVerifier__factory>;
+    getContractFactory(
+      name: "FlareEscrow",
+      signerOrOptions?: ethers.Signer | FactoryOptions
+    ): Promise<Contracts.FlareEscrow__factory>;
+    getContractFactory(
+      name: "IFDCVerifier",
+      signerOrOptions?: ethers.Signer | FactoryOptions
+    ): Promise<Contracts.IFDCVerifier__factory>;
+    getContractFactory(
+      name: "IFlareOrderBook",
+      signerOrOptions?: ethers.Signer | FactoryOptions
+    ): Promise<Contracts.IFlareOrderBook__factory>;
+    getContractFactory(
+      name: "FlareOrderBook",
+      signerOrOptions?: ethers.Signer | FactoryOptions
+    ): Promise<Contracts.FlareOrderBook__factory>;
+    getContractFactory(
+      name: "FTSOPriceConsumer",
+      signerOrOptions?: ethers.Signer | FactoryOptions
+    ): Promise<Contracts.FTSOPriceConsumer__factory>;
+    getContractFactory(
+      name: "IFastUpdater",
+      signerOrOptions?: ethers.Signer | FactoryOptions
+    ): Promise<Contracts.IFastUpdater__factory>;
+    getContractFactory(
+      name: "IFdcHub",
+      signerOrOptions?: ethers.Signer | FactoryOptions
+    ): Promise<Contracts.IFdcHub__factory>;
+    getContractFactory(
+      name: "IFdcVerification",
+      signerOrOptions?: ethers.Signer | FactoryOptions
+    ): Promise<Contracts.IFdcVerification__factory>;
+    getContractFactory(
+      name: "IFlareContractRegistry",
+      signerOrOptions?: ethers.Signer | FactoryOptions
+    ): Promise<Contracts.IFlareContractRegistry__factory>;
+    getContractFactory(
       name: "JobRegistry",
       signerOrOptions?: ethers.Signer | FactoryOptions
     ): Promise<Contracts.JobRegistry__factory>;
+    getContractFactory(
+      name: "MockFastUpdater",
+      signerOrOptions?: ethers.Signer | FactoryOptions
+    ): Promise<Contracts.MockFastUpdater__factory>;
+    getContractFactory(
+      name: "MockFdcVerification",
+      signerOrOptions?: ethers.Signer | FactoryOptions
+    ): Promise<Contracts.MockFdcVerification__factory>;
     getContractFactory(
       name: "MockUSDC",
       signerOrOptions?: ethers.Signer | FactoryOptions
@@ -150,10 +198,70 @@ declare module "hardhat/types/runtime" {
       signer?: ethers.Signer
     ): Promise<Contracts.IReputationEmitter>;
     getContractAt(
+      name: "FDCVerifier",
+      address: string | ethers.Addressable,
+      signer?: ethers.Signer
+    ): Promise<Contracts.FDCVerifier>;
+    getContractAt(
+      name: "FlareEscrow",
+      address: string | ethers.Addressable,
+      signer?: ethers.Signer
+    ): Promise<Contracts.FlareEscrow>;
+    getContractAt(
+      name: "IFDCVerifier",
+      address: string | ethers.Addressable,
+      signer?: ethers.Signer
+    ): Promise<Contracts.IFDCVerifier>;
+    getContractAt(
+      name: "IFlareOrderBook",
+      address: string | ethers.Addressable,
+      signer?: ethers.Signer
+    ): Promise<Contracts.IFlareOrderBook>;
+    getContractAt(
+      name: "FlareOrderBook",
+      address: string | ethers.Addressable,
+      signer?: ethers.Signer
+    ): Promise<Contracts.FlareOrderBook>;
+    getContractAt(
+      name: "FTSOPriceConsumer",
+      address: string | ethers.Addressable,
+      signer?: ethers.Signer
+    ): Promise<Contracts.FTSOPriceConsumer>;
+    getContractAt(
+      name: "IFastUpdater",
+      address: string | ethers.Addressable,
+      signer?: ethers.Signer
+    ): Promise<Contracts.IFastUpdater>;
+    getContractAt(
+      name: "IFdcHub",
+      address: string | ethers.Addressable,
+      signer?: ethers.Signer
+    ): Promise<Contracts.IFdcHub>;
+    getContractAt(
+      name: "IFdcVerification",
+      address: string | ethers.Addressable,
+      signer?: ethers.Signer
+    ): Promise<Contracts.IFdcVerification>;
+    getContractAt(
+      name: "IFlareContractRegistry",
+      address: string | ethers.Addressable,
+      signer?: ethers.Signer
+    ): Promise<Contracts.IFlareContractRegistry>;
+    getContractAt(
       name: "JobRegistry",
       address: string | ethers.Addressable,
       signer?: ethers.Signer
     ): Promise<Contracts.JobRegistry>;
+    getContractAt(
+      name: "MockFastUpdater",
+      address: string | ethers.Addressable,
+      signer?: ethers.Signer
+    ): Promise<Contracts.MockFastUpdater>;
+    getContractAt(
+      name: "MockFdcVerification",
+      address: string | ethers.Addressable,
+      signer?: ethers.Signer
+    ): Promise<Contracts.MockFdcVerification>;
     getContractAt(
       name: "MockUSDC",
       address: string | ethers.Addressable,
@@ -240,9 +348,57 @@ declare module "hardhat/types/runtime" {
       signerOrOptions?: ethers.Signer | DeployContractOptions
     ): Promise<Contracts.IReputationEmitter>;
     deployContract(
+      name: "FDCVerifier",
+      signerOrOptions?: ethers.Signer | DeployContractOptions
+    ): Promise<Contracts.FDCVerifier>;
+    deployContract(
+      name: "FlareEscrow",
+      signerOrOptions?: ethers.Signer | DeployContractOptions
+    ): Promise<Contracts.FlareEscrow>;
+    deployContract(
+      name: "IFDCVerifier",
+      signerOrOptions?: ethers.Signer | DeployContractOptions
+    ): Promise<Contracts.IFDCVerifier>;
+    deployContract(
+      name: "IFlareOrderBook",
+      signerOrOptions?: ethers.Signer | DeployContractOptions
+    ): Promise<Contracts.IFlareOrderBook>;
+    deployContract(
+      name: "FlareOrderBook",
+      signerOrOptions?: ethers.Signer | DeployContractOptions
+    ): Promise<Contracts.FlareOrderBook>;
+    deployContract(
+      name: "FTSOPriceConsumer",
+      signerOrOptions?: ethers.Signer | DeployContractOptions
+    ): Promise<Contracts.FTSOPriceConsumer>;
+    deployContract(
+      name: "IFastUpdater",
+      signerOrOptions?: ethers.Signer | DeployContractOptions
+    ): Promise<Contracts.IFastUpdater>;
+    deployContract(
+      name: "IFdcHub",
+      signerOrOptions?: ethers.Signer | DeployContractOptions
+    ): Promise<Contracts.IFdcHub>;
+    deployContract(
+      name: "IFdcVerification",
+      signerOrOptions?: ethers.Signer | DeployContractOptions
+    ): Promise<Contracts.IFdcVerification>;
+    deployContract(
+      name: "IFlareContractRegistry",
+      signerOrOptions?: ethers.Signer | DeployContractOptions
+    ): Promise<Contracts.IFlareContractRegistry>;
+    deployContract(
       name: "JobRegistry",
       signerOrOptions?: ethers.Signer | DeployContractOptions
     ): Promise<Contracts.JobRegistry>;
+    deployContract(
+      name: "MockFastUpdater",
+      signerOrOptions?: ethers.Signer | DeployContractOptions
+    ): Promise<Contracts.MockFastUpdater>;
+    deployContract(
+      name: "MockFdcVerification",
+      signerOrOptions?: ethers.Signer | DeployContractOptions
+    ): Promise<Contracts.MockFdcVerification>;
     deployContract(
       name: "MockUSDC",
       signerOrOptions?: ethers.Signer | DeployContractOptions
@@ -332,10 +488,70 @@ declare module "hardhat/types/runtime" {
       signerOrOptions?: ethers.Signer | DeployContractOptions
     ): Promise<Contracts.IReputationEmitter>;
     deployContract(
+      name: "FDCVerifier",
+      args: any[],
+      signerOrOptions?: ethers.Signer | DeployContractOptions
+    ): Promise<Contracts.FDCVerifier>;
+    deployContract(
+      name: "FlareEscrow",
+      args: any[],
+      signerOrOptions?: ethers.Signer | DeployContractOptions
+    ): Promise<Contracts.FlareEscrow>;
+    deployContract(
+      name: "IFDCVerifier",
+      args: any[],
+      signerOrOptions?: ethers.Signer | DeployContractOptions
+    ): Promise<Contracts.IFDCVerifier>;
+    deployContract(
+      name: "IFlareOrderBook",
+      args: any[],
+      signerOrOptions?: ethers.Signer | DeployContractOptions
+    ): Promise<Contracts.IFlareOrderBook>;
+    deployContract(
+      name: "FlareOrderBook",
+      args: any[],
+      signerOrOptions?: ethers.Signer | DeployContractOptions
+    ): Promise<Contracts.FlareOrderBook>;
+    deployContract(
+      name: "FTSOPriceConsumer",
+      args: any[],
+      signerOrOptions?: ethers.Signer | DeployContractOptions
+    ): Promise<Contracts.FTSOPriceConsumer>;
+    deployContract(
+      name: "IFastUpdater",
+      args: any[],
+      signerOrOptions?: ethers.Signer | DeployContractOptions
+    ): Promise<Contracts.IFastUpdater>;
+    deployContract(
+      name: "IFdcHub",
+      args: any[],
+      signerOrOptions?: ethers.Signer | DeployContractOptions
+    ): Promise<Contracts.IFdcHub>;
+    deployContract(
+      name: "IFdcVerification",
+      args: any[],
+      signerOrOptions?: ethers.Signer | DeployContractOptions
+    ): Promise<Contracts.IFdcVerification>;
+    deployContract(
+      name: "IFlareContractRegistry",
+      args: any[],
+      signerOrOptions?: ethers.Signer | DeployContractOptions
+    ): Promise<Contracts.IFlareContractRegistry>;
+    deployContract(
       name: "JobRegistry",
       args: any[],
       signerOrOptions?: ethers.Signer | DeployContractOptions
     ): Promise<Contracts.JobRegistry>;
+    deployContract(
+      name: "MockFastUpdater",
+      args: any[],
+      signerOrOptions?: ethers.Signer | DeployContractOptions
+    ): Promise<Contracts.MockFastUpdater>;
+    deployContract(
+      name: "MockFdcVerification",
+      args: any[],
+      signerOrOptions?: ethers.Signer | DeployContractOptions
+    ): Promise<Contracts.MockFdcVerification>;
     deployContract(
       name: "MockUSDC",
       args: any[],

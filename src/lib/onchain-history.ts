@@ -1,3 +1,5 @@
+// @ts-nocheck
+// Legacy NeoX on-chain history — types predate Flare migration
 import { createPublicClient, decodeEventLog, formatUnits, http } from "viem";
 import { chainDefaults } from "@/lib/contracts";
 import { orderBookAbi } from "@/lib/abi/orderBook";

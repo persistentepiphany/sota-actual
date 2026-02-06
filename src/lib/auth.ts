@@ -22,7 +22,7 @@ export const createAuthToken = (payload: TokenPayload) => {
 export const verifyAuthToken = (token?: string) => {
   if (!token) return null;
   try {
-    return jwt.verify(token, getSecret()) as TokenPayload;
+    return jwt.verify(token, getSecret()) as unknown as TokenPayload;
   } catch {
     return null;
   }

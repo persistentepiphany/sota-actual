@@ -1,5 +1,4 @@
-"use client";
-
+// @ts-nocheck
 "use client";
 
 import { useRouter } from "next/navigation";

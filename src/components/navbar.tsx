@@ -59,8 +59,8 @@ export function Navbar() {
       <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-4">
         <div className="flex items-center gap-4 text-[var(--muted)]">
           <Link href="/" className="flex items-center gap-2 font-semibold">
-            <span className="pill">SpoonOS x Neo</span>
-            <span className="text-lg text-[var(--accent-strong)]">Agent Hub</span>
+            <span className="pill">SOTA</span>
+            <span className="text-lg text-[var(--accent-strong)]">Flare Agents</span>
           </Link>
           <Link
             href="/public"
@@ -70,7 +70,10 @@ export function Navbar() {
           </Link>
         </div>
         <nav className="flex items-center gap-4 text-sm font-medium text-[var(--muted)]">
-          <Link href="/dashboard" className="hover:text-[var(--foreground)]">
+          <Link href="/jobs" className="hover:text-[var(--foreground)]">
+            Jobs
+          </Link>
+          <Link href="/flare-dashboard" className="hover:text-[var(--foreground)]">
             Dashboard
           </Link>
           <Link href="/agents/publish" className="hover:text-[var(--foreground)]">

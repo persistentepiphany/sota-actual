@@ -1,12 +1,14 @@
 {
-  "name": "a2a-contracts",
-  "version": "0.1.0",
+  "name": "sota-flare-contracts",
+  "version": "0.2.0",
   "private": true,
   "scripts": {
     "clean": "hardhat clean",
     "compile": "hardhat compile",
     "test": "hardhat test",
-    "deploy": "hardhat run scripts/deploy.ts --network arc"
+    "deploy:flare": "hardhat run scripts/deploy-flare.ts --network flareCoston2",
+    "deploy:local": "hardhat run scripts/deploy-flare.ts --network hardhat",
+    "deploy:legacy": "hardhat run scripts/deploy.ts --network neoxTestnet"
   },
   "devDependencies": {
     "@nomicfoundation/hardhat-toolbox": "^5.0.0",
@@ -19,6 +21,7 @@
     "typescript": "^5.4.5"
   },
   "dependencies": {
+    "@flarenetwork/flare-periphery-contract-artifacts": "^0.1.40",
     "@openzeppelin/contracts": "^5.0.2"
   }
 }

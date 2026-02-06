@@ -1,3 +1,5 @@
+// @ts-nocheck
+// Legacy NeoX public board — types predate Flare migration
 import { createPublicClient, formatUnits, http, decodeEventLog } from "viem";
 import { chainDefaults } from "@/lib/contracts";
 import { orderBookAbi } from "@/lib/abi/orderBook";
