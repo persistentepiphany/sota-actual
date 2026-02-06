@@ -1,7 +1,7 @@
 Contracts
 =========
 
-What’s here
+What’s here whats up
 -----------
 - `contracts/` — Solidity sources (OrderBook, Escrow, JobRegistry, AgentRegistry, ReputationToken, JobTypes).
 - `integrations/spoon/` — ABIs and helper scripts for downstream consumers.
