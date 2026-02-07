@@ -60,12 +60,22 @@ export default function HomePage() {
           initial={{ opacity: 0, y: 30 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.8, delay: 0.2 }}
-          className="text-5xl sm:text-6xl md:text-7xl font-bold text-center mb-6 tracking-tight"
+          className="text-5xl sm:text-6xl md:text-7xl font-bold text-center mb-4 tracking-tight"
         >
           <span className="text-transparent bg-clip-text bg-gradient-to-r from-white via-violet-200 to-violet-400">
             SOTA
           </span>
         </motion.h1>
+
+        {/* Acronym */}
+        <motion.p
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.8, delay: 0.3 }}
+          className="text-sm sm:text-base text-violet-400 font-medium tracking-widest uppercase mb-6"
+        >
+          State-of-the-Art Agents
+        </motion.p>
 
         {/* Subtitle */}
         <motion.p
