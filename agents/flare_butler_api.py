@@ -43,6 +43,7 @@ from agents.src.shared.flare_contracts import (
     get_escrow_deposit,
 )
 from agents.src.shared.butler_comms import ButlerDataExchange
+from agents.src.shared.database import Database
 
 load_dotenv()
 
@@ -59,6 +60,7 @@ app.add_middleware(
 # ─── Globals ──────────────────────────────────────────────────
 
 contracts: Optional[FlareContracts] = None
+db: Optional[Database] = None
 
 
 # ─── Request / Response Models ────────────────────────────────
@@ -122,10 +124,17 @@ class PriceResponse(BaseModel):
 
 @app.on_event("startup")
 async def startup_event():
-    global contracts
+    global contracts, db
     network = get_network()
     print(f"🚀 Starting SOTA Flare Butler API...")
     print(f"🌐 Network: {network.rpc_url} (chain {network.chain_id})")
+
+    # ── Connect to PostgreSQL ────────────────────────────────
+    try:
+        db = await Database.connect()
+        print("✅ Connected to PostgreSQL")
+    except Exception as e:
+        print(f"⚠️ PostgreSQL unavailable — running without persistence: {e}")
 
     pk = get_private_key("butler")
     if not pk:
@@ -326,7 +335,7 @@ async def demo_confirm_delivery(req: ReleaseRequest):
 # push status updates back.
 # ─────────────────────────────────────────────────────────────
 
-# In-memory store for user context that agents can query
+# In-memory fallback for user context (used when DB is unavailable)
 _user_context: Dict[str, Dict[str, Any]] = {}
 
 
@@ -370,14 +379,34 @@ async def set_user_context(req: SetUserContextRequest):
 
     Call this BEFORE posting a job so the hackathon agent (or any
     worker) can access the user's info when it asks for it.
+    Persists to PostgreSQL and keeps an in-memory cache.
     """
+    # Always keep in-memory copy for fast reads
     _user_context[req.user_id] = req.profile
+
+    # Persist to DB
+    if db:
+        try:
+            await db.upsert_user_profile(req.user_id, req.profile)
+        except Exception as e:
+            print(f"⚠️ DB upsert_user_profile failed: {e}")
+
     return {"success": True, "user_id": req.user_id, "fields": list(req.profile.keys())}
 
 
 @app.get("/api/agent/user-context/{user_id}")
 async def get_user_context(user_id: str = "default"):
-    """Get stored user context."""
+    """Get stored user context (DB first, then in-memory fallback)."""
+    # Try DB first
+    if db:
+        try:
+            profile = await db.get_user_profile(user_id)
+            if profile:
+                return profile
+        except Exception as e:
+            print(f"⚠️ DB get_user_profile failed: {e}")
+
+    # Fallback to in-memory
     return _user_context.get(user_id, {})
 
 
@@ -397,43 +426,76 @@ async def handle_agent_data_request(req: AgentDataRequest):
 
     # ── Try to auto-answer from stored user context ──────────
     if req.data_type == "user_profile":
-        # Look for stored profile across all user IDs
-        for uid, profile in _user_context.items():
-            if profile:
-                # If specific fields were requested, filter
-                if req.fields:
-                    filtered = {k: v for k, v in profile.items() if k in req.fields}
-                    if filtered:
-                        return {
-                            "request_id": req.request_id,
-                            "data_type": "user_profile",
-                            "data": filtered,
-                            "source": "stored_context",
-                            "message": f"Profile data retrieved ({len(filtered)} fields)",
-                        }
-                else:
+        # Try DB first, then in-memory fallback
+        profile = None
+        if db:
+            try:
+                profile = await db.get_user_profile("default")
+            except Exception:
+                pass
+
+        if not profile:
+            # Fallback: search in-memory context
+            for uid, ctx in _user_context.items():
+                if ctx:
+                    profile = ctx
+                    break
+
+        if profile:
+            if req.fields:
+                filtered = {k: v for k, v in profile.items()
+                            if k in req.fields and v is not None}
+                if filtered:
                     return {
                         "request_id": req.request_id,
                         "data_type": "user_profile",
-                        "data": profile,
+                        "data": filtered,
                         "source": "stored_context",
-                        "message": f"Full profile retrieved ({len(profile)} fields)",
+                        "message": f"Profile data retrieved ({len(filtered)} fields)",
                     }
+            else:
+                # Strip internal DB fields
+                clean = {k: v for k, v in profile.items()
+                         if v is not None and k not in ("id", "createdAt", "updatedAt")}
+                return {
+                    "request_id": req.request_id,
+                    "data_type": "user_profile",
+                    "data": clean,
+                    "source": "stored_context",
+                    "message": f"Full profile retrieved ({len(clean)} fields)",
+                }
 
     if req.data_type == "preference":
-        # Check if the preference is in any user context
-        for uid, profile in _user_context.items():
-            prefs = profile.get("preferences", {})
-            if prefs and req.fields:
-                matched = {k: v for k, v in prefs.items() if k in req.fields}
-                if matched:
-                    return {
-                        "request_id": req.request_id,
-                        "data_type": "preference",
-                        "data": matched,
-                        "source": "stored_context",
-                        "message": f"Preferences found ({len(matched)} fields)",
-                    }
+        # Check DB for preferences
+        prefs = None
+        if db:
+            try:
+                profile = await db.get_user_profile("default")
+                if profile:
+                    prefs = profile.get("preferences")
+                    if isinstance(prefs, str):
+                        import json as _json
+                        prefs = _json.loads(prefs)
+            except Exception:
+                pass
+
+        if not prefs:
+            # Fallback: check in-memory context
+            for uid, ctx in _user_context.items():
+                prefs = ctx.get("preferences", {})
+                if prefs:
+                    break
+
+        if prefs and req.fields:
+            matched = {k: v for k, v in prefs.items() if k in req.fields}
+            if matched:
+                return {
+                    "request_id": req.request_id,
+                    "data_type": "preference",
+                    "data": matched,
+                    "source": "stored_context",
+                    "message": f"Preferences found ({len(matched)} fields)",
+                }
 
     # ── Auto-answer confirmations as "proceed" in automated mode ──
     if req.data_type == "confirmation":

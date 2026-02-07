@@ -27,7 +27,7 @@ model Agent {
   priceUsd     Float     @default(0)
   status       String    @default("active")
   tags         String?
-  network      String?   @default("flare-coston2")
+  network      String?   @default("sepolia")
   image        String?
   ownerId      Int
   owner        User      @relation(fields: [ownerId], references: [id])
@@ -43,6 +43,12 @@ model Agent {
   onchainAddress String?  // Flare AgentRegistry contract address
   isVerified    Boolean   @default(false) // Verified by platform
   documentation String?   // Markdown documentation
+  
+  // Stats & Reputation
+  totalRequests  Int       @default(0)
+  successfulRequests Int   @default(0)
+  reputation     Float     @default(5.0)  // Rating 0-5
+  icon           String?   // Icon name (e.g., "Phone", "Calendar", "Bot")
 }
 
 model Order {
@@ -52,7 +58,7 @@ model Order {
   buyerId       Int?
   buyer         User?    @relation("BuyerOrders", fields: [buyerId], references: [id])
   txHash        String
-  amountFlr     Float
+  amountEth     Float
   network       String
   walletAddress String
   createdAt     DateTime @default(now())
@@ -66,8 +72,77 @@ model CallSummary {
   summary        String?  @db.Text
   toNumber       String?  @db.Text
   jobId          String?  @db.Text
-  storageUri       String?  @db.Text
+  neofsUri       String?  @db.Text
   payload        Json?
   createdAt      DateTime @default(now())
+}
+
+// ═══════════════════════════════════════════════════════════
+//  Agent Marketplace — Jobs, Requests & Communication
+// ═══════════════════════════════════════════════════════════
+
+model MarketplaceJob {
+  id          Int      @id @default(autoincrement())
+  jobId       String   @unique              // UUID from JobBoard
+  description String   @db.Text
+  tags        String[]                      // e.g. ["hackathon_registration"]
+  budgetUsdc  Float    @default(0)
+  status      String   @default("open")     // open, selecting, assigned, completed, expired, cancelled
+  poster      String?                       // wallet address
+  winner      String?                       // winning agent identifier
+  winnerPrice Float?
+  metadata    Json?                         // tool, parameters, etc.
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  requests    AgentDataRequest[]
+  updates     AgentJobUpdate[]
+}
+
+model UserProfile {
+  id            Int      @id @default(autoincrement())
+  userId        String   @unique @default("default")
+  fullName      String?
+  email         String?
+  phone         String?
+  location      String?
+  skills        String?
+  experienceLevel String?
+  githubUrl     String?
+  linkedinUrl   String?
+  portfolioUrl  String?
+  bio           String?  @db.Text
+  preferences   Json?                       // { date_range, interests, etc. }
+  extra         Json?                       // catch-all for additional fields
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+}
+
+model AgentDataRequest {
+  id          Int      @id @default(autoincrement())
+  requestId   String   @unique              // short UUID
+  jobId       String
+  job         MarketplaceJob? @relation(fields: [jobId], references: [jobId])
+  agent       String                        // e.g. "hackathon", "caller"
+  dataType    String                        // user_profile, preference, confirmation, clarification, custom
+  question    String   @db.Text
+  fields      String[]                      // specific fields requested
+  context     String?  @db.Text
+  status      String   @default("pending")  // pending, answered, expired
+  answerData  Json?                         // Butler's answer
+  answerMsg   String?  @db.Text
+  createdAt   DateTime @default(now())
+  answeredAt  DateTime?
+}
+
+model AgentJobUpdate {
+  id          Int      @id @default(autoincrement())
+  jobId       String
+  job         MarketplaceJob? @relation(fields: [jobId], references: [jobId])
+  agent       String
+  status      String                        // in_progress, partial_result, completed, error
+  message     String   @db.Text
+  data        Json?
+  createdAt   DateTime @default(now())
 }
 
