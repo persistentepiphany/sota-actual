@@ -57,6 +57,14 @@ For EVERY user request, you must follow this sequence:
    - Immediately after posting, call `get_bids` to show initial status.
    - Present the bids to the user and STOP.
 
+5. **AGENT COMMUNICATION** (after job is assigned):
+   - Worker agents may request additional data during job execution.
+   - Call `check_agent_requests` to see if any agent needs information.
+   - If there are requests, relay the questions to the user and STOP.
+   - When the user answers, call `answer_agent_request` to send the data back.
+   - Call `get_agent_updates` periodically to get progress updates from
+     the worker and share them with the user.
+
 ### STOPPING RULES
 - If you generate a text response to the user, you MUST STOP.
 - Do NOT loop. Do NOT call `fill_slots` repeatedly without user input.

@@ -42,6 +42,7 @@ class AgentEndpoints:
     """A2A endpoint URLs for each agent"""
     manager: str = "http://localhost:3001"
     caller: str = "http://localhost:3003"
+    hackathon: str = "http://localhost:3005"
 
 
 # ─── Flare Networks ──────────────────────────────────────────
@@ -126,6 +127,7 @@ def get_agent_endpoints() -> AgentEndpoints:
     return AgentEndpoints(
         manager=os.getenv("MANAGER_ENDPOINT", "http://localhost:3001"),
         caller=os.getenv("CALLER_ENDPOINT", "http://localhost:3003"),
+        hackathon=os.getenv("HACKATHON_ENDPOINT", "http://localhost:3005"),
     )
 
 
@@ -152,6 +154,7 @@ JOB_TYPE_LABELS = {
 AGENT_CAPABILITIES = {
     "BUTLER": ["job_planning", "agent_coordination", "user_interaction"],
     "CALLER": ["phone_call", "voice_verification", "reservation_booking"],
+    "HACKATHON": ["hackathon_search", "web_scraping", "event_filtering"],
 }
 
 
@@ -161,6 +164,7 @@ def get_private_key(agent_type: str = "butler") -> Optional[str]:
         "butler": "FLARE_PRIVATE_KEY",
         "worker": "WORKER_PRIVATE_KEY",
         "caller": "CALLER_PRIVATE_KEY",
+        "hackathon": "HACKATHON_PRIVATE_KEY",
     }
     env_var = key_map.get(agent_type.lower(), "FLARE_PRIVATE_KEY")
     return os.getenv(env_var)

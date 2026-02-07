@@ -15,7 +15,8 @@ Endpoints:
 import os
 import sys
 import time
-from typing import Optional, List, Dict
+import asyncio
+from typing import Optional, List, Dict, Any
 
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
@@ -41,6 +42,7 @@ from agents.src.shared.flare_contracts import (
     get_job,
     get_escrow_deposit,
 )
+from agents.src.shared.butler_comms import ButlerDataExchange
 
 load_dotenv()
 
@@ -314,6 +316,205 @@ async def demo_confirm_delivery(req: ReleaseRequest):
         }
     except Exception as e:
         raise HTTPException(500, f"Manual confirm failed: {e}")
+
+
+# ═════════════════════════════════════════════════════════════
+#  Agent ↔ Butler Communication
+# ═════════════════════════════════════════════════════════════
+# These endpoints let worker agents (Hackathon, Caller, etc.)
+# request additional data from the user via the Butler and
+# push status updates back.
+# ─────────────────────────────────────────────────────────────
+
+# In-memory store for user context that agents can query
+_user_context: Dict[str, Dict[str, Any]] = {}
+
+
+class AgentDataRequest(BaseModel):
+    """Incoming data request from a worker agent."""
+    request_id: str
+    job_id: str
+    data_type: str          # user_profile, preference, confirmation, clarification, custom
+    question: str
+    fields: List[str] = []
+    context: str = ""
+    agent: str = ""
+
+
+class AgentDataAnswer(BaseModel):
+    """Butler's answer to an agent data request."""
+    request_id: str
+    data: Dict[str, Any] = {}
+    message: str = ""
+
+
+class AgentUpdate(BaseModel):
+    """Status update pushed by a worker agent."""
+    job_id: str
+    status: str             # in_progress, partial_result, completed, error
+    message: str
+    data: Dict[str, Any] = {}
+    agent: str = ""
+
+
+class SetUserContextRequest(BaseModel):
+    """Set user context that agents can retrieve."""
+    user_id: str = "default"
+    profile: Dict[str, Any] = {}
+
+
+@app.post("/api/agent/set-user-context")
+async def set_user_context(req: SetUserContextRequest):
+    """
+    Set the user context/profile that worker agents can retrieve.
+
+    Call this BEFORE posting a job so the hackathon agent (or any
+    worker) can access the user's info when it asks for it.
+    """
+    _user_context[req.user_id] = req.profile
+    return {"success": True, "user_id": req.user_id, "fields": list(req.profile.keys())}
+
+
+@app.get("/api/agent/user-context/{user_id}")
+async def get_user_context(user_id: str = "default"):
+    """Get stored user context."""
+    return _user_context.get(user_id, {})
+
+
+@app.post("/api/agent/request-data")
+async def handle_agent_data_request(req: AgentDataRequest):
+    """
+    Receive a data request from a worker agent.
+
+    The Butler tries to answer immediately from stored user context.
+    If the data isn't available, it queues the request for the user
+    to answer (via the chat interface or a future poll endpoint).
+
+    This is the key endpoint that enables agent → butler communication
+    when a job is selected via the marketplace.
+    """
+    exchange = ButlerDataExchange.instance()
+
+    # ── Try to auto-answer from stored user context ──────────
+    if req.data_type == "user_profile":
+        # Look for stored profile across all user IDs
+        for uid, profile in _user_context.items():
+            if profile:
+                # If specific fields were requested, filter
+                if req.fields:
+                    filtered = {k: v for k, v in profile.items() if k in req.fields}
+                    if filtered:
+                        return {
+                            "request_id": req.request_id,
+                            "data_type": "user_profile",
+                            "data": filtered,
+                            "source": "stored_context",
+                            "message": f"Profile data retrieved ({len(filtered)} fields)",
+                        }
+                else:
+                    return {
+                        "request_id": req.request_id,
+                        "data_type": "user_profile",
+                        "data": profile,
+                        "source": "stored_context",
+                        "message": f"Full profile retrieved ({len(profile)} fields)",
+                    }
+
+    if req.data_type == "preference":
+        # Check if the preference is in any user context
+        for uid, profile in _user_context.items():
+            prefs = profile.get("preferences", {})
+            if prefs and req.fields:
+                matched = {k: v for k, v in prefs.items() if k in req.fields}
+                if matched:
+                    return {
+                        "request_id": req.request_id,
+                        "data_type": "preference",
+                        "data": matched,
+                        "source": "stored_context",
+                        "message": f"Preferences found ({len(matched)} fields)",
+                    }
+
+    # ── Auto-answer confirmations as "proceed" in automated mode ──
+    if req.data_type == "confirmation":
+        auto_confirm = os.getenv("BUTLER_AUTO_CONFIRM", "true").lower() == "true"
+        if auto_confirm:
+            return {
+                "request_id": req.request_id,
+                "data_type": "confirmation",
+                "data": {"confirmed": True},
+                "source": "auto_confirm",
+                "message": "Auto-confirmed (BUTLER_AUTO_CONFIRM=true)",
+            }
+
+    # ── Queue for human answer ───────────────────────────────
+    exchange.post_request(req.request_id, req.job_id, req.model_dump())
+
+    return {
+        "request_id": req.request_id,
+        "data_type": req.data_type,
+        "data": {},
+        "source": "queued",
+        "message": (
+            f"Request queued — awaiting user response. "
+            f"Agent '{req.agent}' asked: {req.question}"
+        ),
+    }
+
+
+@app.get("/api/agent/pending-requests")
+async def get_pending_requests(job_id: Optional[str] = None):
+    """
+    Get pending data requests from worker agents.
+
+    The frontend or Butler chat can poll this to see what agents
+    are asking for and relay questions to the user.
+    """
+    exchange = ButlerDataExchange.instance()
+    pending = exchange.peek_pending_requests(job_id)
+    return {"pending": pending, "count": len(pending)}
+
+
+@app.post("/api/agent/answer")
+async def answer_agent_request(req: AgentDataAnswer):
+    """
+    Submit an answer to a pending agent data request.
+
+    Called by the Butler (or frontend) after the user provides
+    the requested information.
+    """
+    exchange = ButlerDataExchange.instance()
+    exchange.submit_answer(req.request_id, {
+        "request_id": req.request_id,
+        "data": req.data,
+        "message": req.message or "Answer provided",
+    })
+    return {"success": True, "request_id": req.request_id}
+
+
+@app.post("/api/agent/update")
+async def receive_agent_update(update: AgentUpdate):
+    """
+    Receive a status update from a worker agent.
+
+    The Butler stores these so the user can be kept informed
+    about job progress.
+    """
+    exchange = ButlerDataExchange.instance()
+    exchange.push_update(update.job_id, update.model_dump())
+    return {"received": True, "job_id": update.job_id, "status": update.status}
+
+
+@app.get("/api/agent/updates/{job_id}")
+async def get_agent_updates(job_id: str):
+    """
+    Get status updates from worker agents for a specific job.
+
+    The frontend can poll this to show real-time progress.
+    """
+    exchange = ButlerDataExchange.instance()
+    updates = exchange.get_updates(job_id)
+    return {"job_id": job_id, "updates": updates, "count": len(updates)}
 
 
 if __name__ == "__main__":

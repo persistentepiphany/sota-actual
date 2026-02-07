@@ -6,6 +6,7 @@ Tools for the Butler to:
 - Fill slots with slot_questioning
 - Post jobs to FlareOrderBook
 - Monitor job status and deliveries
+- Handle data requests from worker agents
 """
 
 import os
@@ -19,6 +20,7 @@ from ..shared.tool_base import BaseTool, ToolManager
 # Import shared tools
 from ..shared.contracts import get_contracts, post_job, get_bids_for_job, accept_bid, get_job_status
 from ..shared.slot_questioning import SlotFiller
+from ..shared.butler_comms import ButlerDataExchange
 
 
 class RAGSearchTool(BaseTool):
@@ -534,6 +536,168 @@ class GetDeliveryTool(BaseTool):
             return json.dumps({"error": f"Failed to get delivery: {str(e)}"})
 
 
+# ═════════════════════════════════════════════════════════════
+#  Agent ↔ Butler Communication Tools
+# ═════════════════════════════════════════════════════════════
+
+class CheckAgentRequestsTool(BaseTool):
+    """
+    Check for pending data requests from worker agents.
+    """
+    name: str = "check_agent_requests"
+    description: str = """
+    Check if any worker agent (hackathon, caller, etc.) is requesting
+    additional data from the user.
+
+    Worker agents call this when they need info during job execution —
+    for example, the hackathon agent might ask for the user's email
+    or location preference.
+
+    Returns pending requests with questions to relay to the user.
+    Use this after posting a job to see if the assigned agent needs
+    anything.
+    """
+    parameters: dict = {
+        "type": "object",
+        "properties": {
+            "job_id": {
+                "type": "string",
+                "description": "Job ID to check requests for (optional — omit for all)"
+            }
+        },
+        "required": []
+    }
+
+    async def execute(self, job_id: str = None) -> str:
+        """Check pending requests from agents."""
+        exchange = ButlerDataExchange.instance()
+        pending = exchange.peek_pending_requests(job_id)
+
+        if not pending:
+            return json.dumps({
+                "pending_requests": [],
+                "count": 0,
+                "instruction": "No pending requests from worker agents. The job is proceeding normally.",
+            })
+
+        formatted = []
+        for req in pending:
+            formatted.append({
+                "request_id": req.get("request_id"),
+                "agent": req.get("agent", "unknown"),
+                "data_type": req.get("data_type"),
+                "question": req.get("question"),
+                "fields": req.get("fields", []),
+            })
+
+        return json.dumps({
+            "pending_requests": formatted,
+            "count": len(formatted),
+            "instruction": (
+                "Worker agent(s) need data from the user. "
+                "Present the questions to the user and use `answer_agent_request` "
+                "to relay their answers back. STOP and wait for user input."
+            ),
+        }, indent=2)
+
+
+class AnswerAgentRequestTool(BaseTool):
+    """
+    Answer a data request from a worker agent.
+    """
+    name: str = "answer_agent_request"
+    description: str = """
+    Send an answer back to a worker agent that requested data.
+
+    After the user provides the requested information (profile data,
+    preferences, confirmation, etc.), use this tool to relay the answer
+    back to the waiting agent.
+
+    Parameters:
+      request_id: the ID from check_agent_requests
+      data: key-value pairs of the answer data
+      message: optional message
+    """
+    parameters: dict = {
+        "type": "object",
+        "properties": {
+            "request_id": {
+                "type": "string",
+                "description": "The request ID to answer"
+            },
+            "data": {
+                "type": "object",
+                "description": "Answer data as key-value pairs"
+            },
+            "message": {
+                "type": "string",
+                "description": "Optional message"
+            },
+        },
+        "required": ["request_id", "data"]
+    }
+
+    async def execute(self, request_id: str, data: dict, message: str = "") -> str:
+        """Submit answer to agent request."""
+        exchange = ButlerDataExchange.instance()
+        exchange.submit_answer(request_id, {
+            "request_id": request_id,
+            "data": data,
+            "message": message or "Answer provided by user via Butler",
+        })
+
+        # Also consume it from pending
+        exchange.get_pending_requests()
+
+        return json.dumps({
+            "success": True,
+            "request_id": request_id,
+            "instruction": "Answer delivered to the worker agent. It will continue processing.",
+        })
+
+
+class GetAgentUpdatesTool(BaseTool):
+    """
+    Get status updates from worker agents.
+    """
+    name: str = "get_agent_updates"
+    description: str = """
+    Check for progress updates from worker agents executing jobs.
+
+    Worker agents push updates like "Found 5 hackathons" or
+    "Registration form filled — awaiting confirmation".
+
+    Use this to keep the user informed about job progress.
+    """
+    parameters: dict = {
+        "type": "object",
+        "properties": {
+            "job_id": {
+                "type": "string",
+                "description": "Job ID to get updates for"
+            }
+        },
+        "required": ["job_id"]
+    }
+
+    async def execute(self, job_id: str) -> str:
+        """Get updates from agents."""
+        exchange = ButlerDataExchange.instance()
+        updates = exchange.get_updates(job_id)
+
+        if not updates:
+            return json.dumps({
+                "updates": [],
+                "count": 0,
+                "instruction": "No new updates from the worker agent.",
+            })
+
+        return json.dumps({
+            "updates": updates,
+            "count": len(updates),
+            "instruction": "Present these updates to the user. If there are questions, relay them.",
+        }, indent=2)
+
 def create_butler_tools() -> ToolManager:
     """Create and register all Butler tools"""
     tools = [
@@ -547,6 +711,11 @@ def create_butler_tools() -> ToolManager:
         AcceptBidTool(),
         CheckJobStatusTool(),
         GetDeliveryTool(),
+
+        # Agent ↔ Butler communication
+        CheckAgentRequestsTool(),
+        AnswerAgentRequestTool(),
+        GetAgentUpdatesTool(),
     ]
     
     return ToolManager(tools=tools)
