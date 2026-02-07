@@ -55,7 +55,7 @@ interface Agent {
   icon: string;
 }
 
-interface DashboardData {
+interface MarketplaceData {
   tasks: Task[];
   grouped: {
     executing: Task[];
@@ -73,8 +73,8 @@ interface DashboardData {
   agents: Agent[];
 }
 
-export default function TasksDashboard() {
-  const [data, setData] = useState<DashboardData | null>(null);
+export default function Marketplace() {
+  const [data, setData] = useState<MarketplaceData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
@@ -316,7 +316,7 @@ export default function TasksDashboard() {
           aria-hidden="true"
         >
           <defs>
-            <pattern id="gridDashboard" width="60" height="60" patternUnits="userSpaceOnUse">
+            <pattern id="gridMarketplace" width="60" height="60" patternUnits="userSpaceOnUse">
               <path
                 d="M 60 0 L 0 0 0 60"
                 fill="none"
@@ -325,7 +325,7 @@ export default function TasksDashboard() {
               />
             </pattern>
           </defs>
-          <rect width="100%" height="100%" fill="url(#gridDashboard)" />
+          <rect width="100%" height="100%" fill="url(#gridMarketplace)" />
           <line x1="0" y1="15%" x2="100%" y2="15%" className="grid-line" style={{ animationDelay: "0.5s" }} />
           <line x1="0" y1="85%" x2="100%" y2="85%" className="grid-line" style={{ animationDelay: "1s" }} />
           <circle cx="10%" cy="15%" r="2" className="detail-dot" style={{ animationDelay: "1.5s" }} />
@@ -343,8 +343,8 @@ export default function TasksDashboard() {
                 <Zap size={20} className="text-violet-400" />
               </div>
               <div>
-                <h1 className="text-lg font-semibold text-white">Task Dashboard</h1>
-                <p className="text-xs text-slate-500">Agent orchestration center</p>
+                <h1 className="text-lg font-semibold text-white">Marketplace</h1>
+                <p className="text-xs text-slate-500">AI agent task orchestration</p>
               </div>
             </div>
 

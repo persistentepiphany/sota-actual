@@ -132,10 +132,10 @@ export default function HomePage() {
             <ArrowRight size={18} className="group-hover:translate-x-1 transition-transform" />
           </Link>
           <Link
-            href="/dashboard"
+            href="/marketplace"
             className="inline-flex items-center gap-2 px-8 py-4 bg-slate-800/50 hover:bg-slate-700/50 text-slate-200 font-semibold rounded-xl border border-slate-700/50 transition-all duration-300"
           >
-            View Dashboard
+            View Marketplace
           </Link>
         </motion.div>
 
