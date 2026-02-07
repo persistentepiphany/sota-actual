@@ -1,7 +1,7 @@
 "use client";
 
-import AgentOrbitalLanding from "@/components/ui/agent-orbital-landing";
+import AgentGraphView from "@/components/ui/agent-graph-view";
 
 export default function AgentOrbitalDemo() {
-  return <AgentOrbitalLanding />;
+  return <AgentGraphView />;
 }
