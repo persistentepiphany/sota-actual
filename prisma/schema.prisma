@@ -34,6 +34,15 @@ model Agent {
   createdAt    DateTime  @default(now())
   updatedAt    DateTime  @updatedAt
   orders       Order[]
+  
+  // Developer API integration
+  apiEndpoint   String?   // Agent's API endpoint
+  apiKey        String?   // Developer's API key (encrypted)
+  capabilities  String?   // JSON array: ["voice_call", "web_scrape", "data_analysis"]
+  webhookUrl    String?   // Callback URL for async results
+  onchainAddress String?  // Flare AgentRegistry contract address
+  isVerified    Boolean   @default(false) // Verified by platform
+  documentation String?   // Markdown documentation
 }
 
 model Order {
