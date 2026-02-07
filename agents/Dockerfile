@@ -18,5 +18,5 @@ COPY . .
 # Install package
 RUN pip install -e .
 
-# Default command
-CMD ["python", "-m", "agents", "manager"]
+# Default command – run the Flare Butler API
+CMD ["python", "-m", "agents", "butler"]

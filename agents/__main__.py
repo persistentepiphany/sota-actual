@@ -1,7 +1,6 @@
-"""
-Archive Protocol Agents - Main Entry Point
+"""SOTA Agents - Main Entry Point
 
-Run individual agents or the full agent system.
+Run individual agents or the full agent system on Flare.
 """
 
 import os
@@ -17,17 +16,22 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 
+async def run_butler_api():
+    """Run the Flare Butler API (LangGraph-based)"""
+    import uvicorn
+    logger.info("🚀 Starting SOTA Butler API on port 3001...")
+    uvicorn.run(
+        "agents.flare_butler_api:app",
+        host="0.0.0.0",
+        port=int(os.environ.get("BUTLER_API_PORT", 3001)),
+        reload=False,
+    )
+
+
 async def run_manager():
     """Run the Manager Agent server"""
     from agents.src.manager.server import run_server
-    logger.info("🚀 Starting Manager Agent on port 3001...")
-    run_server()
-
-
-async def run_scraper():
-    """Run the Scraper Agent server"""
-    from agents.src.scraper.server import run_server
-    logger.info("🚀 Starting Scraper Agent on port 3002...")
+    logger.info("🚀 Starting Manager Agent on port 3002...")
     run_server()
 
 
@@ -40,61 +44,56 @@ async def run_caller():
 
 def main():
     parser = argparse.ArgumentParser(
-        description="Archive Protocol Agent Runner",
+        description="SOTA Agent Runner (Flare)",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
-  python -m agents manager   # Run Manager Agent
-  python -m agents scraper   # Run Scraper Agent  
-  python -m agents caller    # Run Caller Agent
-  python -m agents all       # Run all agents (requires multiple processes)
+  python -m agents butler     # Run Butler API (default)
+  python -m agents manager    # Run Manager Agent
+  python -m agents caller     # Run Caller Agent
+  python -m agents all        # Print multi-process instructions
         """
     )
-    
+
     parser.add_argument(
         "agent",
-        choices=["manager", "scraper", "caller", "all"],
+        choices=["butler", "manager", "caller", "all"],
         help="Which agent to run"
     )
-    
+
     parser.add_argument(
         "--port",
         type=int,
         help="Override default port for the agent"
     )
-    
+
     args = parser.parse_args()
-    
+
     # Set port override
     if args.port:
-        if args.agent == "manager":
+        if args.agent == "butler":
+            os.environ["BUTLER_API_PORT"] = str(args.port)
+        elif args.agent == "manager":
             os.environ["MANAGER_PORT"] = str(args.port)
-        elif args.agent == "scraper":
-            os.environ["SCRAPER_PORT"] = str(args.port)
         elif args.agent == "caller":
             os.environ["CALLER_PORT"] = str(args.port)
-    
+
     # Run selected agent
-    if args.agent == "manager":
+    if args.agent == "butler":
+        asyncio.run(run_butler_api())
+    elif args.agent == "manager":
         asyncio.run(run_manager())
-    elif args.agent == "scraper":
-        asyncio.run(run_scraper())
     elif args.agent == "caller":
         asyncio.run(run_caller())
     elif args.agent == "all":
         print("""
 To run all agents, use separate terminal windows:
 
-Terminal 1:
-  python -m agents manager
+Terminal 1:  python -m agents butler   # Butler API (port 3001)
+Terminal 2:  python -m agents manager   # Manager (port 3002)
+Terminal 3:  python -m agents caller    # Caller  (port 3003)
 
-Terminal 2:
-  python -m agents scraper
-
-Terminal 3:
-  python -m agents caller
-
-Or use a process manager like supervisord or Docker Compose.
+Or use Docker Compose:  docker compose up
         """)
         sys.exit(0)
 

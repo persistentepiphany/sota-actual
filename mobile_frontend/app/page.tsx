@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from 'react';
+import { useAccount } from 'wagmi';
 import { VoiceAgent } from '../src/components/VoiceAgent';
 import { Sidebar } from '../src/components/Sidebar';
 import { WelcomeHeading } from '../src/components/WelcomeHeading';
@@ -9,10 +10,12 @@ import './globals.css';
 
 export default function HomePage() {
   const agentId = process.env.NEXT_PUBLIC_ELEVENLABS_AGENT_ID;
-  const spoonosButlerUrl = process.env.NEXT_PUBLIC_SPOONOS_BUTLER_URL || 'http://localhost:3001/api/spoonos';
+  const flareButlerUrl = process.env.NEXT_PUBLIC_FLARE_BUTLER_URL || 'http://localhost:3001/api/flare';
 
+  const { address } = useAccount();
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
-  const [conversations] = useState([]);
+  const [conversations, setConversations] = useState<{ id: string; title: string | null }[]>([]);
+  const [activeSessionId, setActiveSessionId] = useState<string | undefined>(undefined);
   const [orbVisible, setOrbVisible] = useState(false);
   const [ctaVisible, setCtaVisible] = useState(false);
   const [chatReady, setChatReady] = useState(false);
@@ -34,9 +37,37 @@ export default function HomePage() {
     };
   }, []);
 
-  const handleSpoonosMessage = (message: any) => {
-    console.log('📨 Received from Spoonos Butler:', message);
-    // You can update UI state here based on butler responses
+  const handleFlareMessage = (message: any) => {
+    console.log('📨 Received from Flare Butler:', message);
+  };
+
+  // Load conversation list when sidebar opens
+  useEffect(() => {
+    if (isSidebarOpen) {
+      fetch('/api/chat')
+        .then((r) => r.json())
+        .then((sessions: any[]) => {
+          if (Array.isArray(sessions)) {
+            setConversations(sessions.map((s: any) => ({ id: s.id, title: s.title })));
+          }
+        })
+        .catch(() => {});
+    }
+  }, [isSidebarOpen]);
+
+  const handleNewChat = () => {
+    const id = `sess_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
+    localStorage.setItem('sota-session-id', id);
+    setActiveSessionId(id);
+    setIsSidebarOpen(false);
+    window.location.reload(); // fresh session
+  };
+
+  const handleSelectConversation = (id: string) => {
+    localStorage.setItem('sota-session-id', id);
+    setActiveSessionId(id);
+    setIsSidebarOpen(false);
+    window.location.reload(); // load that session
   };
 
   return (
@@ -68,12 +99,15 @@ export default function HomePage() {
         <div className="flex-1 min-h-0">
           <VoiceAgent 
             agentId={agentId}
-            spoonosButlerUrl={spoonosButlerUrl}
-            onSpoonosMessage={handleSpoonosMessage}
+            flareButlerUrl={flareButlerUrl}
+            onFlareMessage={handleFlareMessage}
             sidebarOpen={isSidebarOpen}
             orbVisible={orbVisible}
             ctaVisible={ctaVisible}
             chatReady={chatReady}
+            walletAddress={address}
+            sessionId={activeSessionId}
+            onSessionCreated={(id) => setActiveSessionId(id)}
           />
         </div>
         </div>
@@ -81,8 +115,9 @@ export default function HomePage() {
       <Sidebar
         open={isSidebarOpen}
         conversations={conversations}
-        onSelect={() => setIsSidebarOpen(false)}
+        onSelect={handleSelectConversation}
         onClose={() => setIsSidebarOpen(false)}
+        onNewChat={handleNewChat}
       />
     </main>
   );

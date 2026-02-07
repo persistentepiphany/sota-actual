@@ -36,13 +36,7 @@ const config: HardhatUserConfig = {
       accounts: flareAccounts,
     },
 
-    // ─── Legacy Networks (kept for reference) ─────────────
-    neoxTestnet: {
-      url: process.env.NEOX_RPC_URL || "https://testnet.rpc.banelabs.org",
-      chainId: 12227332,
-      accounts: process.env.NEOX_PRIVATE_KEY ? [process.env.NEOX_PRIVATE_KEY] : [],
-      gasPrice: 40_000_000_000,
-    },
+
   },
 };
 

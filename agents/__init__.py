@@ -1,11 +1,11 @@
 """
-Archive Protocol Agents
+SOTA Agents
 
-SpoonOS-based agents for decentralized task execution.
+Flare-based agents for decentralized task execution.
 """
 
-__version__ = "0.1.0"
-__author__ = "Archive Protocol"
+__version__ = "0.2.0"
+__author__ = "SOTA Protocol"
 
 # Lazy-load agent types to avoid import-time failures when optional deps are missing.
 def __getattr__(name):

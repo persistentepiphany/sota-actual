@@ -24,6 +24,40 @@ import type {
 } from "../common";
 
 export declare namespace FlareOrderBook {
+  export type BidStruct = {
+    id: BigNumberish;
+    jobId: BigNumberish;
+    agent: AddressLike;
+    priceUsd: BigNumberish;
+    priceFlr: BigNumberish;
+    estimatedTime: BigNumberish;
+    proposal: string;
+    createdAt: BigNumberish;
+    accepted: boolean;
+  };
+
+  export type BidStructOutput = [
+    id: bigint,
+    jobId: bigint,
+    agent: string,
+    priceUsd: bigint,
+    priceFlr: bigint,
+    estimatedTime: bigint,
+    proposal: string,
+    createdAt: bigint,
+    accepted: boolean
+  ] & {
+    id: bigint;
+    jobId: bigint;
+    agent: string;
+    priceUsd: bigint;
+    priceFlr: bigint;
+    estimatedTime: bigint;
+    proposal: string;
+    createdAt: bigint;
+    accepted: boolean;
+  };
+
   export type JobStruct = {
     id: BigNumberish;
     poster: AddressLike;
@@ -35,6 +69,7 @@ export declare namespace FlareOrderBook {
     status: BigNumberish;
     deliveryProof: BytesLike;
     createdAt: BigNumberish;
+    acceptedBidId: BigNumberish;
   };
 
   export type JobStructOutput = [
@@ -47,7 +82,8 @@ export declare namespace FlareOrderBook {
     deadline: bigint,
     status: bigint,
     deliveryProof: string,
-    createdAt: bigint
+    createdAt: bigint,
+    acceptedBidId: bigint
   ] & {
     id: bigint;
     poster: string;
@@ -59,25 +95,34 @@ export declare namespace FlareOrderBook {
     status: bigint;
     deliveryProof: string;
     createdAt: bigint;
+    acceptedBidId: bigint;
   };
 }
 
 export interface FlareOrderBookInterface extends Interface {
   getFunction(
     nameOrSignature:
+      | "acceptBid"
       | "assignProvider"
+      | "bids"
       | "cancelJob"
       | "createJob"
       | "escrow"
       | "ftso"
+      | "getBid"
       | "getJob"
+      | "getJobBidCount"
+      | "getJobBidIds"
       | "getJobIds"
+      | "jobBids"
       | "jobIds"
       | "jobs"
       | "markCompleted"
       | "markReleased"
       | "owner"
+      | "placeBid"
       | "quoteUsdToFlr"
+      | "raiseDispute"
       | "renounceOwnership"
       | "setEscrow"
       | "setFTSO"
@@ -87,18 +132,26 @@ export interface FlareOrderBookInterface extends Interface {
 
   getEvent(
     nameOrSignatureOrTopic:
+      | "BidAccepted"
+      | "BidPlaced"
       | "JobCancelled"
       | "JobCompleted"
       | "JobCreated"
+      | "JobDisputed"
       | "JobReleased"
       | "OwnershipTransferred"
       | "ProviderAssigned"
   ): EventFragment;
 
   encodeFunctionData(
+    functionFragment: "acceptBid",
+    values: [BigNumberish, BigNumberish]
+  ): string;
+  encodeFunctionData(
     functionFragment: "assignProvider",
     values: [BigNumberish, AddressLike]
   ): string;
+  encodeFunctionData(functionFragment: "bids", values: [BigNumberish]): string;
   encodeFunctionData(
     functionFragment: "cancelJob",
     values: [BigNumberish]
@@ -110,11 +163,27 @@ export interface FlareOrderBookInterface extends Interface {
   encodeFunctionData(functionFragment: "escrow", values?: undefined): string;
   encodeFunctionData(functionFragment: "ftso", values?: undefined): string;
   encodeFunctionData(
+    functionFragment: "getBid",
+    values: [BigNumberish]
+  ): string;
+  encodeFunctionData(
     functionFragment: "getJob",
     values: [BigNumberish]
   ): string;
   encodeFunctionData(
+    functionFragment: "getJobBidCount",
+    values: [BigNumberish]
+  ): string;
+  encodeFunctionData(
+    functionFragment: "getJobBidIds",
+    values: [BigNumberish]
+  ): string;
+  encodeFunctionData(
     functionFragment: "getJobIds",
+    values: [BigNumberish, BigNumberish]
+  ): string;
+  encodeFunctionData(
+    functionFragment: "jobBids",
     values: [BigNumberish, BigNumberish]
   ): string;
   encodeFunctionData(
@@ -132,7 +201,15 @@ export interface FlareOrderBookInterface extends Interface {
   ): string;
   encodeFunctionData(functionFragment: "owner", values?: undefined): string;
   encodeFunctionData(
+    functionFragment: "placeBid",
+    values: [BigNumberish, BigNumberish, BigNumberish, string]
+  ): string;
+  encodeFunctionData(
     functionFragment: "quoteUsdToFlr",
+    values: [BigNumberish]
+  ): string;
+  encodeFunctionData(
+    functionFragment: "raiseDispute",
     values: [BigNumberish]
   ): string;
   encodeFunctionData(
@@ -153,16 +230,28 @@ export interface FlareOrderBookInterface extends Interface {
     values: [AddressLike]
   ): string;
 
+  decodeFunctionResult(functionFragment: "acceptBid", data: BytesLike): Result;
   decodeFunctionResult(
     functionFragment: "assignProvider",
     data: BytesLike
   ): Result;
+  decodeFunctionResult(functionFragment: "bids", data: BytesLike): Result;
   decodeFunctionResult(functionFragment: "cancelJob", data: BytesLike): Result;
   decodeFunctionResult(functionFragment: "createJob", data: BytesLike): Result;
   decodeFunctionResult(functionFragment: "escrow", data: BytesLike): Result;
   decodeFunctionResult(functionFragment: "ftso", data: BytesLike): Result;
+  decodeFunctionResult(functionFragment: "getBid", data: BytesLike): Result;
   decodeFunctionResult(functionFragment: "getJob", data: BytesLike): Result;
+  decodeFunctionResult(
+    functionFragment: "getJobBidCount",
+    data: BytesLike
+  ): Result;
+  decodeFunctionResult(
+    functionFragment: "getJobBidIds",
+    data: BytesLike
+  ): Result;
   decodeFunctionResult(functionFragment: "getJobIds", data: BytesLike): Result;
+  decodeFunctionResult(functionFragment: "jobBids", data: BytesLike): Result;
   decodeFunctionResult(functionFragment: "jobIds", data: BytesLike): Result;
   decodeFunctionResult(functionFragment: "jobs", data: BytesLike): Result;
   decodeFunctionResult(
@@ -174,8 +263,13 @@ export interface FlareOrderBookInterface extends Interface {
     data: BytesLike
   ): Result;
   decodeFunctionResult(functionFragment: "owner", data: BytesLike): Result;
+  decodeFunctionResult(functionFragment: "placeBid", data: BytesLike): Result;
   decodeFunctionResult(
     functionFragment: "quoteUsdToFlr",
+    data: BytesLike
+  ): Result;
+  decodeFunctionResult(
+    functionFragment: "raiseDispute",
     data: BytesLike
   ): Result;
   decodeFunctionResult(
@@ -189,6 +283,52 @@ export interface FlareOrderBookInterface extends Interface {
     functionFragment: "transferOwnership",
     data: BytesLike
   ): Result;
+}
+
+export namespace BidAcceptedEvent {
+  export type InputTuple = [
+    jobId: BigNumberish,
+    bidId: BigNumberish,
+    provider: AddressLike
+  ];
+  export type OutputTuple = [jobId: bigint, bidId: bigint, provider: string];
+  export interface OutputObject {
+    jobId: bigint;
+    bidId: bigint;
+    provider: string;
+  }
+  export type Event = TypedContractEvent<InputTuple, OutputTuple, OutputObject>;
+  export type Filter = TypedDeferredTopicFilter<Event>;
+  export type Log = TypedEventLog<Event>;
+  export type LogDescription = TypedLogDescription<Event>;
+}
+
+export namespace BidPlacedEvent {
+  export type InputTuple = [
+    jobId: BigNumberish,
+    bidId: BigNumberish,
+    agent: AddressLike,
+    priceUsd: BigNumberish,
+    priceFlr: BigNumberish
+  ];
+  export type OutputTuple = [
+    jobId: bigint,
+    bidId: bigint,
+    agent: string,
+    priceUsd: bigint,
+    priceFlr: bigint
+  ];
+  export interface OutputObject {
+    jobId: bigint;
+    bidId: bigint;
+    agent: string;
+    priceUsd: bigint;
+    priceFlr: bigint;
+  }
+  export type Event = TypedContractEvent<InputTuple, OutputTuple, OutputObject>;
+  export type Filter = TypedDeferredTopicFilter<Event>;
+  export type Log = TypedEventLog<Event>;
+  export type LogDescription = TypedLogDescription<Event>;
 }
 
 export namespace JobCancelledEvent {
@@ -234,6 +374,19 @@ export namespace JobCreatedEvent {
     poster: string;
     maxPriceUsd: bigint;
     maxPriceFlr: bigint;
+  }
+  export type Event = TypedContractEvent<InputTuple, OutputTuple, OutputObject>;
+  export type Filter = TypedDeferredTopicFilter<Event>;
+  export type Log = TypedEventLog<Event>;
+  export type LogDescription = TypedLogDescription<Event>;
+}
+
+export namespace JobDisputedEvent {
+  export type InputTuple = [jobId: BigNumberish, disputedBy: AddressLike];
+  export type OutputTuple = [jobId: bigint, disputedBy: string];
+  export interface OutputObject {
+    jobId: bigint;
+    disputedBy: string;
   }
   export type Event = TypedContractEvent<InputTuple, OutputTuple, OutputObject>;
   export type Filter = TypedDeferredTopicFilter<Event>;
@@ -322,10 +475,44 @@ export interface FlareOrderBook extends BaseContract {
     event?: TCEvent
   ): Promise<this>;
 
+  acceptBid: TypedContractMethod<
+    [jobId: BigNumberish, bidId: BigNumberish],
+    [void],
+    "nonpayable"
+  >;
+
   assignProvider: TypedContractMethod<
     [jobId: BigNumberish, provider: AddressLike],
     [void],
     "nonpayable"
+  >;
+
+  bids: TypedContractMethod<
+    [arg0: BigNumberish],
+    [
+      [
+        bigint,
+        bigint,
+        string,
+        bigint,
+        bigint,
+        bigint,
+        string,
+        bigint,
+        boolean
+      ] & {
+        id: bigint;
+        jobId: bigint;
+        agent: string;
+        priceUsd: bigint;
+        priceFlr: bigint;
+        estimatedTime: bigint;
+        proposal: string;
+        createdAt: bigint;
+        accepted: boolean;
+      }
+    ],
+    "view"
   >;
 
   cancelJob: TypedContractMethod<[jobId: BigNumberish], [void], "nonpayable">;
@@ -340,15 +527,31 @@ export interface FlareOrderBook extends BaseContract {
 
   ftso: TypedContractMethod<[], [string], "view">;
 
+  getBid: TypedContractMethod<
+    [bidId: BigNumberish],
+    [FlareOrderBook.BidStructOutput],
+    "view"
+  >;
+
   getJob: TypedContractMethod<
     [jobId: BigNumberish],
     [FlareOrderBook.JobStructOutput],
     "view"
   >;
 
+  getJobBidCount: TypedContractMethod<[jobId: BigNumberish], [bigint], "view">;
+
+  getJobBidIds: TypedContractMethod<[jobId: BigNumberish], [bigint[]], "view">;
+
   getJobIds: TypedContractMethod<
     [offset: BigNumberish, limit: BigNumberish],
     [bigint[]],
+    "view"
+  >;
+
+  jobBids: TypedContractMethod<
+    [arg0: BigNumberish, arg1: BigNumberish],
+    [bigint],
     "view"
   >;
 
@@ -367,6 +570,7 @@ export interface FlareOrderBook extends BaseContract {
         bigint,
         bigint,
         string,
+        bigint,
         bigint
       ] & {
         id: bigint;
@@ -379,6 +583,7 @@ export interface FlareOrderBook extends BaseContract {
         status: bigint;
         deliveryProof: string;
         createdAt: bigint;
+        acceptedBidId: bigint;
       }
     ],
     "view"
@@ -398,10 +603,27 @@ export interface FlareOrderBook extends BaseContract {
 
   owner: TypedContractMethod<[], [string], "view">;
 
+  placeBid: TypedContractMethod<
+    [
+      jobId: BigNumberish,
+      priceUsd: BigNumberish,
+      estimatedTime: BigNumberish,
+      proposal: string
+    ],
+    [bigint],
+    "nonpayable"
+  >;
+
   quoteUsdToFlr: TypedContractMethod<
     [usdAmount: BigNumberish],
     [bigint],
     "view"
+  >;
+
+  raiseDispute: TypedContractMethod<
+    [jobId: BigNumberish],
+    [void],
+    "nonpayable"
   >;
 
   renounceOwnership: TypedContractMethod<[], [void], "nonpayable">;
@@ -427,11 +649,47 @@ export interface FlareOrderBook extends BaseContract {
   ): T;
 
   getFunction(
+    nameOrSignature: "acceptBid"
+  ): TypedContractMethod<
+    [jobId: BigNumberish, bidId: BigNumberish],
+    [void],
+    "nonpayable"
+  >;
+  getFunction(
     nameOrSignature: "assignProvider"
   ): TypedContractMethod<
     [jobId: BigNumberish, provider: AddressLike],
     [void],
     "nonpayable"
+  >;
+  getFunction(
+    nameOrSignature: "bids"
+  ): TypedContractMethod<
+    [arg0: BigNumberish],
+    [
+      [
+        bigint,
+        bigint,
+        string,
+        bigint,
+        bigint,
+        bigint,
+        string,
+        bigint,
+        boolean
+      ] & {
+        id: bigint;
+        jobId: bigint;
+        agent: string;
+        priceUsd: bigint;
+        priceFlr: bigint;
+        estimatedTime: bigint;
+        proposal: string;
+        createdAt: bigint;
+        accepted: boolean;
+      }
+    ],
+    "view"
   >;
   getFunction(
     nameOrSignature: "cancelJob"
@@ -450,6 +708,13 @@ export interface FlareOrderBook extends BaseContract {
     nameOrSignature: "ftso"
   ): TypedContractMethod<[], [string], "view">;
   getFunction(
+    nameOrSignature: "getBid"
+  ): TypedContractMethod<
+    [bidId: BigNumberish],
+    [FlareOrderBook.BidStructOutput],
+    "view"
+  >;
+  getFunction(
     nameOrSignature: "getJob"
   ): TypedContractMethod<
     [jobId: BigNumberish],
@@ -457,10 +722,23 @@ export interface FlareOrderBook extends BaseContract {
     "view"
   >;
   getFunction(
+    nameOrSignature: "getJobBidCount"
+  ): TypedContractMethod<[jobId: BigNumberish], [bigint], "view">;
+  getFunction(
+    nameOrSignature: "getJobBidIds"
+  ): TypedContractMethod<[jobId: BigNumberish], [bigint[]], "view">;
+  getFunction(
     nameOrSignature: "getJobIds"
   ): TypedContractMethod<
     [offset: BigNumberish, limit: BigNumberish],
     [bigint[]],
+    "view"
+  >;
+  getFunction(
+    nameOrSignature: "jobBids"
+  ): TypedContractMethod<
+    [arg0: BigNumberish, arg1: BigNumberish],
+    [bigint],
     "view"
   >;
   getFunction(
@@ -481,6 +759,7 @@ export interface FlareOrderBook extends BaseContract {
         bigint,
         bigint,
         string,
+        bigint,
         bigint
       ] & {
         id: bigint;
@@ -493,6 +772,7 @@ export interface FlareOrderBook extends BaseContract {
         status: bigint;
         deliveryProof: string;
         createdAt: bigint;
+        acceptedBidId: bigint;
       }
     ],
     "view"
@@ -511,8 +791,23 @@ export interface FlareOrderBook extends BaseContract {
     nameOrSignature: "owner"
   ): TypedContractMethod<[], [string], "view">;
   getFunction(
+    nameOrSignature: "placeBid"
+  ): TypedContractMethod<
+    [
+      jobId: BigNumberish,
+      priceUsd: BigNumberish,
+      estimatedTime: BigNumberish,
+      proposal: string
+    ],
+    [bigint],
+    "nonpayable"
+  >;
+  getFunction(
     nameOrSignature: "quoteUsdToFlr"
   ): TypedContractMethod<[usdAmount: BigNumberish], [bigint], "view">;
+  getFunction(
+    nameOrSignature: "raiseDispute"
+  ): TypedContractMethod<[jobId: BigNumberish], [void], "nonpayable">;
   getFunction(
     nameOrSignature: "renounceOwnership"
   ): TypedContractMethod<[], [void], "nonpayable">;
@@ -529,6 +824,20 @@ export interface FlareOrderBook extends BaseContract {
     nameOrSignature: "transferOwnership"
   ): TypedContractMethod<[newOwner: AddressLike], [void], "nonpayable">;
 
+  getEvent(
+    key: "BidAccepted"
+  ): TypedContractEvent<
+    BidAcceptedEvent.InputTuple,
+    BidAcceptedEvent.OutputTuple,
+    BidAcceptedEvent.OutputObject
+  >;
+  getEvent(
+    key: "BidPlaced"
+  ): TypedContractEvent<
+    BidPlacedEvent.InputTuple,
+    BidPlacedEvent.OutputTuple,
+    BidPlacedEvent.OutputObject
+  >;
   getEvent(
     key: "JobCancelled"
   ): TypedContractEvent<
@@ -549,6 +858,13 @@ export interface FlareOrderBook extends BaseContract {
     JobCreatedEvent.InputTuple,
     JobCreatedEvent.OutputTuple,
     JobCreatedEvent.OutputObject
+  >;
+  getEvent(
+    key: "JobDisputed"
+  ): TypedContractEvent<
+    JobDisputedEvent.InputTuple,
+    JobDisputedEvent.OutputTuple,
+    JobDisputedEvent.OutputObject
   >;
   getEvent(
     key: "JobReleased"
@@ -573,6 +889,28 @@ export interface FlareOrderBook extends BaseContract {
   >;
 
   filters: {
+    "BidAccepted(uint256,uint256,address)": TypedContractEvent<
+      BidAcceptedEvent.InputTuple,
+      BidAcceptedEvent.OutputTuple,
+      BidAcceptedEvent.OutputObject
+    >;
+    BidAccepted: TypedContractEvent<
+      BidAcceptedEvent.InputTuple,
+      BidAcceptedEvent.OutputTuple,
+      BidAcceptedEvent.OutputObject
+    >;
+
+    "BidPlaced(uint256,uint256,address,uint256,uint256)": TypedContractEvent<
+      BidPlacedEvent.InputTuple,
+      BidPlacedEvent.OutputTuple,
+      BidPlacedEvent.OutputObject
+    >;
+    BidPlaced: TypedContractEvent<
+      BidPlacedEvent.InputTuple,
+      BidPlacedEvent.OutputTuple,
+      BidPlacedEvent.OutputObject
+    >;
+
     "JobCancelled(uint256)": TypedContractEvent<
       JobCancelledEvent.InputTuple,
       JobCancelledEvent.OutputTuple,
@@ -604,6 +942,17 @@ export interface FlareOrderBook extends BaseContract {
       JobCreatedEvent.InputTuple,
       JobCreatedEvent.OutputTuple,
       JobCreatedEvent.OutputObject
+    >;
+
+    "JobDisputed(uint256,address)": TypedContractEvent<
+      JobDisputedEvent.InputTuple,
+      JobDisputedEvent.OutputTuple,
+      JobDisputedEvent.OutputObject
+    >;
+    JobDisputed: TypedContractEvent<
+      JobDisputedEvent.InputTuple,
+      JobDisputedEvent.OutputTuple,
+      JobDisputedEvent.OutputObject
     >;
 
     "JobReleased(uint256)": TypedContractEvent<

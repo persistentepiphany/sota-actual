@@ -4,10 +4,11 @@ import React, { useState } from 'react';
 import { useAccount, useSwitchChain, useWaitForTransactionReceipt, useWriteContract } from 'wagmi';
 import { parseUnits } from 'viem';
 
-const BUTLER_ADDRESS = '0x741ae17d47d479e878adfb3c78b02db583c63d58';
-const NEOX_TESTNET_ID = 12227332;
-const USDC_ADDRESS = '0x9f1Af8576f52507354eaF2Dc438a5333Baf2D09D';
-const USDC_DECIMALS = 6;
+const BUTLER_ADDRESS = process.env.NEXT_PUBLIC_BUTLER_ADDRESS || '0x741ae17d47d479e878adfb3c78b02db583c63d58';
+const FLARE_COSTON2_ID = 114;
+const STABLECOIN_ADDRESS = (process.env.NEXT_PUBLIC_STABLECOIN_ADDRESS ||
+  '0x0000000000000000000000000000000000000000') as `0x${string}`;
+const STABLECOIN_DECIMALS = 6;
 
 const erc20Abi = [
   {
@@ -41,27 +42,27 @@ export const SendToButler: React.FC = () => {
 
     let value: bigint;
     try {
-      value = parseUnits(amount.trim() || '0', USDC_DECIMALS);
+      value = parseUnits(amount.trim() || '0', STABLECOIN_DECIMALS);
       if (value <= BigInt(0)) {
         setLocalError('Enter an amount greater than 0.');
         return;
       }
     } catch (err) {
-      setLocalError('Enter a valid amount of USDC.');
+      setLocalError('Enter a valid amount.');
       return;
     }
 
     try {
-      if (chainId !== NEOX_TESTNET_ID && switchChainAsync) {
-        await switchChainAsync({ chainId: NEOX_TESTNET_ID });
+      if (chainId !== FLARE_COSTON2_ID && switchChainAsync) {
+        await switchChainAsync({ chainId: FLARE_COSTON2_ID });
       }
 
       await writeContractAsync({
-        address: USDC_ADDRESS,
+        address: STABLECOIN_ADDRESS,
         abi: erc20Abi,
         functionName: 'transfer',
-        args: [BUTLER_ADDRESS, value],
-        chainId: NEOX_TESTNET_ID,
+        args: [BUTLER_ADDRESS as `0x${string}`, value],
+        chainId: FLARE_COSTON2_ID,
       });
     } catch (err) {
       setLocalError(err instanceof Error ? err.message : String(err));
@@ -73,8 +74,8 @@ export const SendToButler: React.FC = () => {
   return (
     <div className="send-card">
       <div className="send-heading">
-        <span className="send-title">Send USDC to Butler</span>
-        <span className="send-subtitle">NeoX Testnet · USDC</span>
+        <span className="send-title">Send Stablecoin to Butler</span>
+        <span className="send-subtitle">Flare Coston2 · Plasma USDC</span>
       </div>
 
       <div className="send-target" title="Butler address">
@@ -106,12 +107,12 @@ export const SendToButler: React.FC = () => {
         {isConfirming && 'Waiting for confirmation…'}
         {isSuccess && hash && (
           <a
-            href={`https://xt4scan.ngd.network/tx/${hash}`}
+            href={`https://coston2-explorer.flare.network/tx/${hash}`}
             target="_blank"
             rel="noreferrer"
             className="send-link"
           >
-            View on explorer
+            View on Flare Explorer
           </a>
         )}
       </div>

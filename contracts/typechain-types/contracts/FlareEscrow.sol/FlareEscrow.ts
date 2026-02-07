@@ -29,6 +29,8 @@ export declare namespace FlareEscrow {
     provider: AddressLike;
     amount: BigNumberish;
     usdValue: BigNumberish;
+    paymentType: BigNumberish;
+    token: AddressLike;
     funded: boolean;
     released: boolean;
     refunded: boolean;
@@ -39,6 +41,8 @@ export declare namespace FlareEscrow {
     provider: string,
     amount: bigint,
     usdValue: bigint,
+    paymentType: bigint,
+    token: string,
     funded: boolean,
     released: boolean,
     refunded: boolean
@@ -47,6 +51,8 @@ export declare namespace FlareEscrow {
     provider: string;
     amount: bigint;
     usdValue: bigint;
+    paymentType: bigint;
+    token: string;
     funded: boolean;
     released: boolean;
     refunded: boolean;
@@ -56,18 +62,22 @@ export declare namespace FlareEscrow {
 export interface FlareEscrowInterface extends Interface {
   getFunction(
     nameOrSignature:
+      | "allowedStablecoins"
       | "deposits"
       | "fdcVerifier"
       | "feeCollector"
       | "ftso"
       | "fundJob"
+      | "fundJobWithStablecoin"
       | "getDeposit"
+      | "isStablecoinAllowed"
       | "orderBook"
       | "owner"
       | "platformFeeBps"
       | "refund"
       | "releaseToProvider"
       | "renounceOwnership"
+      | "setAllowedStablecoin"
       | "setFTSO"
       | "setFdcVerifier"
       | "setFeeCollector"
@@ -83,8 +93,13 @@ export interface FlareEscrowInterface extends Interface {
       | "OwnershipTransferred"
       | "PaymentRefunded"
       | "PaymentReleased"
+      | "StablecoinUpdated"
   ): EventFragment;
 
+  encodeFunctionData(
+    functionFragment: "allowedStablecoins",
+    values: [AddressLike]
+  ): string;
   encodeFunctionData(
     functionFragment: "deposits",
     values: [BigNumberish]
@@ -103,8 +118,16 @@ export interface FlareEscrowInterface extends Interface {
     values: [BigNumberish, AddressLike, BigNumberish]
   ): string;
   encodeFunctionData(
+    functionFragment: "fundJobWithStablecoin",
+    values: [BigNumberish, AddressLike, AddressLike, BigNumberish, BigNumberish]
+  ): string;
+  encodeFunctionData(
     functionFragment: "getDeposit",
     values: [BigNumberish]
+  ): string;
+  encodeFunctionData(
+    functionFragment: "isStablecoinAllowed",
+    values: [AddressLike]
   ): string;
   encodeFunctionData(functionFragment: "orderBook", values?: undefined): string;
   encodeFunctionData(functionFragment: "owner", values?: undefined): string;
@@ -123,6 +146,10 @@ export interface FlareEscrowInterface extends Interface {
   encodeFunctionData(
     functionFragment: "renounceOwnership",
     values?: undefined
+  ): string;
+  encodeFunctionData(
+    functionFragment: "setAllowedStablecoin",
+    values: [AddressLike, boolean]
   ): string;
   encodeFunctionData(
     functionFragment: "setFTSO",
@@ -153,6 +180,10 @@ export interface FlareEscrowInterface extends Interface {
     values: [AddressLike]
   ): string;
 
+  decodeFunctionResult(
+    functionFragment: "allowedStablecoins",
+    data: BytesLike
+  ): Result;
   decodeFunctionResult(functionFragment: "deposits", data: BytesLike): Result;
   decodeFunctionResult(
     functionFragment: "fdcVerifier",
@@ -164,7 +195,15 @@ export interface FlareEscrowInterface extends Interface {
   ): Result;
   decodeFunctionResult(functionFragment: "ftso", data: BytesLike): Result;
   decodeFunctionResult(functionFragment: "fundJob", data: BytesLike): Result;
+  decodeFunctionResult(
+    functionFragment: "fundJobWithStablecoin",
+    data: BytesLike
+  ): Result;
   decodeFunctionResult(functionFragment: "getDeposit", data: BytesLike): Result;
+  decodeFunctionResult(
+    functionFragment: "isStablecoinAllowed",
+    data: BytesLike
+  ): Result;
   decodeFunctionResult(functionFragment: "orderBook", data: BytesLike): Result;
   decodeFunctionResult(functionFragment: "owner", data: BytesLike): Result;
   decodeFunctionResult(
@@ -178,6 +217,10 @@ export interface FlareEscrowInterface extends Interface {
   ): Result;
   decodeFunctionResult(
     functionFragment: "renounceOwnership",
+    data: BytesLike
+  ): Result;
+  decodeFunctionResult(
+    functionFragment: "setAllowedStablecoin",
     data: BytesLike
   ): Result;
   decodeFunctionResult(functionFragment: "setFTSO", data: BytesLike): Result;
@@ -212,22 +255,28 @@ export namespace EscrowFundedEvent {
     jobId: BigNumberish,
     poster: AddressLike,
     provider: AddressLike,
-    amountFlr: BigNumberish,
-    amountUsd: BigNumberish
+    amount: BigNumberish,
+    amountUsd: BigNumberish,
+    paymentType: BigNumberish,
+    token: AddressLike
   ];
   export type OutputTuple = [
     jobId: bigint,
     poster: string,
     provider: string,
-    amountFlr: bigint,
-    amountUsd: bigint
+    amount: bigint,
+    amountUsd: bigint,
+    paymentType: bigint,
+    token: string
   ];
   export interface OutputObject {
     jobId: bigint;
     poster: string;
     provider: string;
-    amountFlr: bigint;
+    amount: bigint;
     amountUsd: bigint;
+    paymentType: bigint;
+    token: string;
   }
   export type Event = TypedContractEvent<InputTuple, OutputTuple, OutputObject>;
   export type Filter = TypedDeferredTopicFilter<Event>;
@@ -252,13 +301,20 @@ export namespace PaymentRefundedEvent {
   export type InputTuple = [
     jobId: BigNumberish,
     poster: AddressLike,
-    amount: BigNumberish
+    amount: BigNumberish,
+    paymentType: BigNumberish
   ];
-  export type OutputTuple = [jobId: bigint, poster: string, amount: bigint];
+  export type OutputTuple = [
+    jobId: bigint,
+    poster: string,
+    amount: bigint,
+    paymentType: bigint
+  ];
   export interface OutputObject {
     jobId: bigint;
     poster: string;
     amount: bigint;
+    paymentType: bigint;
   }
   export type Event = TypedContractEvent<InputTuple, OutputTuple, OutputObject>;
   export type Filter = TypedDeferredTopicFilter<Event>;
@@ -271,19 +327,35 @@ export namespace PaymentReleasedEvent {
     jobId: BigNumberish,
     provider: AddressLike,
     payout: BigNumberish,
-    fee: BigNumberish
+    fee: BigNumberish,
+    paymentType: BigNumberish
   ];
   export type OutputTuple = [
     jobId: bigint,
     provider: string,
     payout: bigint,
-    fee: bigint
+    fee: bigint,
+    paymentType: bigint
   ];
   export interface OutputObject {
     jobId: bigint;
     provider: string;
     payout: bigint;
     fee: bigint;
+    paymentType: bigint;
+  }
+  export type Event = TypedContractEvent<InputTuple, OutputTuple, OutputObject>;
+  export type Filter = TypedDeferredTopicFilter<Event>;
+  export type Log = TypedEventLog<Event>;
+  export type LogDescription = TypedLogDescription<Event>;
+}
+
+export namespace StablecoinUpdatedEvent {
+  export type InputTuple = [token: AddressLike, allowed: boolean];
+  export type OutputTuple = [token: string, allowed: boolean];
+  export interface OutputObject {
+    token: string;
+    allowed: boolean;
   }
   export type Event = TypedContractEvent<InputTuple, OutputTuple, OutputObject>;
   export type Filter = TypedDeferredTopicFilter<Event>;
@@ -334,14 +406,32 @@ export interface FlareEscrow extends BaseContract {
     event?: TCEvent
   ): Promise<this>;
 
+  allowedStablecoins: TypedContractMethod<
+    [arg0: AddressLike],
+    [boolean],
+    "view"
+  >;
+
   deposits: TypedContractMethod<
     [arg0: BigNumberish],
     [
-      [string, string, bigint, bigint, boolean, boolean, boolean] & {
+      [
+        string,
+        string,
+        bigint,
+        bigint,
+        bigint,
+        string,
+        boolean,
+        boolean,
+        boolean
+      ] & {
         poster: string;
         provider: string;
         amount: bigint;
         usdValue: bigint;
+        paymentType: bigint;
+        token: string;
         funded: boolean;
         released: boolean;
         refunded: boolean;
@@ -362,9 +452,27 @@ export interface FlareEscrow extends BaseContract {
     "payable"
   >;
 
+  fundJobWithStablecoin: TypedContractMethod<
+    [
+      jobId: BigNumberish,
+      provider: AddressLike,
+      token: AddressLike,
+      amount: BigNumberish,
+      usdBudget: BigNumberish
+    ],
+    [void],
+    "nonpayable"
+  >;
+
   getDeposit: TypedContractMethod<
     [jobId: BigNumberish],
     [FlareEscrow.DepositStructOutput],
+    "view"
+  >;
+
+  isStablecoinAllowed: TypedContractMethod<
+    [token: AddressLike],
+    [boolean],
     "view"
   >;
 
@@ -383,6 +491,12 @@ export interface FlareEscrow extends BaseContract {
   >;
 
   renounceOwnership: TypedContractMethod<[], [void], "nonpayable">;
+
+  setAllowedStablecoin: TypedContractMethod<
+    [token: AddressLike, allowed: boolean],
+    [void],
+    "nonpayable"
+  >;
 
   setFTSO: TypedContractMethod<
     [ftsoConsumer: AddressLike],
@@ -427,15 +541,30 @@ export interface FlareEscrow extends BaseContract {
   ): T;
 
   getFunction(
+    nameOrSignature: "allowedStablecoins"
+  ): TypedContractMethod<[arg0: AddressLike], [boolean], "view">;
+  getFunction(
     nameOrSignature: "deposits"
   ): TypedContractMethod<
     [arg0: BigNumberish],
     [
-      [string, string, bigint, bigint, boolean, boolean, boolean] & {
+      [
+        string,
+        string,
+        bigint,
+        bigint,
+        bigint,
+        string,
+        boolean,
+        boolean,
+        boolean
+      ] & {
         poster: string;
         provider: string;
         amount: bigint;
         usdValue: bigint;
+        paymentType: bigint;
+        token: string;
         funded: boolean;
         released: boolean;
         refunded: boolean;
@@ -460,12 +589,28 @@ export interface FlareEscrow extends BaseContract {
     "payable"
   >;
   getFunction(
+    nameOrSignature: "fundJobWithStablecoin"
+  ): TypedContractMethod<
+    [
+      jobId: BigNumberish,
+      provider: AddressLike,
+      token: AddressLike,
+      amount: BigNumberish,
+      usdBudget: BigNumberish
+    ],
+    [void],
+    "nonpayable"
+  >;
+  getFunction(
     nameOrSignature: "getDeposit"
   ): TypedContractMethod<
     [jobId: BigNumberish],
     [FlareEscrow.DepositStructOutput],
     "view"
   >;
+  getFunction(
+    nameOrSignature: "isStablecoinAllowed"
+  ): TypedContractMethod<[token: AddressLike], [boolean], "view">;
   getFunction(
     nameOrSignature: "orderBook"
   ): TypedContractMethod<[], [string], "view">;
@@ -484,6 +629,13 @@ export interface FlareEscrow extends BaseContract {
   getFunction(
     nameOrSignature: "renounceOwnership"
   ): TypedContractMethod<[], [void], "nonpayable">;
+  getFunction(
+    nameOrSignature: "setAllowedStablecoin"
+  ): TypedContractMethod<
+    [token: AddressLike, allowed: boolean],
+    [void],
+    "nonpayable"
+  >;
   getFunction(
     nameOrSignature: "setFTSO"
   ): TypedContractMethod<[ftsoConsumer: AddressLike], [void], "nonpayable">;
@@ -538,9 +690,16 @@ export interface FlareEscrow extends BaseContract {
     PaymentReleasedEvent.OutputTuple,
     PaymentReleasedEvent.OutputObject
   >;
+  getEvent(
+    key: "StablecoinUpdated"
+  ): TypedContractEvent<
+    StablecoinUpdatedEvent.InputTuple,
+    StablecoinUpdatedEvent.OutputTuple,
+    StablecoinUpdatedEvent.OutputObject
+  >;
 
   filters: {
-    "EscrowFunded(uint256,address,address,uint256,uint256)": TypedContractEvent<
+    "EscrowFunded(uint256,address,address,uint256,uint256,uint8,address)": TypedContractEvent<
       EscrowFundedEvent.InputTuple,
       EscrowFundedEvent.OutputTuple,
       EscrowFundedEvent.OutputObject
@@ -562,7 +721,7 @@ export interface FlareEscrow extends BaseContract {
       OwnershipTransferredEvent.OutputObject
     >;
 
-    "PaymentRefunded(uint256,address,uint256)": TypedContractEvent<
+    "PaymentRefunded(uint256,address,uint256,uint8)": TypedContractEvent<
       PaymentRefundedEvent.InputTuple,
       PaymentRefundedEvent.OutputTuple,
       PaymentRefundedEvent.OutputObject
@@ -573,7 +732,7 @@ export interface FlareEscrow extends BaseContract {
       PaymentRefundedEvent.OutputObject
     >;
 
-    "PaymentReleased(uint256,address,uint256,uint256)": TypedContractEvent<
+    "PaymentReleased(uint256,address,uint256,uint256,uint8)": TypedContractEvent<
       PaymentReleasedEvent.InputTuple,
       PaymentReleasedEvent.OutputTuple,
       PaymentReleasedEvent.OutputObject
@@ -582,6 +741,17 @@ export interface FlareEscrow extends BaseContract {
       PaymentReleasedEvent.InputTuple,
       PaymentReleasedEvent.OutputTuple,
       PaymentReleasedEvent.OutputObject
+    >;
+
+    "StablecoinUpdated(address,bool)": TypedContractEvent<
+      StablecoinUpdatedEvent.InputTuple,
+      StablecoinUpdatedEvent.OutputTuple,
+      StablecoinUpdatedEvent.OutputObject
+    >;
+    StablecoinUpdated: TypedContractEvent<
+      StablecoinUpdatedEvent.InputTuple,
+      StablecoinUpdatedEvent.OutputTuple,
+      StablecoinUpdatedEvent.OutputObject
     >;
   };
 }

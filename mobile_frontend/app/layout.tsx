@@ -4,8 +4,8 @@ import { ReactNode } from 'react';
 import { Providers } from '../src/providers';
 
 export const metadata: Metadata = {
-  title: 'Swarm Butler',
-  description: 'Decentralized agent Butler PWA on NeoX/NeoFS',
+  title: 'SOTA Butler',
+  description: 'AI Agent Butler on Flare — FTSO + FDC powered marketplace',
 };
 
 export default function RootLayout({ children }: { children: ReactNode }) {

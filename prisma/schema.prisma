@@ -27,7 +27,7 @@ model Agent {
   priceUsd     Float     @default(0)
   status       String    @default("active")
   tags         String?
-  network      String?   @default("sepolia")
+  network      String?   @default("flare-coston2")
   image        String?
   ownerId      Int
   owner        User      @relation(fields: [ownerId], references: [id])
@@ -43,7 +43,7 @@ model Order {
   buyerId       Int?
   buyer         User?    @relation("BuyerOrders", fields: [buyerId], references: [id])
   txHash        String
-  amountEth     Float
+  amountFlr     Float
   network       String
   walletAddress String
   createdAt     DateTime @default(now())
@@ -57,7 +57,7 @@ model CallSummary {
   summary        String?  @db.Text
   toNumber       String?  @db.Text
   jobId          String?  @db.Text
-  neofsUri       String?  @db.Text
+  storageUri       String?  @db.Text
   payload        Json?
   createdAt      DateTime @default(now())
 }

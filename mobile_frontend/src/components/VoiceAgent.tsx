@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 
 const SplitText: React.FC<{ text: string; className?: string; interval?: number }> = ({ text, className, interval = 60 }) => {
   const words = text.split(' ');
@@ -30,19 +30,23 @@ import { ChatTimeline, ChatMessage } from './ChatTimeline';
 
 interface VoiceAgentProps {
   agentId?: string;
-  spoonosButlerUrl?: string;
-  onSpoonosMessage?: (message: any) => void;
+  flareButlerUrl?: string;
+  onFlareMessage?: (message: any) => void;
   sidebarOpen?: boolean;
   orbVisible?: boolean;
   ctaVisible?: boolean;
   chatReady?: boolean;
+  walletAddress?: string;
+  sessionId?: string;
+  onSessionCreated?: (id: string) => void;
 }
 
-const BUTLER_ADDRESS = '0x741ae17d47d479e878adfb3c78b02db583c63d58' as const;
-const TARGET_CHAIN_ID = 12227332;
-const USDC_DECIMALS = 6;
-const USDC_ADDRESS = (process.env.NEXT_PUBLIC_USDC_ADDRESS ||
-  '0x9f1Af8576f52507354eaF2Dc438a5333Baf2D09D') as `0x${string}`;
+const BUTLER_ADDRESS = (process.env.NEXT_PUBLIC_BUTLER_ADDRESS ||
+  '0x741ae17d47d479e878adfb3c78b02db583c63d58') as const;
+const TARGET_CHAIN_ID = 114; // Flare Coston2
+const STABLECOIN_DECIMALS = 6;
+const STABLECOIN_ADDRESS = (process.env.NEXT_PUBLIC_STABLECOIN_ADDRESS ||
+  '0x0000000000000000000000000000000000000000') as `0x${string}`; // Plasma-bridged USDC on Flare
 
 const erc20Abi = [
   {
@@ -116,7 +120,7 @@ const parseBidFromText = (text: string): { amount: string; currency: string } | 
   return null;
 };
 
-const toBaseUnits = (amountStr: string, decimals = USDC_DECIMALS): bigint => {
+const toBaseUnits = (amountStr: string, decimals = STABLECOIN_DECIMALS): bigint => {
   const cleaned = amountStr.replace(/,/g, '').trim();
   if (!cleaned) throw new Error('Invalid amount');
   const [whole, fraction = ''] = cleaned.split('.');
@@ -125,41 +129,54 @@ const toBaseUnits = (amountStr: string, decimals = USDC_DECIMALS): bigint => {
   return BigInt(normalized);
 };
 
-// Client tools that bridge ElevenLabs to Spoonos Butler
-const createSpoonosTools = (spoonosButlerUrl: string, onMessage?: (msg: any) => void) => ({
-  // Send user query to Spoonos Butler and get response
-  query_spoonos_butler: async ({ query }: { query: string }) => {
-    console.log('📤 Sending to Spoonos Butler:', query);
+// Client tools that bridge ElevenLabs to Flare Butler API
+const createFlareTools = (flareButlerUrl: string, onMessage?: (msg: any) => void) => ({
+  // Send user query to Flare Butler and get response
+  query_butler: async ({ query }: { query: string }) => {
+    console.log('📤 Sending to Flare Butler:', query);
     
     try {
-      const response = await fetch(spoonosButlerUrl, {
+      const response = await fetch(`${flareButlerUrl}/query`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ query, timestamp: Date.now() }),
       });
       
       if (!response.ok) {
-        throw new Error(`Spoonos Butler error: ${response.statusText}`);
+        throw new Error(`Flare Butler error: ${response.statusText}`);
       }
       
       const data = await response.json();
-      console.log('✅ Spoonos Butler response:', data);
+      console.log('✅ Flare Butler response:', data);
       
       onMessage?.(data);
       
       return data.response || data.message || 'Request processed';
     } catch (error) {
-      console.error('❌ Spoonos Butler error:', error);
+      console.error('❌ Flare Butler error:', error);
       return `I had trouble connecting to the butler agent. ${error}`;
     }
   },
 
-  // Get job listings from Spoonos
-  get_job_listings: async ({ filters }: { filters?: any }) => {
-    console.log('📋 Fetching jobs from Spoonos:', filters);
+  // Get FTSO price quote for a USD amount
+  get_flr_quote: async ({ usdAmount }: { usdAmount: number }) => {
+    console.log('💰 Getting FTSO quote for $', usdAmount);
     
     try {
-      const response = await fetch(`${spoonosButlerUrl}/jobs`, {
+      const response = await fetch(`${flareButlerUrl}/price?usd=${usdAmount}`);
+      const data = await response.json();
+      return `$${usdAmount} USD ≈ ${data.flr_amount} FLR (FTSO rate: $${data.flr_usd_price})`;
+    } catch (error) {
+      return `Error getting quote: ${error}`;
+    }
+  },
+
+  // Get job listings from Flare OrderBook
+  get_job_listings: async ({ filters }: { filters?: any }) => {
+    console.log('📋 Fetching jobs from Flare:', filters);
+    
+    try {
+      const response = await fetch(`${flareButlerUrl}/jobs`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ filters }),
@@ -172,32 +189,14 @@ const createSpoonosTools = (spoonosButlerUrl: string, onMessage?: (msg: any) => 
     }
   },
 
-  // Submit job application
-  submit_job_application: async ({ jobId, agentId }: { jobId: string; agentId: string }) => {
-    console.log('📝 Submitting job application:', { jobId, agentId });
-    
-    try {
-      const response = await fetch(`${spoonosButlerUrl}/jobs/apply`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ jobId, agentId }),
-      });
-      
-      const result = await response.json();
-      return `Application submitted successfully. Transaction: ${result.txHash}`;
-    } catch (error) {
-      return `Error submitting application: ${error}`;
-    }
-  },
-
-  // Get wallet status
+  // Check wallet status
   check_wallet_status: async ({ address }: { address: string }) => {
     console.log('💼 Checking wallet:', address);
     
     try {
-      const response = await fetch(`${spoonosButlerUrl}/wallet/${address}`);
+      const response = await fetch(`${flareButlerUrl}/wallet/${address}`);
       const wallet = await response.json();
-      return `Balance: ${wallet.balance} tokens. Active jobs: ${wallet.activeJobs}`;
+      return `Balance: ${wallet.balance} FLR. Active jobs: ${wallet.activeJobs}`;
     } catch (error) {
       return `Error checking wallet: ${error}`;
     }
@@ -206,12 +205,15 @@ const createSpoonosTools = (spoonosButlerUrl: string, onMessage?: (msg: any) => 
 
 export const VoiceAgent: React.FC<VoiceAgentProps> = ({ 
   agentId,
-  spoonosButlerUrl = 'http://localhost:3001/api/spoonos',
-  onSpoonosMessage,
+  flareButlerUrl = 'http://localhost:3001/api/flare',
+  onFlareMessage,
   sidebarOpen = false,
   orbVisible = true,
   ctaVisible = true,
   chatReady = true,
+  walletAddress,
+  sessionId: externalSessionId,
+  onSessionCreated,
 }) => {
   const [isStarting, setIsStarting] = useState(false);
   const [lastMessage, setLastMessage] = useState<string>('');
@@ -222,6 +224,63 @@ export const VoiceAgent: React.FC<VoiceAgentProps> = ({
   const [lastBidKey, setLastBidKey] = useState<string | null>(null);
   const [bidStatus, setBidStatus] = useState<string | null>(null);
   const [isSendingBid, setIsSendingBid] = useState(false);
+
+  // Session persistence
+  const sessionIdRef = useRef<string>('');
+  const loadedRef = useRef(false);
+
+  useEffect(() => {
+    // Generate or use provided sessionId
+    if (externalSessionId) {
+      sessionIdRef.current = externalSessionId;
+    } else {
+      const stored = typeof window !== 'undefined' ? localStorage.getItem('sota-session-id') : null;
+      if (stored) {
+        sessionIdRef.current = stored;
+      } else {
+        const id = `sess_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
+        sessionIdRef.current = id;
+        localStorage.setItem('sota-session-id', id);
+      }
+    }
+    onSessionCreated?.(sessionIdRef.current);
+
+    // Load saved messages from DB
+    if (!loadedRef.current && sessionIdRef.current) {
+      loadedRef.current = true;
+      fetch(`/api/chat?sessionId=${sessionIdRef.current}`)
+        .then((r) => r.json())
+        .then((saved: any[]) => {
+          if (Array.isArray(saved) && saved.length > 0) {
+            const loaded: ChatMessage[] = saved.map((m) => ({
+              id: m.id,
+              role: m.role as ChatMessage['role'],
+              text: m.text,
+              timestamp: m.createdAt,
+              isTranscribed: m.role === 'user',
+            }));
+            setMessages(loaded);
+            setHasStarted(true);
+          }
+        })
+        .catch((err) => console.warn('Failed to load chat history:', err));
+    }
+  }, [externalSessionId, onSessionCreated]);
+
+  // Persist a message to DB (fire-and-forget)
+  const persistMessage = useCallback((role: string, text: string) => {
+    if (!sessionIdRef.current) return;
+    fetch('/api/chat', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        sessionId: sessionIdRef.current,
+        role,
+        text,
+        wallet: walletAddress || null,
+      }),
+    }).catch((err) => console.warn('Failed to persist message:', err));
+  }, [walletAddress]);
   
   // Get API key from environment
   const apiKey = process.env.NEXT_PUBLIC_ELEVENLABS_API_KEY;
@@ -242,11 +301,11 @@ export const VoiceAgent: React.FC<VoiceAgentProps> = ({
   };
 
   const conversation = useConversation({
-    clientTools: createSpoonosTools(spoonosButlerUrl, onSpoonosMessage),
+    clientTools: createFlareTools(flareButlerUrl, onFlareMessage),
     
     onConnect: ({ conversationId }) => {
       console.log('✅ Connected to ElevenLabs:', conversationId);
-      console.log('🔗 Bridging to Spoonos Butler at:', spoonosButlerUrl);
+      console.log('🔗 Bridging to Flare Butler at:', flareButlerUrl);
       console.log('🔊 Audio output should be enabled - check browser volume!');
       
       // Ensure volume is set
@@ -288,6 +347,9 @@ export const VoiceAgent: React.FC<VoiceAgentProps> = ({
           isTranscribed,
         },
       ]);
+
+      // Persist to PostgreSQL
+      persistMessage(normalizedRole, text);
 
       const bid = parseBidFromText(text);
       if (bid && bid.currency === 'USDCM') {
@@ -400,19 +462,19 @@ export const VoiceAgent: React.FC<VoiceAgentProps> = ({
         if (chainId && chainId !== TARGET_CHAIN_ID) {
           if (switchChainAsync) {
             await switchChainAsync({ chainId: TARGET_CHAIN_ID });
-            console.log('✅ Switched chain to NeoX testnet');
+            console.log('✅ Switched chain to Flare Coston2');
           } else {
-            setBidStatus('Switch to NeoX Testnet to send bid');
+            setBidStatus('Switch to Flare Coston2 to send bid');
             console.log('❌ Cannot switch chain automatically');
             return;
           }
         }
 
-        const amountBase = toBaseUnits(pendingBid.amount, USDC_DECIMALS);
+        const amountBase = toBaseUnits(pendingBid.amount, STABLECOIN_DECIMALS);
         console.log('💰 Amount base units', amountBase.toString());
 
         await writeContractAsync({
-          address: USDC_ADDRESS,
+          address: STABLECOIN_ADDRESS,
           abi: erc20Abi,
           functionName: 'transfer',
           args: [BUTLER_ADDRESS, amountBase],

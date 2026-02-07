@@ -46,8 +46,9 @@
 body {
   margin: 0;
   font-family: system-ui, -apple-system, BlinkMacSystemFont, 'SF Pro Text', sans-serif;
-  background: radial-gradient(circle at top, #020617 0, #020617 40%, #020617 100%);
+  background: #020617;
   color: var(--text);
+  overflow: hidden;
 }
 
 .app-root {
@@ -55,23 +56,6 @@ body {
   display: flex;
   flex-direction: column;
   padding: 1rem;
-}
-
-.app-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: 1rem;
-  padding: 0.5rem 0.35rem;
-}
-
-.header-icon {
-  height: 56px;
-  width: 56px;
-  border-radius: 999px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
 }
 
 .app-header-spacer {
@@ -106,22 +90,6 @@ body {
 .sidebar-backdrop.sidebar-open {
   pointer-events: auto;
   background: rgba(15, 23, 42, 0.6);
-}
-
-.sidebar {
-  position: fixed;
-  top: 0;
-  left: 0;
-  bottom: 0;
-  width: 240px;
-  background: #020617;
-  border-right: 1px solid rgba(15, 23, 42, 1);
-  padding: 1rem;
-  display: flex;
-  flex-direction: column;
-  transform: translateX(-100%);
-  transition: transform 0.2s ease;
-  z-index: 50;
 }
 
 .sidebar-backdrop.sidebar-open .sidebar {
@@ -199,61 +167,6 @@ body {
   font-size: 0.8rem;
   color: #6b7280;
   padding: 0.5rem 0.25rem;
-}
-
-.sphere-section {
-  position: relative;
-  flex: 1;
-  display: flex;
-  align-items: stretch;
-  justify-content: flex-start;
-  padding-bottom: 0;
-  background: linear-gradient(140deg, #0b1220 0%, #020617 100%);
-  overflow: hidden;
-  isolation: isolate;
-}
-
-.sphere-section::before {
-  /* Static depth glow that anchors toward the mic orb */
-  content: '';
-  position: absolute;
-  inset: -8% -6% -2% -6%;
-  background: radial-gradient(
-      circle at 50% 78%,
-      rgba(56, 189, 248, 0.08) 0%,
-      rgba(56, 189, 248, 0.04) 26%,
-      rgba(2, 6, 23, 0.65) 64%,
-      #020617 88%
-    );
-  z-index: -1;
-  pointer-events: none;
-}
-
-.sphere-section::after {
-  /* Very subtle moving shimmer to give the background life */
-  content: '';
-  position: absolute;
-  inset: -18% -14% -6% -14%;
-  background: radial-gradient(
-    120% 90% at 45% 68%,
-    rgba(34, 211, 238, 0.05),
-    transparent 62%
-  );
-  opacity: 0.35;
-  animation: subtle-depth 14s ease-in-out infinite;
-  z-index: -1;
-  pointer-events: none;
-}
-
-@keyframes subtle-depth {
-  0%, 100% {
-    opacity: 0.28;
-    transform: translate3d(-1.5%, 0, 0) scale(1);
-  }
-  50% {
-    opacity: 0.42;
-    transform: translate3d(1.5%, 0, 0) scale(1.01);
-  }
 }
 
 /* Dock the voice agent orb near the bottom of the screen */
@@ -408,17 +321,6 @@ body {
   margin: 0 0 0.5rem;
 }
 
-.btn-primary {
-  border: none;
-  outline: none;
-  padding: 0.5rem 1rem;
-  border-radius: 999px;
-  background: linear-gradient(135deg, #22d3ee, #0ea5e9);
-  color: #0b1120;
-  font-weight: 600;
-  cursor: pointer;
-}
-
 .btn-primary:hover {
   filter: brightness(1.08);
 }
@@ -438,21 +340,6 @@ body {
 .btn-secondary:hover {
   background: #020617;
   filter: brightness(1.15);
-}
-
-.wallet-chip {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.5rem;
-  padding: 0.45rem 0.6rem 0.45rem 0.75rem;
-  border-radius: 999px;
-  background: linear-gradient(135deg, rgba(15,23,42,0.9), rgba(12,74,110,0.4));
-  border: 1px solid rgba(59, 130, 246, 0.25);
-  box-shadow: 0 8px 24px rgba(0,0,0,0.25);
-}
-
-.wallet-chip:hover {
-  border-color: rgba(59, 130, 246, 0.4);
 }
 
 .wallet-label {
@@ -628,13 +515,6 @@ body {
   overflow-y: auto;
 }
 
-.chat-timeline {
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-  padding: 0 0.75rem;
-}
-
 .chat-row {
   display: flex;
   width: 100%;
@@ -654,29 +534,30 @@ body {
   border-radius: 1.25rem;
   font-size: 0.95rem;
   line-height: 1.5;
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  position: relative;
 }
 
 .chat-bubble-user {
-  background: linear-gradient(135deg, #5ad5ff, #28c3ff);
+  background: linear-gradient(135deg, rgba(34,211,238,0.85), rgba(14,165,233,0.85));
   color: #0a0f1a;
   border-bottom-right-radius: 0.25rem;
+  box-shadow: 0 4px 24px rgba(34,211,238,0.25), inset 0 1px 0 rgba(255,255,255,0.2);
 }
 
 .chat-bubble-assistant {
-  background: #0a142a;
-  color: #ffffff;
+  background: rgba(15,23,42,0.6);
+  color: #f0f9ff;
   border-bottom-left-radius: 0.25rem;
-  border: none;
-}
-
-.chat-bubble-assistant-alt {
-  background: #0c1a33;
+  border: 1px solid rgba(56,189,248,0.12);
+  box-shadow: 0 4px 24px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.05);
 }
 
 .chat-bubble-transcribed {
-  background: linear-gradient(135deg, #5ad5ff, #0ea5e9);
+  background: linear-gradient(135deg, rgba(34,211,238,0.9), rgba(14,165,233,0.8));
   color: #0a0f1a;
-  border: 1px solid rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.1);
 }
 
 /* Make the chat area visibly scrollable */
@@ -714,14 +595,47 @@ body {
   display: flex;
   align-items: center;
   justify-content: center;
-  background: rgba(15, 23, 42, 0.9);
-  box-shadow: 0 12px 30px rgba(15, 23, 42, 0.85);
+  background: rgba(15, 23, 42, 0.85);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  box-shadow: 0 0 40px rgba(15, 23, 42, 0.85), inset 0 1px 0 rgba(255,255,255,0.08);
   cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.mic-button::before,
+.mic-button::after {
+  content: '';
+  position: absolute;
+  inset: -6px;
+  border-radius: 999px;
+  border: 1.5px solid rgba(34, 211, 238, 0.15);
+  pointer-events: none;
+}
+
+.mic-button::after {
+  inset: -14px;
+  border-color: rgba(34, 211, 238, 0.08);
 }
 
 .mic-button-active {
-  background: linear-gradient(135deg, #22d3ee, #0ea5e9);
-  box-shadow: 0 14px 40px rgba(34, 211, 238, 0.6);
+  background: linear-gradient(135deg, rgba(34,211,238,0.9), rgba(14,165,233,0.85));
+  box-shadow: 0 0 60px rgba(34, 211, 238, 0.5), 0 0 120px rgba(34, 211, 238, 0.15);
+}
+
+.mic-button-active::before {
+  border-color: rgba(34, 211, 238, 0.5);
+  animation: pulseRing 2s ease-in-out infinite;
+}
+
+.mic-button-active::after {
+  border-color: rgba(34, 211, 238, 0.25);
+  animation: pulseRing 2s ease-in-out infinite 0.5s;
+}
+
+@keyframes pulseRing {
+  0%, 100% { transform: scale(1); opacity: 1; }
+  50% { transform: scale(1.15); opacity: 0.3; }
 }
 
 .mic-icon {
@@ -912,4 +826,222 @@ body {
     opacity: 1;
     transform: scale(1.05);
   }
+}
+
+/* ═══════════════════════════════════════
+   ENHANCED UI — Hackathon Polish
+   ═══════════════════════════════════════ */
+
+/* Typing cursor blink */
+.typing-cursor {
+  display: inline-block;
+  width: 2px;
+  height: 1em;
+  background: currentColor;
+  margin-left: 2px;
+  vertical-align: text-bottom;
+  animation: blink 1s step-end infinite;
+}
+
+@keyframes blink {
+  50% { opacity: 0; }
+}
+
+/* Chat message slide-in */
+@keyframes chatSlideIn {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Chat timestamp */
+.chat-time {
+  display: block;
+  font-size: 0.65rem;
+  color: rgba(148, 163, 184, 0.6);
+  margin-top: 4px;
+  text-align: right;
+}
+
+.chat-bubble-user .chat-time {
+  color: rgba(10, 15, 26, 0.45);
+}
+
+/* Ambient gradient mesh background */
+.sphere-section {
+  position: relative;
+  flex: 1;
+  display: flex;
+  align-items: stretch;
+  justify-content: flex-start;
+  padding-bottom: 0;
+  background: linear-gradient(140deg, #0b1220 0%, #020617 100%);
+  overflow: hidden;
+  isolation: isolate;
+}
+
+.sphere-section::before {
+  content: '';
+  position: absolute;
+  inset: -8% -6% -2% -6%;
+  background:
+    radial-gradient(ellipse 60% 50% at 20% 20%, rgba(34, 211, 238, 0.06), transparent 60%),
+    radial-gradient(ellipse 50% 60% at 80% 80%, rgba(147, 51, 234, 0.04), transparent 60%),
+    radial-gradient(circle at 50% 78%, rgba(56, 189, 248, 0.08) 0%, rgba(2, 6, 23, 0.65) 64%, #020617 88%);
+  z-index: -1;
+  pointer-events: none;
+  animation: meshDrift 20s ease-in-out infinite;
+}
+
+@keyframes meshDrift {
+  0%, 100% { opacity: 0.8; transform: scale(1) rotate(0deg); }
+  33% { opacity: 1; transform: scale(1.02) rotate(0.5deg); }
+  66% { opacity: 0.9; transform: scale(0.99) rotate(-0.3deg); }
+}
+
+.sphere-section::after {
+  content: '';
+  position: absolute;
+  inset: -18% -14% -6% -14%;
+  background: radial-gradient(
+    120% 90% at 45% 68%,
+    rgba(34, 211, 238, 0.05),
+    transparent 62%
+  );
+  opacity: 0.35;
+  animation: subtle-depth 14s ease-in-out infinite;
+  z-index: -1;
+  pointer-events: none;
+}
+
+/* Glassmorphic sidebar */
+.sidebar {
+  position: fixed;
+  top: 0;
+  left: 0;
+  bottom: 0;
+  width: 260px;
+  background: rgba(2, 6, 23, 0.85);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  border-right: 1px solid rgba(56, 189, 248, 0.1);
+  padding: 1rem;
+  display: flex;
+  flex-direction: column;
+  transform: translateX(-100%);
+  transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  z-index: 50;
+}
+
+.sidebar-backdrop.sidebar-open {
+  pointer-events: auto;
+  background: rgba(2, 6, 23, 0.5);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+}
+
+/* Voice agent orb glow ring */
+.voice-agent-orb-container::before {
+  content: '';
+  position: absolute;
+  width: 130%;
+  height: 130%;
+  border-radius: 999px;
+  background: radial-gradient(circle, rgba(34,211,238,0.08) 0%, transparent 70%);
+  pointer-events: none;
+  animation: orbGlow 4s ease-in-out infinite;
+}
+
+@keyframes orbGlow {
+  0%, 100% { opacity: 0.4; transform: scale(0.95); }
+  50% { opacity: 0.8; transform: scale(1.05); }
+}
+
+/* Wallet chip glassmorphism */
+.wallet-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.45rem 0.6rem 0.45rem 0.75rem;
+  border-radius: 999px;
+  background: rgba(15, 23, 42, 0.6);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(56, 189, 248, 0.2);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+  transition: all 0.2s ease;
+}
+
+.wallet-chip:hover {
+  border-color: rgba(56, 189, 248, 0.4);
+  box-shadow: 0 8px 32px rgba(34, 211, 238, 0.15);
+}
+
+/* Header glassmorphism */
+.app-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 1rem;
+  padding: 0.5rem 0.75rem;
+  border-radius: 1rem;
+  background: rgba(2, 6, 23, 0.4);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(56, 189, 248, 0.06);
+}
+
+/* Scrollbar styling for chat */
+.chat-timeline {
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+  padding: 0 0.75rem;
+}
+
+/* Flare brand accent */
+.btn-primary {
+  border: none;
+  outline: none;
+  padding: 0.5rem 1rem;
+  border-radius: 999px;
+  background: linear-gradient(135deg, #22d3ee, #0ea5e9);
+  color: #0b1120;
+  font-weight: 600;
+  cursor: pointer;
+  box-shadow: 0 4px 16px rgba(34, 211, 238, 0.3);
+  transition: all 0.2s ease;
+}
+
+.btn-primary:hover {
+  filter: brightness(1.1);
+  box-shadow: 0 6px 24px rgba(34, 211, 238, 0.45);
+  transform: translateY(-1px);
+}
+
+/* Network badge */
+.network-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.65rem;
+  color: rgba(34, 211, 238, 0.7);
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: rgba(34, 211, 238, 0.08);
+  border: 1px solid rgba(34, 211, 238, 0.15);
+}
+
+.network-badge::before {
+  content: '';
+  width: 6px;
+  height: 6px;
+  border-radius: 999px;
+  background: #22d3ee;
+  animation: pulse-glow 2s ease-in-out infinite;
 }

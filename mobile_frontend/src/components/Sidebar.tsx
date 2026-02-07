@@ -4,7 +4,7 @@ import React from 'react';
 
 export interface ConversationSummary {
   id: string;
-  title: string;
+  title: string | null;
 }
 
 interface SidebarProps {
@@ -12,6 +12,7 @@ interface SidebarProps {
   conversations: ConversationSummary[];
   onSelect: (id: string) => void;
   onClose: () => void;
+  onNewChat?: () => void;
 }
 
 export const Sidebar: React.FC<SidebarProps> = ({
@@ -19,6 +20,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   conversations,
   onSelect,
   onClose,
+  onNewChat,
 }) => {
   return (
     <div className={`sidebar-backdrop ${open ? 'sidebar-open' : ''}`} onClick={onClose}>
@@ -27,14 +29,27 @@ export const Sidebar: React.FC<SidebarProps> = ({
           <div className="sidebar-header-left">
             <span className="sidebar-title">Conversations</span>
           </div>
-          <button
-            type="button"
-            className="icon-button icon-button-small"
-            aria-label="Close menu"
-            onClick={onClose}
-          >
-            ✕
-          </button>
+          <div className="flex items-center gap-2">
+            {onNewChat && (
+              <button
+                type="button"
+                className="icon-button icon-button-small"
+                aria-label="New chat"
+                onClick={onNewChat}
+                title="New conversation"
+              >
+                +
+              </button>
+            )}
+            <button
+              type="button"
+              className="icon-button icon-button-small"
+              aria-label="Close menu"
+              onClick={onClose}
+            >
+              ✕
+            </button>
+          </div>
         </div>
         <div className="sidebar-list">
           {conversations.length === 0 && (
@@ -47,7 +62,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
               type="button"
               onClick={() => onSelect(c.id)}
             >
-              <span className="sidebar-item-title">{c.title}</span>
+              <span className="sidebar-item-title">{c.title || 'Untitled chat'}</span>
             </button>
           ))}
         </div>

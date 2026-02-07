@@ -1,3 +1,3 @@
 """
-Scraper Agent - SpoonOS Implementation
+"""Scraper Agent - SOTA Implementation
 """

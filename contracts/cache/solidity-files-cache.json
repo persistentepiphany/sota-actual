@@ -1,8 +1,8 @@
 {
   "_format": "hh-sol-cache-2",
   "files": {
-    "D:\\SOTA\\contracts\\contracts\\AgentRegistry.sol": {
-      "lastModificationDate": 1770402475042,
+    "/Users/macbook/Projects/SOTA/Untitled/contracts/contracts/AgentRegistry.sol": {
+      "lastModificationDate": 1770409292793,
       "contentHash": "75447c07032aa2d8a6ed8b7fb3a23ac4",
       "sourceName": "contracts/AgentRegistry.sol",
       "solcConfig": {
@@ -39,8 +39,8 @@
         "AgentRegistry"
       ]
     },
-    "D:\\SOTA\\contracts\\node_modules\\@openzeppelin\\contracts\\access\\Ownable.sol": {
-      "lastModificationDate": 1770409837591,
+    "/Users/macbook/Projects/SOTA/Untitled/contracts/node_modules/@openzeppelin/contracts/access/Ownable.sol": {
+      "lastModificationDate": 1770420243168,
       "contentHash": "d3c790edc9ccf808a17c5a6cd13614fd",
       "sourceName": "@openzeppelin/contracts/access/Ownable.sol",
       "solcConfig": {
@@ -77,8 +77,8 @@
         "Ownable"
       ]
     },
-    "D:\\SOTA\\contracts\\node_modules\\@openzeppelin\\contracts\\utils\\Context.sol": {
-      "lastModificationDate": 1770409837355,
+    "/Users/macbook/Projects/SOTA/Untitled/contracts/node_modules/@openzeppelin/contracts/utils/Context.sol": {
+      "lastModificationDate": 1770420242992,
       "contentHash": "67bfbc07588eb8683b3fd8f6f909563e",
       "sourceName": "@openzeppelin/contracts/utils/Context.sol",
       "solcConfig": {
@@ -113,10 +113,10 @@
         "Context"
       ]
     },
-    "D:\\SOTA\\contracts\\node_modules\\@openzeppelin\\contracts\\token\\ERC20\\ERC20.sol": {
-      "lastModificationDate": 1770409837446,
-      "contentHash": "59dfce11284f2636db261df9b6a18f81",
-      "sourceName": "@openzeppelin/contracts/token/ERC20/ERC20.sol",
+    "/Users/macbook/Projects/SOTA/Untitled/contracts/contracts/ReputationToken.sol": {
+      "lastModificationDate": 1770409292794,
+      "contentHash": "50612c3f7c43821b7fddc56df8c2862f",
+      "sourceName": "contracts/ReputationToken.sol",
       "solcConfig": {
         "version": "0.8.24",
         "settings": {
@@ -142,211 +142,20 @@
         }
       },
       "imports": [
-        "./IERC20.sol",
-        "./extensions/IERC20Metadata.sol",
-        "../../utils/Context.sol",
-        "../../interfaces/draft-IERC6093.sol"
-      ],
-      "versionPragmas": [
-        "^0.8.20"
-      ],
-      "artifacts": [
-        "ERC20"
-      ]
-    },
-    "D:\\SOTA\\contracts\\node_modules\\@openzeppelin\\contracts\\token\\ERC20\\IERC20.sol": {
-      "lastModificationDate": 1770409837539,
-      "contentHash": "9261adf6457863de3e9892f51317ec89",
-      "sourceName": "@openzeppelin/contracts/token/ERC20/IERC20.sol",
-      "solcConfig": {
-        "version": "0.8.24",
-        "settings": {
-          "optimizer": {
-            "enabled": true,
-            "runs": 200
-          },
-          "evmVersion": "paris",
-          "outputSelection": {
-            "*": {
-              "*": [
-                "abi",
-                "evm.bytecode",
-                "evm.deployedBytecode",
-                "evm.methodIdentifiers",
-                "metadata"
-              ],
-              "": [
-                "ast"
-              ]
-            }
-          }
-        }
-      },
-      "imports": [],
-      "versionPragmas": [
-        ">=0.4.16"
-      ],
-      "artifacts": [
-        "IERC20"
-      ]
-    },
-    "D:\\SOTA\\contracts\\node_modules\\@openzeppelin\\contracts\\interfaces\\draft-IERC6093.sol": {
-      "lastModificationDate": 1770409837403,
-      "contentHash": "5041977bbe908de2e6ed0270447f79ad",
-      "sourceName": "@openzeppelin/contracts/interfaces/draft-IERC6093.sol",
-      "solcConfig": {
-        "version": "0.8.24",
-        "settings": {
-          "optimizer": {
-            "enabled": true,
-            "runs": 200
-          },
-          "evmVersion": "paris",
-          "outputSelection": {
-            "*": {
-              "*": [
-                "abi",
-                "evm.bytecode",
-                "evm.deployedBytecode",
-                "evm.methodIdentifiers",
-                "metadata"
-              ],
-              "": [
-                "ast"
-              ]
-            }
-          }
-        }
-      },
-      "imports": [],
-      "versionPragmas": [
-        ">=0.8.4"
-      ],
-      "artifacts": [
-        "IERC1155Errors",
-        "IERC20Errors",
-        "IERC721Errors"
-      ]
-    },
-    "D:\\SOTA\\contracts\\node_modules\\@openzeppelin\\contracts\\token\\ERC20\\extensions\\IERC20Metadata.sol": {
-      "lastModificationDate": 1770409837542,
-      "contentHash": "513778b30d2750f5d2b9b19bbcf748a5",
-      "sourceName": "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol",
-      "solcConfig": {
-        "version": "0.8.24",
-        "settings": {
-          "optimizer": {
-            "enabled": true,
-            "runs": 200
-          },
-          "evmVersion": "paris",
-          "outputSelection": {
-            "*": {
-              "*": [
-                "abi",
-                "evm.bytecode",
-                "evm.deployedBytecode",
-                "evm.methodIdentifiers",
-                "metadata"
-              ],
-              "": [
-                "ast"
-              ]
-            }
-          }
-        }
-      },
-      "imports": [
-        "../IERC20.sol"
-      ],
-      "versionPragmas": [
-        ">=0.6.2"
-      ],
-      "artifacts": [
-        "IERC20Metadata"
-      ]
-    },
-    "D:\\SOTA\\contracts\\contracts\\Escrow.sol": {
-      "lastModificationDate": 1770402475046,
-      "contentHash": "400c032726709eed2221319c6c89e509",
-      "sourceName": "contracts/Escrow.sol",
-      "solcConfig": {
-        "version": "0.8.24",
-        "settings": {
-          "optimizer": {
-            "enabled": true,
-            "runs": 200
-          },
-          "evmVersion": "paris",
-          "outputSelection": {
-            "*": {
-              "*": [
-                "abi",
-                "evm.bytecode",
-                "evm.deployedBytecode",
-                "evm.methodIdentifiers",
-                "metadata"
-              ],
-              "": [
-                "ast"
-              ]
-            }
-          }
-        }
-      },
-      "imports": [
-        "@openzeppelin/contracts/access/Ownable.sol",
-        "@openzeppelin/contracts/token/ERC20/IERC20.sol",
-        "@openzeppelin/contracts/utils/ReentrancyGuard.sol"
+        "@openzeppelin/contracts/access/Ownable.sol"
       ],
       "versionPragmas": [
         "^0.8.24"
       ],
       "artifacts": [
-        "Escrow",
-        "IReputationEmitter"
+        "IAgentRegistrySync",
+        "ReputationToken"
       ]
     },
-    "D:\\SOTA\\contracts\\node_modules\\@openzeppelin\\contracts\\utils\\ReentrancyGuard.sol": {
-      "lastModificationDate": 1770409837628,
-      "contentHash": "190613e556d509d9e9a0ea43dc5d891d",
-      "sourceName": "@openzeppelin/contracts/utils/ReentrancyGuard.sol",
-      "solcConfig": {
-        "version": "0.8.24",
-        "settings": {
-          "optimizer": {
-            "enabled": true,
-            "runs": 200
-          },
-          "evmVersion": "paris",
-          "outputSelection": {
-            "*": {
-              "*": [
-                "abi",
-                "evm.bytecode",
-                "evm.deployedBytecode",
-                "evm.methodIdentifiers",
-                "metadata"
-              ],
-              "": [
-                "ast"
-              ]
-            }
-          }
-        }
-      },
-      "imports": [],
-      "versionPragmas": [
-        "^0.8.20"
-      ],
-      "artifacts": [
-        "ReentrancyGuard"
-      ]
-    },
-    "D:\\SOTA\\contracts\\contracts\\FlareEscrow.sol": {
-      "lastModificationDate": 1770409643282,
-      "contentHash": "34c320736878b29418aa670fff375fb5",
-      "sourceName": "contracts/FlareEscrow.sol",
+    "/Users/macbook/Projects/SOTA/Untitled/contracts/contracts/FlareOrderBook.sol": {
+      "lastModificationDate": 1770418482356,
+      "contentHash": "2e3b3374aefdffc394326504d6a074d1",
+      "sourceName": "contracts/FlareOrderBook.sol",
       "solcConfig": {
         "version": "0.8.24",
         "settings": {
@@ -373,21 +182,18 @@
       },
       "imports": [
         "@openzeppelin/contracts/access/Ownable.sol",
-        "@openzeppelin/contracts/utils/ReentrancyGuard.sol",
         "./FTSOPriceConsumer.sol"
       ],
       "versionPragmas": [
         "^0.8.24"
       ],
       "artifacts": [
-        "FlareEscrow",
-        "IFDCVerifier",
-        "IFlareOrderBook"
+        "FlareOrderBook"
       ]
     },
-    "D:\\SOTA\\contracts\\contracts\\FTSOPriceConsumer.sol": {
-      "lastModificationDate": 1770409643278,
-      "contentHash": "4e3674a5ac3c48d1eef5e04f00a47141",
+    "/Users/macbook/Projects/SOTA/Untitled/contracts/contracts/FTSOPriceConsumer.sol": {
+      "lastModificationDate": 1770416568817,
+      "contentHash": "2904b97d4d30859ab573b82b47656047",
       "sourceName": "contracts/FTSOPriceConsumer.sol",
       "solcConfig": {
         "version": "0.8.24",
@@ -425,45 +231,9 @@
         "FTSOPriceConsumer"
       ]
     },
-    "D:\\SOTA\\contracts\\contracts\\interfaces\\IFlareContractRegistry.sol": {
-      "lastModificationDate": 1770409537196,
-      "contentHash": "61acbeada22ee3f39e73db2b732e2eb1",
-      "sourceName": "contracts/interfaces/IFlareContractRegistry.sol",
-      "solcConfig": {
-        "version": "0.8.24",
-        "settings": {
-          "optimizer": {
-            "enabled": true,
-            "runs": 200
-          },
-          "evmVersion": "paris",
-          "outputSelection": {
-            "*": {
-              "*": [
-                "abi",
-                "evm.bytecode",
-                "evm.deployedBytecode",
-                "evm.methodIdentifiers",
-                "metadata"
-              ],
-              "": [
-                "ast"
-              ]
-            }
-          }
-        }
-      },
-      "imports": [],
-      "versionPragmas": [
-        "^0.8.24"
-      ],
-      "artifacts": [
-        "IFlareContractRegistry"
-      ]
-    },
-    "D:\\SOTA\\contracts\\contracts\\interfaces\\IFastUpdater.sol": {
-      "lastModificationDate": 1770409537197,
-      "contentHash": "de72b549bc41e480ef4919409738971d",
+    "/Users/macbook/Projects/SOTA/Untitled/contracts/contracts/interfaces/IFastUpdater.sol": {
+      "lastModificationDate": 1770416568818,
+      "contentHash": "83804d4c17fc2a7dc59fc62efa1f63f8",
       "sourceName": "contracts/interfaces/IFastUpdater.sol",
       "solcConfig": {
         "version": "0.8.24",
@@ -497,10 +267,46 @@
         "IFastUpdater"
       ]
     },
-    "D:\\SOTA\\contracts\\contracts\\mocks\\MockFastUpdater.sol": {
-      "lastModificationDate": 1770409866570,
-      "contentHash": "58a863bdb9d45472f8405bae6f76f778",
-      "sourceName": "contracts/mocks/MockFastUpdater.sol",
+    "/Users/macbook/Projects/SOTA/Untitled/contracts/contracts/interfaces/IFlareContractRegistry.sol": {
+      "lastModificationDate": 1770416568818,
+      "contentHash": "1db9cc5efadc17977bc30f516b84cb60",
+      "sourceName": "contracts/interfaces/IFlareContractRegistry.sol",
+      "solcConfig": {
+        "version": "0.8.24",
+        "settings": {
+          "optimizer": {
+            "enabled": true,
+            "runs": 200
+          },
+          "evmVersion": "paris",
+          "outputSelection": {
+            "*": {
+              "*": [
+                "abi",
+                "evm.bytecode",
+                "evm.deployedBytecode",
+                "evm.methodIdentifiers",
+                "metadata"
+              ],
+              "": [
+                "ast"
+              ]
+            }
+          }
+        }
+      },
+      "imports": [],
+      "versionPragmas": [
+        "^0.8.24"
+      ],
+      "artifacts": [
+        "IFlareContractRegistry"
+      ]
+    },
+    "/Users/macbook/Projects/SOTA/Untitled/contracts/contracts/FlareEscrow.sol": {
+      "lastModificationDate": 1770418550333,
+      "contentHash": "76f71864a904a4107b6a3fa3567dcde0",
+      "sourceName": "contracts/FlareEscrow.sol",
       "solcConfig": {
         "version": "0.8.24",
         "settings": {
@@ -526,18 +332,282 @@
         }
       },
       "imports": [
-        "../interfaces/IFastUpdater.sol"
+        "@openzeppelin/contracts/access/Ownable.sol",
+        "@openzeppelin/contracts/utils/ReentrancyGuard.sol",
+        "@openzeppelin/contracts/token/ERC20/IERC20.sol",
+        "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol",
+        "./FTSOPriceConsumer.sol"
       ],
       "versionPragmas": [
         "^0.8.24"
       ],
       "artifacts": [
-        "MockFastUpdater"
+        "FlareEscrow",
+        "IFDCVerifier",
+        "IFlareOrderBook"
       ]
     },
-    "D:\\SOTA\\contracts\\contracts\\FDCVerifier.sol": {
-      "lastModificationDate": 1770409643282,
-      "contentHash": "8b1a85534513ca69de5018c356375732",
+    "/Users/macbook/Projects/SOTA/Untitled/contracts/node_modules/@openzeppelin/contracts/utils/ReentrancyGuard.sol": {
+      "lastModificationDate": 1770420243173,
+      "contentHash": "190613e556d509d9e9a0ea43dc5d891d",
+      "sourceName": "@openzeppelin/contracts/utils/ReentrancyGuard.sol",
+      "solcConfig": {
+        "version": "0.8.24",
+        "settings": {
+          "optimizer": {
+            "enabled": true,
+            "runs": 200
+          },
+          "evmVersion": "paris",
+          "outputSelection": {
+            "*": {
+              "*": [
+                "abi",
+                "evm.bytecode",
+                "evm.deployedBytecode",
+                "evm.methodIdentifiers",
+                "metadata"
+              ],
+              "": [
+                "ast"
+              ]
+            }
+          }
+        }
+      },
+      "imports": [],
+      "versionPragmas": [
+        "^0.8.20"
+      ],
+      "artifacts": [
+        "ReentrancyGuard"
+      ]
+    },
+    "/Users/macbook/Projects/SOTA/Untitled/contracts/node_modules/@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol": {
+      "lastModificationDate": 1770420243176,
+      "contentHash": "1fb9edee1d763745a62d0b1954998792",
+      "sourceName": "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol",
+      "solcConfig": {
+        "version": "0.8.24",
+        "settings": {
+          "optimizer": {
+            "enabled": true,
+            "runs": 200
+          },
+          "evmVersion": "paris",
+          "outputSelection": {
+            "*": {
+              "*": [
+                "abi",
+                "evm.bytecode",
+                "evm.deployedBytecode",
+                "evm.methodIdentifiers",
+                "metadata"
+              ],
+              "": [
+                "ast"
+              ]
+            }
+          }
+        }
+      },
+      "imports": [
+        "../IERC20.sol",
+        "../../../interfaces/IERC1363.sol"
+      ],
+      "versionPragmas": [
+        "^0.8.20"
+      ],
+      "artifacts": [
+        "SafeERC20"
+      ]
+    },
+    "/Users/macbook/Projects/SOTA/Untitled/contracts/node_modules/@openzeppelin/contracts/token/ERC20/IERC20.sol": {
+      "lastModificationDate": 1770420243141,
+      "contentHash": "9261adf6457863de3e9892f51317ec89",
+      "sourceName": "@openzeppelin/contracts/token/ERC20/IERC20.sol",
+      "solcConfig": {
+        "version": "0.8.24",
+        "settings": {
+          "optimizer": {
+            "enabled": true,
+            "runs": 200
+          },
+          "evmVersion": "paris",
+          "outputSelection": {
+            "*": {
+              "*": [
+                "abi",
+                "evm.bytecode",
+                "evm.deployedBytecode",
+                "evm.methodIdentifiers",
+                "metadata"
+              ],
+              "": [
+                "ast"
+              ]
+            }
+          }
+        }
+      },
+      "imports": [],
+      "versionPragmas": [
+        ">=0.4.16"
+      ],
+      "artifacts": [
+        "IERC20"
+      ]
+    },
+    "/Users/macbook/Projects/SOTA/Untitled/contracts/node_modules/@openzeppelin/contracts/interfaces/IERC1363.sol": {
+      "lastModificationDate": 1770420243138,
+      "contentHash": "a7fd0f05e36b0d0a21c75340c9c639ec",
+      "sourceName": "@openzeppelin/contracts/interfaces/IERC1363.sol",
+      "solcConfig": {
+        "version": "0.8.24",
+        "settings": {
+          "optimizer": {
+            "enabled": true,
+            "runs": 200
+          },
+          "evmVersion": "paris",
+          "outputSelection": {
+            "*": {
+              "*": [
+                "abi",
+                "evm.bytecode",
+                "evm.deployedBytecode",
+                "evm.methodIdentifiers",
+                "metadata"
+              ],
+              "": [
+                "ast"
+              ]
+            }
+          }
+        }
+      },
+      "imports": [
+        "./IERC20.sol",
+        "./IERC165.sol"
+      ],
+      "versionPragmas": [
+        ">=0.6.2"
+      ],
+      "artifacts": [
+        "IERC1363"
+      ]
+    },
+    "/Users/macbook/Projects/SOTA/Untitled/contracts/node_modules/@openzeppelin/contracts/interfaces/IERC20.sol": {
+      "lastModificationDate": 1770420243141,
+      "contentHash": "68620db2da7583d9a4919096ac77f577",
+      "sourceName": "@openzeppelin/contracts/interfaces/IERC20.sol",
+      "solcConfig": {
+        "version": "0.8.24",
+        "settings": {
+          "optimizer": {
+            "enabled": true,
+            "runs": 200
+          },
+          "evmVersion": "paris",
+          "outputSelection": {
+            "*": {
+              "*": [
+                "abi",
+                "evm.bytecode",
+                "evm.deployedBytecode",
+                "evm.methodIdentifiers",
+                "metadata"
+              ],
+              "": [
+                "ast"
+              ]
+            }
+          }
+        }
+      },
+      "imports": [
+        "../token/ERC20/IERC20.sol"
+      ],
+      "versionPragmas": [
+        ">=0.4.16"
+      ],
+      "artifacts": []
+    },
+    "/Users/macbook/Projects/SOTA/Untitled/contracts/node_modules/@openzeppelin/contracts/interfaces/IERC165.sol": {
+      "lastModificationDate": 1770420243139,
+      "contentHash": "947853028399b7de34bcc3704ee06e99",
+      "sourceName": "@openzeppelin/contracts/interfaces/IERC165.sol",
+      "solcConfig": {
+        "version": "0.8.24",
+        "settings": {
+          "optimizer": {
+            "enabled": true,
+            "runs": 200
+          },
+          "evmVersion": "paris",
+          "outputSelection": {
+            "*": {
+              "*": [
+                "abi",
+                "evm.bytecode",
+                "evm.deployedBytecode",
+                "evm.methodIdentifiers",
+                "metadata"
+              ],
+              "": [
+                "ast"
+              ]
+            }
+          }
+        }
+      },
+      "imports": [
+        "../utils/introspection/IERC165.sol"
+      ],
+      "versionPragmas": [
+        ">=0.4.16"
+      ],
+      "artifacts": []
+    },
+    "/Users/macbook/Projects/SOTA/Untitled/contracts/node_modules/@openzeppelin/contracts/utils/introspection/IERC165.sol": {
+      "lastModificationDate": 1770420243139,
+      "contentHash": "7074c93b1ea0a122063f26ddd1db1032",
+      "sourceName": "@openzeppelin/contracts/utils/introspection/IERC165.sol",
+      "solcConfig": {
+        "version": "0.8.24",
+        "settings": {
+          "optimizer": {
+            "enabled": true,
+            "runs": 200
+          },
+          "evmVersion": "paris",
+          "outputSelection": {
+            "*": {
+              "*": [
+                "abi",
+                "evm.bytecode",
+                "evm.deployedBytecode",
+                "evm.methodIdentifiers",
+                "metadata"
+              ],
+              "": [
+                "ast"
+              ]
+            }
+          }
+        }
+      },
+      "imports": [],
+      "versionPragmas": [
+        ">=0.4.16"
+      ],
+      "artifacts": [
+        "IERC165"
+      ]
+    },
+    "/Users/macbook/Projects/SOTA/Untitled/contracts/contracts/FDCVerifier.sol": {
+      "lastModificationDate": 1770416568817,
+      "contentHash": "c2b5bc6695150ecf36ae3f4cb22f181c",
       "sourceName": "contracts/FDCVerifier.sol",
       "solcConfig": {
         "version": "0.8.24",
@@ -576,9 +646,9 @@
         "FDCVerifier"
       ]
     },
-    "D:\\SOTA\\contracts\\contracts\\interfaces\\IFdcVerification.sol": {
-      "lastModificationDate": 1770409537197,
-      "contentHash": "ad6672fba39c582e653e3dc35980e229",
+    "/Users/macbook/Projects/SOTA/Untitled/contracts/contracts/interfaces/IFdcVerification.sol": {
+      "lastModificationDate": 1770416568818,
+      "contentHash": "b3401beb611c1b2f18053bf47fed2df2",
       "sourceName": "contracts/interfaces/IFdcVerification.sol",
       "solcConfig": {
         "version": "0.8.24",
@@ -613,9 +683,9 @@
         "IJsonApi"
       ]
     },
-    "D:\\SOTA\\contracts\\contracts\\interfaces\\IFdcHub.sol": {
-      "lastModificationDate": 1770409537197,
-      "contentHash": "708e75d2f5d054156779d3d9b62caa6e",
+    "/Users/macbook/Projects/SOTA/Untitled/contracts/contracts/interfaces/IFdcHub.sol": {
+      "lastModificationDate": 1770416568818,
+      "contentHash": "d1f0531089851cbb77dc70ee84f2a54c",
       "sourceName": "contracts/interfaces/IFdcHub.sol",
       "solcConfig": {
         "version": "0.8.24",
@@ -649,9 +719,9 @@
         "IFdcHub"
       ]
     },
-    "D:\\SOTA\\contracts\\contracts\\mocks\\MockFdcVerification.sol": {
-      "lastModificationDate": 1770409643282,
-      "contentHash": "73eef3afa38c8310e9ac9855563d9768",
+    "/Users/macbook/Projects/SOTA/Untitled/contracts/contracts/mocks/MockFdcVerification.sol": {
+      "lastModificationDate": 1770416568818,
+      "contentHash": "157017ff3ea73f2b45e6b0b9c99c4514",
       "sourceName": "contracts/mocks/MockFdcVerification.sol",
       "solcConfig": {
         "version": "0.8.24",
@@ -687,10 +757,10 @@
         "MockFdcVerification"
       ]
     },
-    "D:\\SOTA\\contracts\\contracts\\FlareOrderBook.sol": {
-      "lastModificationDate": 1770409643282,
-      "contentHash": "96d15f7ffd256911a18b4630765ad9e0",
-      "sourceName": "contracts/FlareOrderBook.sol",
+    "/Users/macbook/Projects/SOTA/Untitled/contracts/contracts/mocks/MockFastUpdater.sol": {
+      "lastModificationDate": 1770416568818,
+      "contentHash": "8212c2d9d0e5b707c34f925adcfd6da1",
+      "sourceName": "contracts/mocks/MockFastUpdater.sol",
       "solcConfig": {
         "version": "0.8.24",
         "settings": {
@@ -716,209 +786,13 @@
         }
       },
       "imports": [
-        "@openzeppelin/contracts/access/Ownable.sol",
-        "./FTSOPriceConsumer.sol"
+        "../interfaces/IFastUpdater.sol"
       ],
       "versionPragmas": [
         "^0.8.24"
       ],
       "artifacts": [
-        "FlareOrderBook"
-      ]
-    },
-    "D:\\SOTA\\contracts\\contracts\\mocks\\MockUSDC.sol": {
-      "lastModificationDate": 1770402475057,
-      "contentHash": "9ea77e4014d803981e634fb30572f8b0",
-      "sourceName": "contracts/mocks/MockUSDC.sol",
-      "solcConfig": {
-        "version": "0.8.24",
-        "settings": {
-          "optimizer": {
-            "enabled": true,
-            "runs": 200
-          },
-          "evmVersion": "paris",
-          "outputSelection": {
-            "*": {
-              "*": [
-                "abi",
-                "evm.bytecode",
-                "evm.deployedBytecode",
-                "evm.methodIdentifiers",
-                "metadata"
-              ],
-              "": [
-                "ast"
-              ]
-            }
-          }
-        }
-      },
-      "imports": [
-        "@openzeppelin/contracts/token/ERC20/ERC20.sol"
-      ],
-      "versionPragmas": [
-        "^0.8.24"
-      ],
-      "artifacts": [
-        "MockUSDC"
-      ]
-    },
-    "D:\\SOTA\\contracts\\contracts\\ReputationToken.sol": {
-      "lastModificationDate": 1770402475053,
-      "contentHash": "50612c3f7c43821b7fddc56df8c2862f",
-      "sourceName": "contracts/ReputationToken.sol",
-      "solcConfig": {
-        "version": "0.8.24",
-        "settings": {
-          "optimizer": {
-            "enabled": true,
-            "runs": 200
-          },
-          "evmVersion": "paris",
-          "outputSelection": {
-            "*": {
-              "*": [
-                "abi",
-                "evm.bytecode",
-                "evm.deployedBytecode",
-                "evm.methodIdentifiers",
-                "metadata"
-              ],
-              "": [
-                "ast"
-              ]
-            }
-          }
-        }
-      },
-      "imports": [
-        "@openzeppelin/contracts/access/Ownable.sol"
-      ],
-      "versionPragmas": [
-        "^0.8.24"
-      ],
-      "artifacts": [
-        "IAgentRegistrySync",
-        "ReputationToken"
-      ]
-    },
-    "D:\\SOTA\\contracts\\contracts\\OrderBook.sol": {
-      "lastModificationDate": 1770402475052,
-      "contentHash": "ed2d7c2ad3bdddf4be33a891a7c62938",
-      "sourceName": "contracts/OrderBook.sol",
-      "solcConfig": {
-        "version": "0.8.24",
-        "settings": {
-          "optimizer": {
-            "enabled": true,
-            "runs": 200
-          },
-          "evmVersion": "paris",
-          "outputSelection": {
-            "*": {
-              "*": [
-                "abi",
-                "evm.bytecode",
-                "evm.deployedBytecode",
-                "evm.methodIdentifiers",
-                "metadata"
-              ],
-              "": [
-                "ast"
-              ]
-            }
-          }
-        }
-      },
-      "imports": [
-        "@openzeppelin/contracts/access/Ownable.sol",
-        "./JobTypes.sol"
-      ],
-      "versionPragmas": [
-        "^0.8.24"
-      ],
-      "artifacts": [
-        "IAgentRegistryView",
-        "IEscrow",
-        "IJobRegistry",
-        "IReputationToken",
-        "OrderBook"
-      ]
-    },
-    "D:\\SOTA\\contracts\\contracts\\JobTypes.sol": {
-      "lastModificationDate": 1770402475049,
-      "contentHash": "3ef93c71123678edefb65b799cdc85c2",
-      "sourceName": "contracts/JobTypes.sol",
-      "solcConfig": {
-        "version": "0.8.24",
-        "settings": {
-          "optimizer": {
-            "enabled": true,
-            "runs": 200
-          },
-          "evmVersion": "paris",
-          "outputSelection": {
-            "*": {
-              "*": [
-                "abi",
-                "evm.bytecode",
-                "evm.deployedBytecode",
-                "evm.methodIdentifiers",
-                "metadata"
-              ],
-              "": [
-                "ast"
-              ]
-            }
-          }
-        }
-      },
-      "imports": [],
-      "versionPragmas": [
-        "^0.8.24"
-      ],
-      "artifacts": [
-        "JobTypes"
-      ]
-    },
-    "D:\\SOTA\\contracts\\contracts\\JobRegistry.sol": {
-      "lastModificationDate": 1770402475047,
-      "contentHash": "b10b04a4628a2e47b2013cc8fc9aa4b3",
-      "sourceName": "contracts/JobRegistry.sol",
-      "solcConfig": {
-        "version": "0.8.24",
-        "settings": {
-          "optimizer": {
-            "enabled": true,
-            "runs": 200
-          },
-          "evmVersion": "paris",
-          "outputSelection": {
-            "*": {
-              "*": [
-                "abi",
-                "evm.bytecode",
-                "evm.deployedBytecode",
-                "evm.methodIdentifiers",
-                "metadata"
-              ],
-              "": [
-                "ast"
-              ]
-            }
-          }
-        }
-      },
-      "imports": [
-        "@openzeppelin/contracts/access/Ownable.sol",
-        "./JobTypes.sol"
-      ],
-      "versionPragmas": [
-        "^0.8.24"
-      ],
-      "artifacts": [
-        "JobRegistry"
+        "MockFastUpdater"
       ]
     }
   }

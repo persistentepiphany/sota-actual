@@ -8,7 +8,7 @@
     "test": "hardhat test",
     "deploy:flare": "hardhat run scripts/deploy-flare.ts --network flareCoston2",
     "deploy:local": "hardhat run scripts/deploy-flare.ts --network hardhat",
-    "deploy:legacy": "hardhat run scripts/deploy.ts --network neoxTestnet"
+    "test:flare": "hardhat test test/flare-orderbook.ts"
   },
   "devDependencies": {
     "@nomicfoundation/hardhat-toolbox": "^5.0.0",
