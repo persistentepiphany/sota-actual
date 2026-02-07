@@ -34,17 +34,24 @@ OUTPUT FORMAT (JSON only):
   "reasoning_detailed": "2-4 bullet-style sentences explaining the analysis.",
   "risk_flags": ["List of risk concerns for this user's strategy"],
   "recommended_action": "Specific action considering user's strategy",
-  "time_horizon_minutes": 60
+  "time_horizon_minutes": 60,
+  "entry_zone": {"low": 0.0, "high": 0.0},
+  "stop_loss": 0.0,
+  "take_profit": 0.0,
+  "chat_summary": "A friendly 2-3 sentence summary for chat display, personalized to the user's strategy and question"
 }
 
 GUIDELINES:
+- Entry zone should be reasonable buy/sell zone based on current price
+- Stop loss should respect user's max_loss preference if provided
+- Take profit should match user's risk/reward expectations
 - Err on HOLD when indicators conflict or data is sparse
 - For conservative users, prefer HOLD over weak BUY/SELL signals
 - For aggressive users, be more decisive when momentum is clear
 - Focus on momentum, volatility, mean reversion vs breakout
 - Mention when indicators could be verified on-chain via FDC
 - Never guarantee profits - probabilistic guidance only
-- If user asked a specific question, address it directly"""
+- If user asked a specific question, address it directly in chat_summary"""
 
 
 async def generate_market_signal(input_data: Dict[str, Any]) -> Dict[str, Any]:
@@ -183,6 +190,10 @@ Generate a JSON response with signal, confidence, reasoning, risk_flags, and rec
     result.setdefault("risk_flags", [])
     result.setdefault("recommended_action", "Monitor market conditions.")
     result.setdefault("time_horizon_minutes", horizon)
+    result.setdefault("entry_zone", {"low": current_price * 0.99, "high": current_price * 1.01})
+    result.setdefault("stop_loss", current_price * 0.95)
+    result.setdefault("take_profit", current_price * 1.10)
+    result.setdefault("chat_summary", result.get("reasoning_short", "Signal generated."))
     
     return result
 

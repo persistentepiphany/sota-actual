@@ -62,6 +62,13 @@ from agents.src.shared.job_board import JobBoard, JobStatus
 from agents.src.hackathon.agent import HackathonAgent, create_hackathon_agent
 from agents.src.caller.agent import CallerAgent
 
+# Flare Predictor — market signals using FTSO data
+try:
+    from src.flare_predictor.agent import FlarePredictor, create_flare_predictor_agent
+except ImportError:
+    FlarePredictor = None  # type: ignore
+    create_flare_predictor_agent = None
+
 load_dotenv()
 
 logging.basicConfig(level=logging.INFO)
@@ -84,6 +91,7 @@ butler_agent: Optional[ButlerAgent] = None
 job_board: Optional[JobBoard] = None
 hackathon_agent: Optional[HackathonAgent] = None
 caller_agent: Optional[CallerAgent] = None
+flare_predictor_agent: Optional["FlarePredictor"] = None  # Market signal agent
 
 
 # ─── Request / Response Models ────────────────────────────────
@@ -173,6 +181,20 @@ class ReleaseRequest(BaseModel):
     job_id: int
 
 
+class PredictorRequest(BaseModel):
+    """Request for Flare Predictor trading signal."""
+    asset: str = "FLR/USD"
+    horizon_minutes: int = 60
+    risk_profile: str = "moderate"  # conservative, moderate, aggressive
+    # User strategy (optional)
+    risk_tolerance: Optional[str] = None
+    investment_goal: Optional[str] = None
+    time_horizon: Optional[str] = None
+    position_size_percent: Optional[float] = None
+    max_loss_percent: Optional[float] = None
+    question: Optional[str] = None  # User's specific question
+
+
 class PriceResponse(BaseModel):
     flr_usd: float
     timestamp: int
@@ -249,6 +271,15 @@ async def startup_event():
         print(f"📞 CallerAgent registered on JobBoard (tags: call_verification, hotel_booking)")
     except Exception as e:
         print(f"⚠️ CallerAgent init failed (non-critical): {e}")
+
+    # Flare Predictor — market signals using FTSO
+    global flare_predictor_agent
+    if create_flare_predictor_agent:
+        try:
+            flare_predictor_agent = await create_flare_predictor_agent()
+            print(f"📈 FlarePredictor registered on JobBoard (tags: market_prediction, trading_signal)")
+        except Exception as e:
+            print(f"⚠️ FlarePredictor init failed (non-critical): {e}")
 
     # Log registered workers
     workers = job_board.workers
@@ -648,6 +679,84 @@ async def release_job_payment(req: ReleaseRequest):
         raise
     except Exception as e:
         raise HTTPException(500, f"Release failed: {e}")
+
+
+# ─── Flare Predictor Endpoint ────────────────────────────────
+
+@app.post("/api/flare/predict")
+async def predict_market_signal(req: PredictorRequest):
+    """
+    Generate trading signal using FTSO price data.
+    
+    Uses real-time Flare FTSO v2 prices and optional external indicators
+    to produce actionable trading signals with LLM reasoning.
+    
+    Returns:
+      - signal: STRONGLY_BUY | BUY | HOLD | SELL | STRONGLY_SELL
+      - confidence: 0.0-1.0
+      - reasoning: Detailed analysis
+      - entry_zone, stop_loss, take_profit: Price levels
+      - chat_summary: Human-friendly summary for chat display
+    """
+    try:
+        from src.flare_predictor.services.ftso_data import (
+            get_ftso_time_series, 
+            compute_derived_features,
+            get_current_ftso_price
+        )
+        from src.flare_predictor.services.signal_generator import generate_market_signal
+        from src.flare_predictor.services.external_data import get_external_indicators
+        
+        # 1. Fetch current price and time series
+        current_price = await get_current_ftso_price(req.asset)
+        time_series = await get_ftso_time_series(req.asset, req.horizon_minutes * 2)
+        
+        # 2. Compute derived features (volatility, momentum, etc.)
+        derived = compute_derived_features(time_series)
+        
+        # 3. Get external indicators via FDC
+        external = await get_external_indicators(req.asset)
+        
+        # 4. Build user strategy context
+        user_strategy = None
+        if req.risk_tolerance or req.investment_goal:
+            user_strategy = {
+                "risk_tolerance": req.risk_tolerance or req.risk_profile,
+                "investment_goal": req.investment_goal or "general_trading",
+                "time_horizon": req.time_horizon or "short_term",
+                "position_size_percent": req.position_size_percent or 5.0,
+                "max_loss_percent": req.max_loss_percent or 2.0,
+            }
+        
+        # 5. Generate signal via LLM
+        signal_input = {
+            "asset": req.asset,
+            "horizon_minutes": req.horizon_minutes,
+            "current_price": current_price,
+            "ftso_time_series": time_series,
+            "derived_features": derived,
+            "external_indicators": external,
+            "risk_profile": req.risk_profile,
+            "user_strategy": user_strategy,
+            "user_question": req.question,
+        }
+        
+        result = await generate_market_signal(signal_input)
+        
+        logger.info("Generated %s signal for %s (confidence: %.2f)", 
+                   result.get("signal"), req.asset, result.get("confidence", 0))
+        
+        return {
+            "success": True,
+            "asset": req.asset,
+            "current_price": current_price,
+            "horizon_minutes": req.horizon_minutes,
+            **result
+        }
+        
+    except Exception as e:
+        logger.exception("Prediction error: %s", e)
+        raise HTTPException(500, f"Prediction failed: {e}")
 
 
 # ─── Demo / Testing ──────────────────────────────────────────
