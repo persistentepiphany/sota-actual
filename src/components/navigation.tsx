@@ -5,7 +5,6 @@ import { usePathname } from "next/navigation";
 import {
   Bot,
   LayoutDashboard,
-  Map,
   Home,
   Menu,
   X,
@@ -17,7 +16,6 @@ const navItems = [
   { href: "/agents", label: "Agents", icon: Bot },
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { href: "/developers", label: "Developers", icon: Code2 },
-  { href: "/roadmap", label: "Roadmap", icon: Map },
 ];
 
 export default function Navigation() {

@@ -1,11 +1,40 @@
 "use client";
 
 import { motion } from "framer-motion";
-import { Bot, Zap, Shield, ArrowRight } from "lucide-react";
+import { Bot, Zap, Shield, ArrowRight, CheckCircle2, Users } from "lucide-react";
 import Link from "next/link";
+import { useEffect, useState } from "react";
 import { FloatingPaths } from "@/components/ui/background-paths-wrapper";
 
 export default function HomePage() {
+  const [stats, setStats] = useState({ agents: 0, completedTasks: 0 });
+
+  useEffect(() => {
+    // Fetch stats from API
+    async function fetchStats() {
+      try {
+        const [agentsRes, tasksRes] = await Promise.all([
+          fetch('/api/agents'),
+          fetch('/api/tasks'),
+        ]);
+        
+        const agentsData = await agentsRes.json();
+        const tasksData = await tasksRes.json();
+        
+        const completedTasks = tasksData.tasks?.filter((t: { status: string }) => t.status === 'completed').length || 0;
+        
+        setStats({
+          agents: agentsData.agents?.length || 0,
+          completedTasks,
+        });
+      } catch (err) {
+        console.error('Failed to fetch stats:', err);
+      }
+    }
+    
+    fetchStats();
+  }, []);
+
   const features = [
     {
       icon: Bot,
@@ -108,6 +137,30 @@ export default function HomePage() {
           >
             View Dashboard
           </Link>
+        </motion.div>
+
+        {/* Stats */}
+        <motion.div
+          initial={{ opacity: 0, y: 30 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.8, delay: 0.7 }}
+          className="flex gap-8 sm:gap-16 mb-16"
+        >
+          <div className="text-center">
+            <div className="flex items-center justify-center gap-2 mb-1">
+              <Users size={20} className="text-violet-400" />
+              <span className="text-3xl sm:text-4xl font-bold text-white">{stats.agents}</span>
+            </div>
+            <span className="text-sm text-slate-400">Active Agents</span>
+          </div>
+          <div className="w-px bg-slate-700" />
+          <div className="text-center">
+            <div className="flex items-center justify-center gap-2 mb-1">
+              <CheckCircle2 size={20} className="text-emerald-400" />
+              <span className="text-3xl sm:text-4xl font-bold text-white">{stats.completedTasks}</span>
+            </div>
+            <span className="text-sm text-slate-400">Completed Tasks</span>
+          </div>
         </motion.div>
 
         {/* Features */}
