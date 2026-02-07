@@ -1,0 +1,1801 @@
+<!DOCTYPE html>
+<html lang="en" class="h-full">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AI Agent Operations</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="/_sdk/element_sdk.js"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500;9..40,600&display=swap" rel="stylesheet">
+  <style>
+    body {
+      box-sizing: border-box;
+    }
+    * {
+      font-family: 'DM Sans', sans-serif;
+    }
+    .timeline-line {
+      position: absolute;
+      left: 18px;
+      top: 40px;
+      bottom: 20px;
+      width: 2px;
+      background: linear-gradient(to bottom, #3b82f6, #e2e8f0);
+    }
+    .stage-dot {
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+      position: relative;
+      z-index: 1;
+    }
+    .stage-dot.completed {
+      background: #3b82f6;
+      box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.2);
+    }
+    .stage-dot.active {
+      background: #3b82f6;
+      animation: pulse 2s infinite;
+    }
+    .stage-dot.pending {
+      background: #e2e8f0;
+      border: 2px solid #cbd5e1;
+    }
+    @keyframes pulse {
+      0%, 100% { box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.3); }
+      50% { box-shadow: 0 0 0 8px rgba(59, 130, 246, 0.1); }
+    }
+    .widget-card {
+      transition: all 0.2s ease;
+    }
+    .widget-card:hover {
+      background: #f8fafc;
+    }
+    .expand-content {
+      max-height: 0;
+      overflow: hidden;
+      transition: max-height 0.3s ease-out;
+    }
+    .expand-content.expanded {
+      max-height: 500px;
+    }
+    .status-indicator {
+      animation: statusGlow 3s infinite;
+    }
+    @keyframes statusGlow {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.6; }
+    }
+    .system-strip {
+      animation: slideDown 0.3s ease-out;
+    }
+    @keyframes slideDown {
+      from { opacity: 0; transform: translateY(-10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    .task-card {
+      transition: all 0.2s ease;
+      cursor: pointer;
+    }
+    .task-card:hover {
+      border-color: #cbd5e1;
+      background: #f8fafc;
+    }
+    .task-card.selected {
+      border-color: #3b82f6;
+      background: #eff6ff;
+    }
+    .progress-bar {
+      height: 3px;
+      background: #e2e8f0;
+      border-radius: 2px;
+      overflow: hidden;
+    }
+    .progress-fill {
+      height: 100%;
+      background: #3b82f6;
+      border-radius: 2px;
+      animation: fillProgress 2s ease-in-out;
+    }
+    @keyframes fillProgress {
+      0% { width: 0%; }
+      100% { width: 100%; }
+    }
+    .drawer-backdrop {
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.5);
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.3s ease;
+      z-index: 40;
+    }
+    .drawer-backdrop.active {
+      opacity: 1;
+      pointer-events: auto;
+    }
+    .constraints-drawer {
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      background: white;
+      border-top: 1px solid #e2e8f0;
+      max-height: 0;
+      overflow: hidden;
+      transition: max-height 0.3s ease-out;
+      z-index: 50;
+    }
+    .constraints-drawer.expanded {
+      max-height: 500px;
+    }
+    .agent-popover {
+      position: absolute;
+      top: 100%;
+      right: 0;
+      background: white;
+      border: 1px solid #e2e8f0;
+      border-radius: 0.75rem;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+      margin-top: 8px;
+      min-width: 280px;
+      opacity: 0;
+      pointer-events: none;
+      transform: translateY(-8px);
+      transition: all 0.2s ease;
+      z-index: 50;
+    }
+    .agent-popover.active {
+      opacity: 1;
+      pointer-events: auto;
+      transform: translateY(0);
+    }
+    .advanced-fields {
+      max-height: 0;
+      overflow: hidden;
+      transition: max-height 0.3s ease-out;
+    }
+    .advanced-fields.expanded {
+      max-height: 300px;
+    }
+    .agent-avatar {
+      width: 18px;
+      height: 18px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.7rem;
+      font-weight: 600;
+    }
+    .agent-avatar.research {
+      background: #dbeafe;
+      color: #0284c7;
+    }
+    .agent-avatar.data {
+      background: #e0e7ff;
+      color: #4f46e5;
+    }
+    .agent-avatar.butler {
+      background: #fef3c7;
+      color: #d97706;
+    }
+    .live-summary {
+      color: #3b82f6;
+      font-weight: 500;
+      font-size: 0.875rem;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .mini-stage {
+      display: flex;
+      align-items: center;
+      gap: 2px;
+      font-size: 0.75rem;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    .mini-stage-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+    }
+    .mini-stage-dot.completed {
+      background: #3b82f6;
+    }
+    .mini-stage-dot.active {
+      background: #3b82f6;
+      animation: miniPulse 1.5s infinite;
+    }
+    .mini-stage-dot.pending {
+      background: #cbd5e1;
+    }
+    @keyframes miniPulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.5; }
+    }
+    .publishing-modal {
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.6);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.3s ease;
+      z-index: 60;
+    }
+    .publishing-modal.active {
+      opacity: 1;
+      pointer-events: auto;
+    }
+    .publishing-modal-content {
+      background: white;
+      border-radius: 1.5rem;
+      padding: 2rem;
+      max-width: 480px;
+      width: 90%;
+      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+      animation: slideUp 0.3s ease-out;
+    }
+    @keyframes slideUp {
+      from { transform: translateY(20px); opacity: 0; }
+      to { transform: translateY(0); opacity: 1; }
+    }
+    .publishing-step {
+      display: none;
+      animation: fadeIn 0.3s ease-out;
+    }
+    .publishing-step.active {
+      display: block;
+    }
+    @keyframes fadeIn {
+      from { opacity: 0; }
+      to { opacity: 1; }
+    }
+    .step-icon {
+      width: 48px;
+      height: 48px;
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-bottom: 1rem;
+      animation: bounceIn 0.4s ease-out;
+    }
+    @keyframes bounceIn {
+      0% { transform: scale(0.3); opacity: 0; }
+      50% { opacity: 1; }
+      100% { transform: scale(1); }
+    }
+    .spinner {
+      display: inline-block;
+      width: 16px;
+      height: 16px;
+      border: 2px solid #e2e8f0;
+      border-top-color: #3b82f6;
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+    }
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+    .toast-message {
+      position: fixed;
+      bottom: 24px;
+      right: 24px;
+      background: white;
+      border: 1px solid #e2e8f0;
+      border-radius: 0.75rem;
+      padding: 1rem 1.5rem;
+      box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+      max-width: 400px;
+      animation: slideInRight 0.3s ease-out;
+      z-index: 70;
+    }
+    @keyframes slideInRight {
+      from { transform: translateX(400px); opacity: 0; }
+      to { transform: translateX(0); opacity: 1; }
+    }
+    .toast-message.success {
+      border-left: 4px solid #10b981;
+    }
+    .toast-message.error {
+      border-left: 4px solid #ef4444;
+    }
+    .toast-icon {
+      width: 20px;
+      height: 20px;
+      flex-shrink: 0;
+    }
+    .agent-bid-card {
+      transition: all 0.2s ease;
+    }
+    .agent-bid-card:hover {
+      border-color: #cbd5e1;
+    }
+    .agent-bid-card.selected {
+      border-color: #3b82f6;
+      background-color: #eff6ff;
+    }
+    .filter-popover {
+      position: absolute;
+      top: 100%;
+      right: 0;
+      background: white;
+      border: 1px solid #e2e8f0;
+      border-radius: 0.75rem;
+      box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
+      margin-top: 8px;
+      min-width: 320px;
+      max-width: 380px;
+      opacity: 0;
+      pointer-events: none;
+      transform: translateY(-8px);
+      transition: all 0.2s ease;
+      z-index: 50;
+    }
+    .filter-popover.active {
+      opacity: 1;
+      pointer-events: auto;
+      transform: translateY(0);
+    }
+    .category-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 12px;
+      background: #f1f5f9;
+      border: 1px solid #e2e8f0;
+      border-radius: 6px;
+      font-size: 0.75rem;
+      font-weight: 500;
+      color: #475569;
+      transition: all 0.2s ease;
+      cursor: pointer;
+    }
+    .category-badge.active {
+      background: #3b82f6;
+      border-color: #3b82f6;
+      color: white;
+    }
+    .category-section {
+      animation: fadeIn 0.3s ease-out;
+    }
+    .task-metric {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 0.85rem;
+      color: #475569;
+    }
+    .task-metric svg {
+      width: 14px;
+      height: 14px;
+      flex-shrink: 0;
+      opacity: 0.6;
+    }
+    .task-description-text {
+      line-height: 1.5;
+      color: #64748b;
+      font-size: 0.9rem;
+    }
+    .checkbox-filter {
+      appearance: none;
+      width: 16px;
+      height: 16px;
+      border: 1.5px solid #cbd5e1;
+      border-radius: 4px;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      background: white;
+    }
+    .checkbox-filter:checked {
+      background: #3b82f6;
+      border-color: #3b82f6;
+    }
+    .checkbox-filter:checked::after {
+      content: '✓';
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: white;
+      font-size: 11px;
+      font-weight: bold;
+    }
+    .grid-view {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 1rem;
+    }
+    .list-view {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 1rem;
+    }
+    .task-card-grid {
+      display: flex;
+      flex-direction: column;
+      height: 100%;
+      min-height: 280px;
+    }
+    .task-card-grid .task-card {
+      height: 100%;
+      display: flex;
+      flex-direction: column;
+    }
+    .task-card-grid .task-card > div:last-child {
+      margin-top: auto;
+    }
+    @media (max-width: 1400px) {
+      .grid-view {
+        grid-template-columns: repeat(2, 1fr);
+      }
+    }
+    @media (max-width: 900px) {
+      .grid-view {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+<body class="h-full bg-slate-50 overflow-auto">
+  <div class="app-wrapper h-full w-full flex flex-col">
+    
+    <!-- Header -->
+    <header id="main-header" class="flex items-center justify-between px-6 py-3 bg-white border-b border-slate-100 flex-shrink-0">
+      <div class="flex items-center gap-4">
+        <button id="new-task-btn" onclick="showTaskCreator()" class="flex items-center gap-2 px-4 py-2 bg-blue-500 text-white text-sm font-medium rounded-lg hover:bg-blue-600 transition-colors">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+            <line x1="12" y1="5" x2="12" y2="19"></line>
+            <line x1="5" y1="12" x2="19" y2="12"></line>
+          </svg>
+          <span>New Task</span>
+        </button>
+      </div>
+      
+      <div class="flex-1 max-w-md mx-8">
+        <div class="relative">
+          <svg class="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="11" cy="11" r="8"></circle>
+            <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+          </svg>
+          <input id="search-input" type="text" placeholder="Search tasks, agents, outputs..." class="w-full pl-10 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-blue-300 focus:bg-white transition-all" onkeyup="filterDashboard()">
+        </div>
+      </div>
+      
+      <div class="flex items-center gap-4 text-xs text-slate-500">
+        <div class="relative">
+          <button onclick="toggleAgentPopover()" class="flex items-center gap-2 hover:text-slate-700 transition-colors">
+            <span class="status-indicator w-2 h-2 rounded-full bg-emerald-400"></span>
+            <span id="agents-count">3 agents online</span>
+          </button>
+          
+          <div id="agent-popover" class="agent-popover">
+            <div class="p-4">
+              <h4 class="text-xs font-semibold text-slate-700 mb-3">Active Agents</h4>
+              <div class="space-y-3">
+                <div class="flex items-center justify-between">
+                  <div class="flex items-center gap-2">
+                    <div class="agent-avatar research">R</div>
+                    <div>
+                      <p class="text-xs font-medium text-slate-700">Research Agent</p>
+                      <p class="text-xs text-slate-400">Specialization: Market Analysis</p>
+                    </div>
+                  </div>
+                  <div class="text-right">
+                    <div class="w-8 h-8 rounded-full bg-blue-50 flex items-center justify-center">
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#3b82f6" stroke-width="2">
+                        <circle cx="12" cy="12" r="1"></circle>
+                        <circle cx="19" cy="12" r="1"></circle>
+                        <circle cx="5" cy="12" r="1"></circle>
+                      </svg>
+                    </div>
+                  </div>
+                </div>
+                <div class="flex items-center justify-between">
+                  <div class="flex items-center gap-2">
+                    <div class="agent-avatar data">D</div>
+                    <div>
+                      <p class="text-xs font-medium text-slate-700">Data Agent</p>
+                      <p class="text-xs text-slate-400">Load: 1 task</p>
+                    </div>
+                  </div>
+                  <div class="text-right">
+                    <div class="w-8 h-8 rounded-full bg-emerald-50 flex items-center justify-center">
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#10b981" stroke-width="2">
+                        <circle cx="12" cy="12" r="1"></circle>
+                      </svg>
+                    </div>
+                  </div>
+                </div>
+                <div class="flex items-center justify-between">
+                  <div class="flex items-center gap-2">
+                    <div class="agent-avatar butler">B</div>
+                    <div>
+                      <p class="text-xs font-medium text-slate-700">Butler</p>
+                      <p class="text-xs text-slate-400">Coordinator</p>
+                    </div>
+                  </div>
+                  <div class="text-right">
+                    <div class="w-8 h-8 rounded-full bg-amber-50 flex items-center justify-center">
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#d97706" stroke-width="2">
+                        <polyline points="20 6 9 17 4 12"></polyline>
+                      </svg>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <div class="mt-4 pt-4 border-t border-slate-100">
+                <div class="flex items-center justify-between text-xs">
+                  <span class="text-slate-500">Queue depth</span>
+                  <span class="font-medium text-slate-700">2 tasks</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        
+        <div class="h-4 w-px bg-slate-200"></div>
+        <div class="flex items-center gap-2">
+          <div class="w-5 h-5 rounded-full bg-gradient-to-br from-purple-400 to-purple-600 flex items-center justify-center text-white text-xs font-bold">Ξ</div>
+          <span id="eth-pool-display">ETH Pool: 2.40</span>
+        </div>
+      </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="flex-1 flex overflow-hidden">
+      
+      <!-- Left Panel -->
+      <div id="main-panel" class="w-full flex flex-col overflow-hidden">
+        
+        <!-- Dashboard View -->
+        <div id="dashboard-view" class="w-full h-full flex flex-col overflow-hidden">
+          <div class="sticky top-0 bg-white border-b border-slate-100 px-6 py-4 z-10 flex-shrink-0">
+            <div class="flex items-center justify-between mb-4">
+              <div>
+                <p class="text-slate-500 text-sm">Monitor and manage your AI agent operations</p>
+              </div>
+              <div class="flex items-center gap-3">
+                <div class="flex items-center gap-1 bg-slate-100 rounded-lg p-1">
+                  <button onclick="switchViewMode('list')" id="view-list-btn" class="px-3 py-1.5 rounded text-sm font-medium transition-all bg-white text-slate-700 shadow-sm border border-slate-200">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="display: inline; margin-right: 4px;">
+                      <line x1="8" y1="6" x2="21" y2="6"></line>
+                      <line x1="8" y1="12" x2="21" y2="12"></line>
+                      <line x1="8" y1="18" x2="21" y2="18"></line>
+                      <line x1="3" y1="6" x2="3.01" y2="6"></line>
+                      <line x1="3" y1="12" x2="3.01" y2="12"></line>
+                      <line x1="3" y1="18" x2="3.01" y2="18"></line>
+                    </svg>
+                  </button>
+                  <button onclick="switchViewMode('grid')" id="view-grid-btn" class="px-3 py-1.5 rounded text-sm font-medium transition-all text-slate-500 hover:text-slate-700">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="display: inline;">
+                      <rect x="3" y="3" width="7" height="7"></rect>
+                      <rect x="14" y="3" width="7" height="7"></rect>
+                      <rect x="14" y="14" width="7" height="7"></rect>
+                      <rect x="3" y="14" width="7" height="7"></rect>
+                    </svg>
+                  </button>
+                </div>
+                <div class="relative">
+                  <button onclick="toggleFilterPanel()" class="flex items-center gap-2 px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm text-slate-600 hover:bg-slate-50 transition-colors">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                      <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"></polygon>
+                    </svg>
+                    <span id="filter-label">Filters</span>
+                  </button>
+                
+                  <div id="filter-popover" class="filter-popover">
+                    <div class="p-4">
+                      <h4 class="text-xs font-semibold text-slate-700 uppercase mb-4 tracking-wide">Filter Tasks</h4>
+                      
+                      <!-- Status Filter -->
+                      <div class="mb-4">
+                        <p class="text-xs font-medium text-slate-600 mb-2">Status</p>
+                        <div class="space-y-2">
+                          <label class="flex items-center gap-2 cursor-pointer">
+                            <input type="checkbox" class="checkbox-filter status-filter" value="Executing" onchange="updateFilters()">
+                            <span class="text-xs text-slate-600">Executing</span>
+                          </label>
+                          <label class="flex items-center gap-2 cursor-pointer">
+                            <input type="checkbox" class="checkbox-filter status-filter" value="Completed" onchange="updateFilters()">
+                            <span class="text-xs text-slate-600">Completed</span>
+                          </label>
+                          <label class="flex items-center gap-2 cursor-pointer">
+                            <input type="checkbox" class="checkbox-filter status-filter" value="Queued" onchange="updateFilters()">
+                            <span class="text-xs text-slate-600">Queued</span>
+                          </label>
+                          <label class="flex items-center gap-2 cursor-pointer">
+                            <input type="checkbox" class="checkbox-filter status-filter" value="Failed" onchange="updateFilters()">
+                            <span class="text-xs text-slate-600">Failed</span>
+                          </label>
+                        </div>
+                      </div>
+                      
+                      <!-- Agent Filter -->
+                      <div class="mb-4 pb-4 border-t border-slate-100">
+                        <p class="text-xs font-medium text-slate-600 mb-2">Agent Type</p>
+                        <div class="space-y-2">
+                          <label class="flex items-center gap-2 cursor-pointer">
+                            <input type="checkbox" class="checkbox-filter agent-filter" value="Research Agent" onchange="updateFilters()">
+                            <span class="text-xs text-slate-600">Research Agent</span>
+                          </label>
+                          <label class="flex items-center gap-2 cursor-pointer">
+                            <input type="checkbox" class="checkbox-filter agent-filter" value="Data Agent" onchange="updateFilters()">
+                            <span class="text-xs text-slate-600">Data Agent</span>
+                          </label>
+                          <label class="flex items-center gap-2 cursor-pointer">
+                            <input type="checkbox" class="checkbox-filter agent-filter" value="Content Agent" onchange="updateFilters()">
+                            <span class="text-xs text-slate-600">Content Agent</span>
+                          </label>
+                        </div>
+                      </div>
+                      
+                      <!-- Complexity Filter -->
+                      <div class="pb-4 border-t border-slate-100">
+                        <p class="text-xs font-medium text-slate-600 mb-2">Complexity</p>
+                        <div class="space-y-2">
+                          <label class="flex items-center gap-2 cursor-pointer">
+                            <input type="checkbox" class="checkbox-filter complexity-filter" value="simple" onchange="updateFilters()">
+                            <span class="text-xs text-slate-600">Simple</span>
+                          </label>
+                          <label class="flex items-center gap-2 cursor-pointer">
+                            <input type="checkbox" class="checkbox-filter complexity-filter" value="moderate" onchange="updateFilters()">
+                            <span class="text-xs text-slate-600">Moderate</span>
+                          </label>
+                          <label class="flex items-center gap-2 cursor-pointer">
+                            <input type="checkbox" class="checkbox-filter complexity-filter" value="complex" onchange="updateFilters()">
+                            <span class="text-xs text-slate-600">Complex</span>
+                          </label>
+                          <label class="flex items-center gap-2 cursor-pointer">
+                            <input type="checkbox" class="checkbox-filter complexity-filter" value="expert" onchange="updateFilters()">
+                            <span class="text-xs text-slate-600">Expert</span>
+                          </label>
+                        </div>
+                      </div>
+                      
+                      <!-- Reset Button -->
+                      <button onclick="resetFilters()" class="w-full py-2 px-3 bg-slate-100 text-slate-600 text-xs font-medium rounded transition-colors hover:bg-slate-200">
+                        Reset Filters
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div id="system-status-strip" class="system-strip px-4 py-3 bg-slate-50 border border-slate-100 rounded-xl text-xs text-slate-600 flex items-center justify-between">
+              <div class="flex items-center gap-3">
+                <span>🚀</span>
+                <span id="system-status-text">12 agents online • ETH Pool: 2.4 • Tasks executing: 3</span>
+              </div>
+              <div class="flex items-center gap-2 text-slate-400">
+                <span id="visible-count">–</span>
+                <span>/</span>
+                <span id="total-count">–</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="flex-1 overflow-auto p-6">
+            <div class="space-y-8">
+              <!-- Executing Tasks Section -->
+              <div id="section-executing" class="category-section">
+                <div class="mb-4 flex items-center gap-2">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#d97706" stroke-width="2.5">
+                    <circle cx="12" cy="12" r="10"></circle>
+                    <line x1="12" y1="6" x2="12" y2="12"></line>
+                    <line x1="12" y1="12" x2="16" y2="12"></line>
+                  </svg>
+                  <h3 class="text-sm font-semibold text-slate-700">Executing</h3>
+                  <span id="count-executing" class="text-xs text-slate-400">0</span>
+                </div>
+                <div id="grid-executing" class="list-view">
+                </div>
+              </div>
+
+              <!-- Queued Tasks Section -->
+              <div id="section-queued" class="category-section">
+                <div class="mb-4 flex items-center gap-2">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6366f1" stroke-width="2.5">
+                    <path d="M12 5v14M5 12h14"></path>
+                  </svg>
+                  <h3 class="text-sm font-semibold text-slate-700">Queued</h3>
+                  <span id="count-queued" class="text-xs text-slate-400">0</span>
+                </div>
+                <div id="grid-queued" class="list-view">
+                </div>
+              </div>
+
+              <!-- Completed Tasks Section -->
+              <div id="section-completed" class="category-section">
+                <div class="mb-4 flex items-center gap-2">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#10b981" stroke-width="2.5">
+                    <polyline points="20 6 9 17 4 12"></polyline>
+                  </svg>
+                  <h3 class="text-sm font-semibold text-slate-700">Completed</h3>
+                  <span id="count-completed" class="text-xs text-slate-400">0</span>
+                </div>
+                <div id="grid-completed" class="list-view">
+                </div>
+              </div>
+
+              <!-- Failed Tasks Section -->
+              <div id="section-failed" class="category-section">
+                <div class="mb-4 flex items-center gap-2">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#ef4444" stroke-width="2.5">
+                    <circle cx="12" cy="12" r="10"></circle>
+                    <line x1="15" y1="9" x2="9" y2="15"></line>
+                    <line x1="9" y1="9" x2="15" y2="15"></line>
+                  </svg>
+                  <h3 class="text-sm font-semibold text-slate-700">Failed</h3>
+                  <span id="count-failed" class="text-xs text-slate-400">0</span>
+                </div>
+                <div id="grid-failed" class="list-view">
+                </div>
+              </div>
+
+              <!-- Add New Task Card -->
+              <div>
+                <div class="bg-white rounded-xl border-2 border-dashed border-slate-200 p-6 flex items-center justify-center cursor-pointer hover:border-blue-300 hover:bg-blue-50 transition-all min-h-[100px]" onclick="showTaskCreator()">
+                  <div class="text-center">
+                    <div class="w-10 h-10 rounded-lg bg-slate-100 flex items-center justify-center mx-auto mb-2">
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" stroke-width="2">
+                        <line x1="12" y1="5" x2="12" y2="19"></line>
+                        <line x1="5" y1="12" x2="19" y2="12"></line>
+                      </svg>
+                    </div>
+                    <p class="text-sm font-medium text-slate-600">Create New Task</p>
+                    <p class="text-xs text-slate-400 mt-1">Launch an agent task to the marketplace</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Task Creator View -->
+        <div id="creator-view" class="hidden w-full h-full flex flex-col overflow-hidden">
+          <div class="sticky top-0 bg-white border-b border-slate-100 px-6 py-3 z-10 flex-shrink-0 flex items-center justify-between">
+            <h2 class="text-2xl font-semibold text-slate-800">Launch Agent Task</h2>
+            <button onclick="showDashboard()" class="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-50 rounded-lg transition-colors">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <line x1="18" y1="6" x2="6" y2="18"></line>
+                <line x1="6" y1="6" x2="18" y2="18"></line>
+              </svg>
+            </button>
+          </div>
+
+          <div class="flex-1 overflow-auto p-6">
+            <div class="max-w-4xl mx-auto bg-white rounded-2xl shadow-sm border border-slate-100 p-8">
+              <div class="mb-6">
+                <p class="text-slate-500 text-sm">Define your task, select agents, and set compensation via ETH</p>
+              </div>
+              
+              <!-- Task Description -->
+              <div class="mb-6">
+                <label class="text-xs font-semibold text-slate-500 uppercase mb-2 block">Task Description</label>
+                <textarea id="task-description-field" rows="3" placeholder="Describe the task in detail. Agents will bid based on complexity and requirements..." class="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm resize-none focus:outline-none focus:border-blue-300 focus:bg-white transition-all"></textarea>
+              </div>
+
+              <!-- Task Type & Parameters -->
+              <div class="grid grid-cols-3 gap-4 mb-6">
+                <div>
+                  <label class="text-xs font-semibold text-slate-500 uppercase mb-2 block">Task Type</label>
+                  <select id="task-type-select" class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-blue-300" onchange="updateAvailableAgents()">
+                    <option value="">Select type...</option>
+                    <option value="research">Research & Analysis</option>
+                    <option value="data-processing">Data Processing</option>
+                    <option value="content">Content Generation</option>
+                    <option value="coding">Code Development</option>
+                    <option value="testing">Testing & QA</option>
+                  </select>
+                </div>
+                <div>
+                  <label class="text-xs font-semibold text-slate-500 uppercase mb-2 block">Complexity</label>
+                  <select id="complexity-select" class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-blue-300" onchange="updateAgentBids()">
+                    <option value="">Select level...</option>
+                    <option value="simple">Simple</option>
+                    <option value="moderate">Moderate</option>
+                    <option value="complex">Complex</option>
+                    <option value="expert">Expert</option>
+                  </select>
+                </div>
+                <div>
+                  <label class="text-xs font-semibold text-slate-500 uppercase mb-2 block">Max Budget (ETH)</label>
+                  <input type="number" id="budget-input" placeholder="0.5" step="0.01" min="0" class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-blue-300" onchange="updateAgentBids()">
+                </div>
+              </div>
+
+              <!-- Agent Marketplace -->
+              <div class="mb-6">
+                <div class="flex items-center justify-between mb-3">
+                  <label class="text-xs font-semibold text-slate-500 uppercase">Available Agents & Bids</label>
+                  <span class="text-xs text-slate-400">Select primary agent (required)</span>
+                </div>
+                <div id="agent-marketplace" class="space-y-2 max-h-64 overflow-y-auto pb-2">
+                  <!-- Agent bid cards will populate here -->
+                </div>
+              </div>
+
+              <!-- Parallel Processing Option -->
+              <div class="mb-6 p-4 bg-slate-50 rounded-xl border border-slate-200">
+                <label class="flex items-center gap-3 cursor-pointer">
+                  <input type="checkbox" id="parallel-processing-checkbox" class="w-4 h-4 rounded border-slate-300 text-blue-500 focus:ring-0" onchange="updateTotalCost()">
+                  <div>
+                    <p class="text-sm font-medium text-slate-700">Enable Parallel Processing</p>
+                    <p class="text-xs text-slate-400">Assign multiple agents simultaneously (higher cost, faster execution)</p>
+                  </div>
+                </label>
+              </div>
+
+              <!-- Selected Agents Display -->
+              <div class="mb-6 p-4 bg-blue-50 rounded-xl border border-blue-200">
+                <p class="text-xs font-semibold text-blue-600 uppercase mb-2">Configuration Summary</p>
+                <div class="grid grid-cols-3 gap-4 text-sm">
+                  <div>
+                    <span class="text-slate-500">Primary Agent:</span>
+                    <p class="font-medium text-slate-700" id="selected-primary-agent">None</p>
+                  </div>
+                  <div>
+                    <span class="text-slate-500">Est. Cost:</span>
+                    <p class="font-medium text-slate-700" id="selected-total-cost">0.00 ETH</p>
+                  </div>
+                  <div>
+                    <span class="text-slate-500">Est. Duration:</span>
+                    <p class="font-medium text-slate-700" id="selected-duration">–</p>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Constraints & Settings -->
+              <button onclick="toggleConstraintsDrawer()" class="text-xs text-slate-400 hover:text-slate-600 flex items-center gap-1 transition-colors mb-4">
+                <svg id="constraints-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="transition-transform">
+                  <polyline points="6 9 12 15 18 9"></polyline>
+                </svg>
+                <span id="constraints-text">Advanced options</span>
+              </button>
+
+              <!-- Action Buttons -->
+              <div class="flex gap-3">
+                <button onclick="showDashboard()" class="flex-1 py-2 px-4 bg-slate-100 text-slate-600 text-sm font-medium rounded-lg hover:bg-slate-200 transition-colors">
+                  Cancel
+                </button>
+                <button onclick="publishTask()" class="flex-1 py-2 px-4 bg-blue-500 text-white text-sm font-medium rounded-lg hover:bg-blue-600 transition-colors flex items-center justify-center gap-2">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <circle cx="12" cy="12" r="1"></circle>
+                    <path d="M12 1v6m0 6v6"></path>
+                    <path d="M4.22 4.22l4.24 4.24m5.08 5.08l4.24 4.24"></path>
+                    <path d="M1 12h6m6 0h6"></path>
+                    <path d="M4.22 19.78l4.24-4.24m5.08-5.08l4.24-4.24"></path>
+                  </svg>
+                  Publish to Marketplace
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Task Detail View -->
+        <div id="detail-view" class="hidden w-full h-full flex flex-col overflow-hidden">
+          <div class="sticky top-0 bg-white border-b border-slate-100 px-6 py-3 z-10 flex-shrink-0 flex items-center justify-between">
+            <div>
+              <h2 id="detail-task-title" class="text-lg font-semibold text-slate-800">Task Title</h2>
+              <p id="detail-task-id" class="text-sm text-slate-500">Task ID</p>
+            </div>
+            <button onclick="showDashboard()" class="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-50 rounded-lg transition-colors">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <line x1="18" y1="6" x2="6" y2="18"></line>
+                <line x1="6" y1="6" x2="18" y2="18"></line>
+              </svg>
+            </button>
+          </div>
+          
+          <div class="flex-1 overflow-auto p-6">
+            <div class="max-w-2xl">
+              <div id="detail-timeline-content" class="relative pl-10">
+                <!-- Timeline will be populated here -->
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      
+      <!-- Right Panel -->
+      <div id="right-panel" class="hidden lg:flex lg:w-[30%] bg-white border-l border-slate-100 p-4 overflow-auto flex-col flex-shrink-0">
+        
+        <!-- No Task Selected State -->
+        <div id="panel-empty" class="h-full flex items-center justify-center">
+          <div class="text-center">
+            <div class="w-16 h-16 rounded-2xl bg-slate-50 flex items-center justify-center mx-auto mb-4">
+              <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" stroke-width="1.5">
+                <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+                <line x1="9" y1="9" x2="15" y2="15"></line>
+                <line x1="15" y1="9" x2="9" y2="15"></line>
+              </svg>
+            </div>
+            <p class="text-sm text-slate-400">Select a task to see details</p>
+          </div>
+        </div>
+        
+        <!-- Task Detail Widgets -->
+        <div id="panel-active" class="hidden space-y-4">
+          
+          <!-- Status & Progress Widget -->
+          <div class="widget-card rounded-xl border border-slate-100 p-4">
+            <div class="flex items-center justify-between mb-3">
+              <h3 class="text-xs font-semibold text-slate-500 uppercase tracking-wide">Status & Progress</h3>
+              <button onclick="toggleWidgetExpand(this)" class="p-1 hover:bg-slate-50 rounded">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="text-slate-400">
+                  <polyline points="6 9 12 15 18 9"></polyline>
+                </svg>
+              </button>
+            </div>
+            <div class="flex items-center gap-4">
+              <div class="relative w-16 h-16">
+                <svg class="w-16 h-16 -rotate-90" viewBox="0 0 36 36">
+                  <circle cx="18" cy="18" r="16" fill="none" stroke="#e2e8f0" stroke-width="3"/>
+                  <circle id="progress-circle" cx="18" cy="18" r="16" fill="none" stroke="#3b82f6" stroke-width="3" stroke-dasharray="100" stroke-dashoffset="35" stroke-linecap="round"/>
+                </svg>
+                <span id="progress-percent" class="absolute inset-0 flex items-center justify-center text-sm font-semibold text-slate-700">–</span>
+              </div>
+              <div>
+                <p id="status-status" class="text-sm font-medium text-slate-700">–</p>
+                <p id="status-eta" class="text-xs text-slate-400">–</p>
+              </div>
+            </div>
+            <div class="widget-expand hidden mt-4 pt-4 border-t border-slate-100">
+              <div class="grid grid-cols-2 gap-3 text-xs">
+                <div>
+                  <p class="text-slate-400">Started</p>
+                  <p id="detail-started" class="text-slate-600 font-medium">–</p>
+                </div>
+                <div>
+                  <p class="text-slate-400">Duration</p>
+                  <p id="detail-duration" class="text-slate-600 font-medium">–</p>
+                </div>
+                <div>
+                  <p class="text-slate-400">Agents Used</p>
+                  <p id="detail-agents" class="text-slate-600 font-medium">–</p>
+                </div>
+                <div>
+                  <p class="text-slate-400">API Calls</p>
+                  <p id="detail-api-calls" class="text-slate-600 font-medium">–</p>
+                </div>
+              </div>
+            </div>
+          </div>
+          
+          <!-- Details Widget -->
+          <div class="widget-card rounded-xl border border-slate-100 p-4">
+            <div class="flex items-center justify-between mb-3">
+              <h3 class="text-xs font-semibold text-slate-500 uppercase tracking-wide">Details</h3>
+            </div>
+            <div class="space-y-3 text-sm">
+              <div class="flex items-center justify-between">
+                <span class="text-slate-500">Budget Used</span>
+                <span id="detail-budget" class="font-medium text-slate-700">–</span>
+              </div>
+              <div class="flex items-center justify-between">
+                <span class="text-slate-500">Cost</span>
+                <span id="detail-cost" class="font-medium text-slate-700">–</span>
+              </div>
+              <div class="flex items-center justify-between">
+                <span class="text-slate-500">Primary Agent</span>
+                <span id="detail-agent" class="font-medium text-slate-700">–</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </main>
+    
+    <!-- Constraints Drawer Backdrop -->
+    <div id="drawer-backdrop" class="drawer-backdrop" onclick="toggleConstraintsDrawer()"></div>
+    
+    <!-- Constraints Drawer -->
+    <div id="constraints-drawer" class="constraints-drawer px-6 py-4">
+      <div class="max-w-2xl mx-auto">
+        <div class="flex items-center justify-between mb-4">
+          <h3 class="text-sm font-semibold text-slate-800">Set Task Constraints</h3>
+          <button onclick="toggleConstraintsDrawer()" class="p-1 hover:bg-slate-100 rounded">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <line x1="18" y1="6" x2="6" y2="18"></line>
+              <line x1="6" y1="6" x2="18" y2="18"></line>
+            </svg>
+          </button>
+        </div>
+        
+        <!-- Primary Fields -->
+        <div class="grid grid-cols-3 gap-4 mb-4 pb-4 border-b border-slate-100">
+          <div>
+            <label class="text-xs text-slate-500 mb-2 block font-medium">Budget Cap</label>
+            <div class="flex items-center gap-2">
+              <span class="text-xs text-slate-400">Ξ</span>
+              <input type="number" placeholder="0.5" class="flex-1 px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-blue-300">
+            </div>
+          </div>
+          <div>
+            <label class="text-xs text-slate-500 mb-2 block font-medium">Deadline</label>
+            <input type="text" placeholder="e.g., Today 6PM" class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-blue-300">
+          </div>
+          <div>
+            <label class="text-xs text-slate-500 mb-2 block font-medium">Tool Permissions</label>
+            <select class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-blue-300">
+              <option>Standard</option>
+              <option>Premium APIs</option>
+              <option>External Data</option>
+            </select>
+          </div>
+        </div>
+        
+        <!-- Advanced Toggle -->
+        <button onclick="toggleAdvancedFields()" class="text-xs text-slate-400 hover:text-slate-600 flex items-center gap-1 transition-colors mb-4">
+          <svg id="advanced-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="transition-transform">
+            <polyline points="6 9 12 15 18 9"></polyline>
+          </svg>
+          <span>Advanced options</span>
+        </button>
+        
+        <!-- Advanced Fields -->
+        <div id="advanced-fields" class="advanced-fields">
+          <div class="grid grid-cols-2 gap-4 pb-4">
+            <div>
+              <label class="text-xs text-slate-500 mb-2 block font-medium">Priority</label>
+              <select class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-blue-300">
+                <option>Normal</option>
+                <option>High</option>
+                <option>Urgent</option>
+              </select>
+            </div>
+            <div>
+              <label class="text-xs text-slate-500 mb-2 block font-medium">Category</label>
+              <select class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-blue-300">
+                <option>Research</option>
+                <option>Analysis</option>
+                <option>Creative</option>
+                <option>Technical</option>
+              </select>
+            </div>
+            <div>
+              <label class="text-xs text-slate-500 mb-2 block font-medium">Max Retries</label>
+              <input type="number" placeholder="3" class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-blue-300">
+            </div>
+            <div>
+              <label class="text-xs text-slate-500 mb-2 block font-medium">Notification Level</label>
+              <select class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-blue-300">
+                <option>All updates</option>
+                <option>Milestones only</option>
+                <option>Errors only</option>
+              </select>
+            </div>
+          </div>
+        </div>
+        
+        <div class="flex gap-2 pt-4">
+          <button onclick="toggleConstraintsDrawer()" class="flex-1 py-2 px-4 bg-slate-100 text-slate-600 text-sm font-medium rounded-lg hover:bg-slate-200 transition-colors">
+            Cancel
+          </button>
+          <button onclick="saveConstraints()" class="flex-1 py-2 px-4 bg-blue-500 text-white text-sm font-medium rounded-lg hover:bg-blue-600 transition-colors">
+            Save Constraints
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Publishing Modal -->
+    <div id="publishing-modal" class="publishing-modal">
+      <div class="publishing-modal-content">
+        
+        <!-- Step 1: Configuration -->
+        <div id="step-config" class="publishing-step active">
+          <div class="step-icon bg-blue-50">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#3b82f6" stroke-width="2">
+              <circle cx="12" cy="12" r="1"></circle>
+              <path d="M12 1v6m0 6v6"></path>
+              <path d="M4.22 4.22l4.24 4.24m5.08 5.08l4.24 4.24"></path>
+              <path d="M1 12h6m6 0h6"></path>
+              <path d="M4.22 19.78l4.24-4.24m5.08-5.08l4.24-4.24"></path>
+            </svg>
+          </div>
+          <h3 class="text-lg font-semibold text-slate-800 mb-2">Configuring Task</h3>
+          <p class="text-sm text-slate-600 mb-4">Validating parameters and task specifications...</p>
+          <div class="space-y-2 text-sm text-slate-600">
+            <div class="flex items-center gap-2">
+              <span class="spinner"></span>
+              <span>Validating task configuration</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Step 2: Signing -->
+        <div id="step-signing" class="publishing-step">
+          <div class="step-icon bg-purple-50">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#a855f7" stroke-width="2">
+              <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
+            </svg>
+          </div>
+          <h3 class="text-lg font-semibold text-slate-800 mb-2">Signing Transaction</h3>
+          <p class="text-sm text-slate-600 mb-4">Signing ETH transaction for marketplace listing...</p>
+          <div class="space-y-2 text-sm text-slate-600">
+            <div class="flex items-center gap-2">
+              <span class="spinner"></span>
+              <span>Signing blockchain transaction</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Step 3: Publishing -->
+        <div id="step-publishing" class="publishing-step">
+          <div class="step-icon bg-amber-50">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#d97706" stroke-width="2">
+              <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2z"></path>
+              <path d="M12 12c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2z"></path>
+            </svg>
+          </div>
+          <h3 class="text-lg font-semibold text-slate-800 mb-2">Publishing Task</h3>
+          <p class="text-sm text-slate-600 mb-4">Uploading to ETH marketplace and notifying agents...</p>
+          <div class="space-y-2 text-sm text-slate-600">
+            <div class="flex items-center gap-2">
+              <span class="spinner"></span>
+              <span>Publishing to marketplace</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Step 4: Success -->
+        <div id="step-success" class="publishing-step">
+          <div class="step-icon bg-emerald-50">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#10b981" stroke-width="2">
+              <polyline points="20 6 9 17 4 12"></polyline>
+            </svg>
+          </div>
+          <h3 class="text-lg font-semibold text-slate-800 mb-2">Task Published!</h3>
+          <p class="text-sm text-slate-600 mb-4">Your task is live on the marketplace and agents are bidding...</p>
+          <div class="bg-emerald-50 border border-emerald-200 rounded-lg p-3 mb-4">
+            <p id="success-task-id" class="text-xs text-emerald-600 font-mono">Task ID: TK-2024-XXXX</p>
+            <p id="success-agents-bidding" class="text-xs text-emerald-600">3 agents bidding • Awaiting selection</p>
+          </div>
+          <button onclick="completePublishing()" class="w-full py-2 px-4 bg-blue-500 text-white text-sm font-medium rounded-lg hover:bg-blue-600 transition-colors">
+            Close & View Task
+          </button>
+        </div>
+
+      </div>
+    </div>
+
+  </div>
+
+  <script>
+    const taskData = {
+      'market-research': {
+        title: 'Market Research Report',
+        description: 'Comprehensive market analysis including competitor profiles, market size assessment, and trend identification. Focus on tech startup ecosystem.',
+        id: 'MR-2024-001',
+        status: 'Executing',
+        progress: 65,
+        eta: '45m',
+        started: '10:23 AM',
+        duration: '2h 15m',
+        agents: '2 active',
+        apiCalls: '1,247',
+        budget: '$200',
+        cost: '$150',
+        agent: 'Research Agent',
+        complexity: 'complex',
+        timeline: [
+          { stage: 'Planning', status: 'completed', desc: 'Defined scope: 5 competitor profiles, market size analysis, trend identification.' },
+          { stage: 'Bidding', status: 'completed', desc: 'Selected Research Agent (specialization: market analysis) and Data Agent.' },
+          { stage: 'Executing', status: 'active', desc: 'Research agent gathering data sources from 12 market databases…' },
+          { stage: 'Review', status: 'pending', desc: 'Human review of findings and recommendations.' }
+        ]
+      },
+      'competitor-analysis': {
+        title: 'Competitor Analysis',
+        description: 'In-depth analysis of 8 key competitors including pricing strategy, feature comparison, and market positioning analysis.',
+        id: 'CA-2024-015',
+        status: 'Completed',
+        progress: 100,
+        eta: 'Done',
+        started: 'Yesterday 2:00 PM',
+        duration: '4h 32m',
+        agents: '2 agents',
+        apiCalls: '2,847',
+        budget: '$150',
+        cost: '$145',
+        agent: 'Research Agent',
+        complexity: 'moderate',
+        timeline: [
+          { stage: 'Planning', status: 'completed', desc: 'Identified 8 key competitors in market.' },
+          { stage: 'Bidding', status: 'completed', desc: 'Selected Research and Data agents.' },
+          { stage: 'Executing', status: 'completed', desc: 'Completed analysis across all competitors.' },
+          { stage: 'Review', status: 'completed', desc: '3 deliverables ready for download.' }
+        ]
+      },
+      'brand-positioning': {
+        title: 'Brand Positioning Study',
+        description: 'Strategic brand positioning analysis to identify market differentiation opportunities and messaging framework.',
+        id: 'BP-2024-008',
+        status: 'Queued',
+        progress: 0,
+        eta: 'Pending',
+        started: 'Queued 15m ago',
+        duration: '–',
+        agents: 'Awaiting',
+        apiCalls: '–',
+        budget: '$300',
+        cost: 'Pending',
+        agent: 'Pending',
+        complexity: 'expert',
+        timeline: [
+          { stage: 'Planning', status: 'pending', desc: 'Awaiting planning phase.' },
+          { stage: 'Bidding', status: 'pending', desc: 'Awaiting agent assignment.' },
+          { stage: 'Executing', status: 'pending', desc: 'Will begin execution.' },
+          { stage: 'Review', status: 'pending', desc: 'Final review phase.' }
+        ]
+      },
+      'data-extraction': {
+        title: 'Data Extraction Pipeline',
+        description: 'ETL pipeline for extracting and transforming customer data from multiple sources with validation and error handling.',
+        id: 'DE-2024-002',
+        status: 'Failed',
+        progress: 45,
+        eta: 'Failed',
+        started: '3h ago',
+        duration: '45m',
+        agents: '1 agent',
+        apiCalls: '456',
+        budget: '$100',
+        cost: '$47.50',
+        agent: 'Data Agent',
+        complexity: 'moderate',
+        timeline: [
+          { stage: 'Planning', status: 'completed', desc: 'Setup extraction rules.' },
+          { stage: 'Bidding', status: 'completed', desc: 'Assigned Data Agent.' },
+          { stage: 'Executing', status: 'failed', desc: 'API timeout after 45 minutes. Retry recommended.' },
+          { stage: 'Review', status: 'pending', desc: 'Awaiting retry or manual intervention.' }
+        ]
+      },
+      'trend-analysis': {
+        title: 'Market Trend Analysis',
+        description: 'Real-time market trend analysis using advanced algorithms to identify emerging patterns and consumer behavior shifts.',
+        id: 'TA-2024-012',
+        status: 'Executing',
+        progress: 32,
+        eta: '2h',
+        started: '1h ago',
+        duration: '1h 15m',
+        agents: '1 active',
+        apiCalls: '892',
+        budget: '$250',
+        cost: '$89.50',
+        agent: 'Data Agent',
+        complexity: 'complex',
+        timeline: [
+          { stage: 'Planning', status: 'completed', desc: 'Defined trend indicators.' },
+          { stage: 'Bidding', status: 'completed', desc: 'Selected Data Agent.' },
+          { stage: 'Executing', status: 'active', desc: 'Data processing in progress…' },
+          { stage: 'Review', status: 'pending', desc: 'Awaiting completion.' }
+        ]
+      },
+      'customer-sentiment': {
+        title: 'Customer Sentiment Analysis',
+        description: 'Analyze customer feedback across multiple channels to identify sentiment trends, common themes, and actionable insights.',
+        id: 'CS-2024-021',
+        status: 'Completed',
+        progress: 100,
+        eta: 'Done',
+        started: '2 days ago',
+        duration: '6h 48m',
+        agents: '2 agents',
+        apiCalls: '3,421',
+        budget: '$180',
+        cost: '$165',
+        agent: 'Research Agent',
+        complexity: 'moderate',
+        timeline: [
+          { stage: 'Planning', status: 'completed', desc: 'Setup sentiment analysis parameters.' },
+          { stage: 'Bidding', status: 'completed', desc: 'Selected agents.' },
+          { stage: 'Executing', status: 'completed', desc: 'Analyzed 2,500+ customer reviews.' },
+          { stage: 'Review', status: 'completed', desc: 'Report generated with visualizations.' }
+        ]
+      },
+      'content-generation': {
+        title: 'Blog Content Generation',
+        description: 'Generate 10 high-quality blog posts on AI trends with SEO optimization and editorial review.',
+        id: 'CG-2024-033',
+        status: 'Executing',
+        progress: 78,
+        eta: '2h 15m',
+        started: '4h ago',
+        duration: '5h 30m',
+        agents: '1 active',
+        apiCalls: '567',
+        budget: '$220',
+        cost: '$140',
+        agent: 'Content Agent',
+        complexity: 'simple',
+        timeline: [
+          { stage: 'Planning', status: 'completed', desc: 'Defined content topics and SEO keywords.' },
+          { stage: 'Bidding', status: 'completed', desc: 'Selected Content Generation Agent.' },
+          { stage: 'Executing', status: 'active', desc: 'Generated 8 of 10 articles, editing in progress…' },
+          { stage: 'Review', status: 'pending', desc: 'Final SEO review and publishing.' }
+        ]
+      },
+      'api-integration': {
+        title: 'Third-party API Integration',
+        description: 'Integrate payment gateway, email service, and analytics APIs with error handling and rate limiting.',
+        id: 'API-2024-009',
+        status: 'Queued',
+        progress: 0,
+        eta: 'Pending',
+        started: 'Queued 8m ago',
+        duration: '–',
+        agents: 'Awaiting',
+        apiCalls: '–',
+        budget: '$320',
+        cost: 'Pending',
+        agent: 'Pending',
+        complexity: 'complex',
+        timeline: [
+          { stage: 'Planning', status: 'pending', desc: 'Awaiting planning phase.' },
+          { stage: 'Bidding', status: 'pending', desc: 'Awaiting agent assignment.' },
+          { stage: 'Executing', status: 'pending', desc: 'Will begin execution.' },
+          { stage: 'Review', status: 'pending', desc: 'Final integration testing.' }
+        ]
+      },
+      'user-research': {
+        title: 'User Interview Synthesis',
+        description: 'Transcribe and analyze 15 user interviews to extract key insights, pain points, and feature requests.',
+        id: 'UR-2024-044',
+        status: 'Completed',
+        progress: 100,
+        eta: 'Done',
+        started: '5 days ago',
+        duration: '12h 20m',
+        agents: '3 agents',
+        apiCalls: '4,892',
+        budget: '$450',
+        cost: '$420',
+        agent: 'Research Agent',
+        complexity: 'expert',
+        timeline: [
+          { stage: 'Planning', status: 'completed', desc: 'Organized 15 interview recordings.' },
+          { stage: 'Bidding', status: 'completed', desc: 'Selected 3 specialized research agents.' },
+          { stage: 'Executing', status: 'completed', desc: 'Transcribed and analyzed all interviews.' },
+          { stage: 'Review', status: 'completed', desc: 'Executive summary and recommendations ready.' }
+        ]
+      },
+      'performance-audit': {
+        title: 'Website Performance Audit',
+        description: 'Complete performance analysis of website including load times, SEO scores, accessibility, and recommendations.',
+        id: 'PA-2024-016',
+        status: 'Executing',
+        progress: 54,
+        eta: '1h 30m',
+        started: '2h ago',
+        duration: '2h 45m',
+        agents: '1 active',
+        apiCalls: '1,156',
+        budget: '$120',
+        cost: '$78',
+        agent: 'Data Agent',
+        complexity: 'moderate',
+        timeline: [
+          { stage: 'Planning', status: 'completed', desc: 'Configured audit parameters.' },
+          { stage: 'Bidding', status: 'completed', desc: 'Selected Data Agent.' },
+          { stage: 'Executing', status: 'active', desc: 'Running comprehensive performance tests…' },
+          { stage: 'Review', status: 'pending', desc: 'Generating detailed report.' }
+        ]
+      },
+      'social-media': {
+        title: 'Social Media Strategy Report',
+        description: 'Develop comprehensive social media strategy including content calendar, posting schedule, and engagement metrics.',
+        id: 'SM-2024-027',
+        status: 'Failed',
+        progress: 25,
+        eta: 'Failed',
+        started: '6h ago',
+        duration: '1h 20m',
+        agents: '1 agent',
+        apiCalls: '234',
+        budget: '$150',
+        cost: '$45',
+        agent: 'Research Agent',
+        complexity: 'simple',
+        timeline: [
+          { stage: 'Planning', status: 'completed', desc: 'Setup strategy parameters.' },
+          { stage: 'Bidding', status: 'completed', desc: 'Assigned Research Agent.' },
+          { stage: 'Executing', status: 'failed', desc: 'Data source unavailable. Retry with alternative sources.' },
+          { stage: 'Review', status: 'pending', desc: 'Awaiting retry or manual intervention.' }
+        ]
+      },
+      'database-optimization': {
+        title: 'Database Query Optimization',
+        description: 'Analyze and optimize slow database queries, create indexes, and improve overall database performance.',
+        id: 'DBO-2024-038',
+        status: 'Queued',
+        progress: 0,
+        eta: 'Pending',
+        started: 'Queued 3m ago',
+        duration: '–',
+        agents: 'Awaiting',
+        apiCalls: '–',
+        budget: '$280',
+        cost: 'Pending',
+        agent: 'Pending',
+        complexity: 'expert',
+        timeline: [
+          { stage: 'Planning', status: 'pending', desc: 'Awaiting planning phase.' },
+          { stage: 'Bidding', status: 'pending', desc: 'Awaiting agent assignment.' },
+          { stage: 'Executing', status: 'pending', desc: 'Will begin execution.' },
+          { stage: 'Review', status: 'pending', desc: 'Performance testing and validation.' }
+        ]
+      },
+      'competitor-pricing': {
+        title: 'Competitor Pricing Analysis',
+        description: 'Monitor and analyze competitor pricing strategies across 12 key competitors with weekly update recommendations.',
+        id: 'CPA-2024-019',
+        status: 'Completed',
+        progress: 100,
+        eta: 'Done',
+        started: '1 day ago',
+        duration: '3h 15m',
+        agents: '2 agents',
+        apiCalls: '2,156',
+        budget: '$160',
+        cost: '$135',
+        agent: 'Data Agent',
+        complexity: 'moderate',
+        timeline: [
+          { stage: 'Planning', status: 'completed', desc: 'Identified competitor pricing sources.' },
+          { stage: 'Bidding', status: 'completed', desc: 'Selected agents.' },
+          { stage: 'Executing', status: 'completed', desc: 'Completed pricing analysis.' },
+          { stage: 'Review', status: 'completed', desc: 'Pricing recommendations generated.' }
+        ]
+      },
+      'feature-request-analysis': {
+        title: 'Feature Request Analysis',
+        description: 'Categorize and prioritize 500+ feature requests from users based on frequency, impact, and feasibility.',
+        id: 'FRA-2024-041',
+        status: 'Executing',
+        progress: 61,
+        eta: '3h',
+        started: '3h 30m ago',
+        duration: '4h 45m',
+        agents: '2 active',
+        apiCalls: '2,334',
+        budget: '$260',
+        cost: '$165',
+        agent: 'Data Agent',
+        complexity: 'complex',
+        timeline: [
+          { stage: 'Planning', status: 'completed', desc: 'Loaded 500+ feature requests.' },
+          { stage: 'Bidding', status: 'completed', desc: 'Selected 2 data processing agents.' },
+          { stage: 'Executing', status: 'active', desc: 'Analyzing and categorizing requests…' },
+          { stage: 'Review', status: 'pending', desc: 'Generate priority matrix.' }
+        ]
+      }
+    };
+
+    const agentDatabase = {
+      research: [
+        {
+          id: 'agent-research-1',
+          name: 'Synthesis Agent',
+          specialty: 'Market Research',
+          reputation: 4.9,
+          bids: { simple: 0.08, moderate: 0.15, complex: 0.28, expert: 0.45 },
+          speed: '4-6h',
+          successRate: 98,
+          minCredits: 0.05
+        },
+        {
+          id: 'agent-research-2',
+          name: 'Archive Explorer',
+          specialty: 'Data Mining',
+          reputation: 4.7,
+          bids: { simple: 0.06, moderate: 0.12, complex: 0.22, expert: 0.35 },
+          speed: '6-8h',
+          successRate: 96,
+          minCredits: 0.04
+        },
+        {
+          id: 'agent-research-3',
+          name: 'Insight Processor',
+          specialty: 'Trend Analysis',
+          reputation: 4.8,
+          bids: { simple: 0.07, moderate: 0.14, complex: 0.25, expert: 0.40 },
+          speed: '3-5h',
+          successRate: 97,
+          minCredits: 0.05
+        }
+      ],
+      'data-processing': [
+        {
+          id: 'agent-data-1',
+          name: 'Data Refiner',
+          specialty: 'ETL Pipelines',
+          reputation: 4.9,
+          bids: { simple: 0.10, moderate: 0.18, complex: 0.32, expert: 0.50 },
+          speed: '2-4h',
+          successRate: 99,
+          minCredits: 0.06
+        },
+        {
+          id: 'agent-data-2',
+          name: 'Schema Mapper',
+          specialty: 'Data Transformation',
+          reputation: 4.6,
+          bids: { simple: 0.09, moderate: 0.16, complex: 0.28, expert: 0.42 },
+          speed: '4-6h',
+          successRate: 95,
+          minCredits: 0.05
+        }
+      ],
+      content: [
+        {
+          id: 'agent-content-1',
+          name: 'WordSmith Pro',
+          specialty: 'Content Generation',
+          reputation: 4.8,
+          bids: { simple: 0.05, moderate: 0.10, complex: 0.18, expert: 0.30 },
+          speed: '1-3h',
+          successRate: 97,
+          minCredits: 0.03
+        },
+        {
+          id: 'agent-content-2',
+          name: 'Narrative Engine',
+          specialty: 'Long-form Writing',
+          reputation: 4.7,
+          bids: { simple: 0.06, moderate: 0.12, complex: 0.20, expert: 0.32 },
+          speed: '2-4h',
+          successRate: 96,
+          minCredits: 0.04
+        }
+      ],
+      coding: [
+        {
+          id: 'agent-code-1',
+          name: 'CodeForge',
+          specialty: 'Full-stack Development',
+          reputation: 4.9,
+          bids: { simple: 0.15, moderate: 0.30, complex: 0.55, expert: 0.85 },
+          speed: '6-12h',
+          successRate: 98,
+          minCredits: 0.10
+        },
+        {
+          id: 'agent-code-2',
+          name: 'DebugMaster',
+          specialty: 'Code Optimization',
+          reputation: 4.8,
+          bids: { simple: 0.12, moderate: 0.24, complex: 0.42, expert: 0.65 },
+          speed: '4-8h',
+          successRate: 97,
+          minCredits: 0.08
+        }
+      ],
+      testing: [
+        {
+          id: 'agent-test-1',
+          name: 'QA Sentinel',
+          specialty: 'Automated Testing',
+          reputation: 4.9,
+          bids: { simple: 0.08, moderate: 0.14, complex: 0.24, expert: 0.38 },
+          speed: '3-6h',
+          successRate: 99,
+          minCredits: 0.05
+        }
+      ]
+    };
+
+    let selectedAgent = null;
+    let selectedAgentCost = 0;
+    let selectedTaskId = null;
+    let ethPool = 2.40;
+    let publishingTaskData = null;
+    let taskCounter = 6;
+    let activeFilters = {
+      status: [],
+      agent: [],
+      complexity: []
+    };
+    let currentViewMode = 'list';
+
+    // Initialize dashboard
+    function initializeDashboard() {
+      renderTasks();
+      updateStatusCounts();
+    }
+
+    // Switch view mode
+    function switchViewMode(mode) {
+      currentViewMode = mode;
+      
+      const listBtn = document.getElementById('view-list-btn');
+      const gridBtn = document.getElementById('view-grid-btn');
+      
+      if (mode === 'list') {
+        listBtn.classList.add('bg-white', 'shadow-sm', 'border', 'border-slate-200');
+        listBtn.classList.remove('text-slate-500', 'hover:text-slate-700');
+        gridBtn.classList.remove('bg-white', 'shadow-sm', 'border', 'border-slate-200');
+        gridBtn.classList.add('text-slate-500', 'hover:text-slate-700');
+      } else {
+        gridBtn.classList.add('bg-white', 'shadow-sm', 'border', 'border-slate-200');
+        gridBtn.classList.remove('text-slate-500', 'hover:text-slate-700');
+        listBtn.classList.remove('bg-white', 'shadow-sm', 'border', 'border-slate-200');
+        listBtn.classList.add('text-slate-500', 'hover:text-slate-700');
+      }
+      
+      renderTasks();
+    }
+
+    // Render tasks by category
+    function renderTasks() {
+      const categories = {
+        'Executing': 'grid-executing',
+        'Queued': 'grid-queued',
+        'Completed': 'grid-completed',
+        'Failed': 'grid-failed'
+      };
+
+      Object.values(categories).forEach(gridId => {
+        const grid = document.getElementById(gridId);
+        grid.innerHTML = '';
+        grid.className = currentViewMode === 'grid' ? 'grid-view' : 'list-view';
+      });
+
+      Object.entries(taskData).forEach(([id, task]) => {
+        const gridId = categories[task.status];
+        if (gridId) {
+          const card = createTaskCard(id, task);
+          if (currentViewMode === 'grid') {
+            card.classList.add('task-card-grid');
+          }
+          document.getElementById(gridId).appendChild(card);
+        }
+      });
+
+      updateStatusCounts();
+    }
+
+    // Create task card element
+    function createTaskCard(id, task) {
+      const card = document.createElement('div');
+      card.className = 'task-card bg-white rounded-xl border border-slate-100 p-4 hover:shadow-sm';
+      card.onclick = () => selectTask(card, id);
+
+      const statusBgColor = task.status === 'Executing' ? 'bg-amber-50 text-amber-600' :
+                           task.status === 'Completed' ? 'bg-emerald-50 text-emerald-600' :
+                           task.status === 'Queued' ? 'bg-slate-100 text-slate-600' :
+                           task.status === 'Failed' ? 'bg-red-50 text-red-600' : 'bg-purple-50 text-purple-600';
+
+      const progressColor = task.status === 'Failed' ? '#ef4444' : '#3b82f6';
+      const complexityColor = task.complexity === 'simple' ? '#84cc16' :
+                             task.complexity === 'moderate' ? '#f59e0b' :
+                             task.complexity === 'complex' ? '#ef4444' : '#8b5cf6';
+
+      card.innerHTML = `
+        <div class="mb-3">
+          <div class="flex items-start justify-between">
+            <div class="flex-1">
+              <p class="text-sm font-medium text-slate-700 mb-1">${task.title}</p>
+              <p class="task-description-text line-clamp-2">${task.description}</p>
+            </div>
+          </div>
+        </div>
+        <div class="flex items-center gap-2 mb-3 flex-wrap">
+          <span class="inline-block px-2 py-1 ${statusBgColor} text-xs rounded-full font-medium">
+            ${task.status === 'Queued' || task.status === 'Failed' ? task.status : task.progress + '%'}
+          </span>
+          <span class="inline-block px-2 py-1 bg-slate-50 text-slate-600 text-xs rounded-full font-medium" style="border-left: 3px solid ${complexityColor}">
+            ${task.complexity.charAt(0).toUpperCase() + task.complexity.slice(1)}
+          </span>
+        </div>
+        <div class="progress-bar mb-3">
+          <div class="progress-fill" style="width: ${task.progress}%; background: ${progressColor};"></div>
+        </div>
+        <div class="grid grid-cols-4 gap-2 text-xs mb-3">
+          <div class="task-metric">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <circle cx="12" cy="12" r="1"></circle>
+              <path d="M12 1v6m0 6v6"></path>
+              <path d="M4.22 4.22l4.24 4.24m5.08 5.08l4.24 4.24"></path>
+              <path d="M1 12h6m6 0h6"></path>
+            </svg>
+            <span>${task.started}</span>
+          </div>
+          <div class="task-metric">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <circle cx="12" cy="12" r="10"></circle>
+              <polyline points="12 6 12 12 16 14"></polyline>
+            </svg>
+            <span>${task.eta}</span>
+          </div>
+          <div class="task-metric">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M20 7l-9 9-4-4"></path>
+            </svg>
+            <span>${task.apiCalls}</span>
+          </div>
+          <div class="task-metric">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2z"></path>
+            </svg>
+            <span>${task.cost}</span>
+          </div>
+        </div>
+        <div class="pt-3 border-t border-slate-100">
+          <div class="live-summary">
+            <div class="agent-avatar research">R</div>
+            <span>${task.agent}</span>
+          </div>
+        </div>
+      `;
+
+      return card;
+    }
+
+    // Update status counts
+    function updateStatusCounts() {
+      const statuses = ['Executing', 'Queued', 'Completed', 'Failed'];
+      let total = 0;
+      
+      statuses.forEach(status => {
+        const count = Object.values(taskData).filter(t => t.status === status).length;
+        document.getElementById(`count-${status.toLowerCase()}`).textContent = count;
+        total += count;
+      });
+
+      document.getElementById('total-count').textContent = total;
+      document.getElementById('visible-count').textContent = total;
+    }
+
+    // Filter dashboard
+    function filterDashboard() {
+      const searchTerm = document.getElementById('search-input').value.toLowerCase();
+      const cards = document.querySelectorAll('.task-card');
+      let visibleCount = 0;
+
+      cards.forEach(card => {
+        const title = card.querySelector('.text-sm.font-medium').textContent.toLowerCase();
+        const description = card.querySelector('.task-description-text').textContent.toLowerCase();
+        
+        const matches = title.includes(searchTerm) || description.includes(searchTerm);
+        card.style.display = matches ? '' : 'none';
+        
+        if (matches) visibleCount++;
+      });
+
+      document.getElementById('visible-count').textContent = visibleCount;
+    }
+
+    // Toggle filter panel
+    let filterPanelOpen = false;
+    function toggleFilterPanel() {
+      filterPanelOpen = !filterPanelOpen;
+      const popover = document.getElementById('filter-popover');
+      if (filterPanelOpen) {
+        popover.classList.add('active');
+        document.getElementById('filter-label').textContent = 'Active';
+      } else {
+        popover.classList.remove('active');
+        document.getElementById('filter-label').textContent = 'Filters';
+      }
+    }
+
+    // Update filters
+    function updateFilters() {
+      const statusFilters = document.querySelectorAll('.status-filter:checked');
+      const agentFilters = document.querySelectorAll('.agent-filter:checked');
+      const complexityFilters = document.querySele
