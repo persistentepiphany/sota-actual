@@ -141,6 +141,7 @@ class JobType(IntEnum):
     CALL_VERIFICATION = 5
     GENERIC = 6
     JOB_SCOURING = 7
+    MARKET_PREDICTION = 8
 
 
 JOB_TYPE_LABELS = {
@@ -150,6 +151,7 @@ JOB_TYPE_LABELS = {
     JobType.CALL_VERIFICATION: "Call Verification",
     JobType.GENERIC: "Generic Task",
     JobType.JOB_SCOURING: "Job Scouring",
+    JobType.MARKET_PREDICTION: "Market Prediction",
 }
 
 
