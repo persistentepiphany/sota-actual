@@ -43,6 +43,135 @@ interface ConvSummary {
 
 type OrbStatus = "idle" | "listening" | "thinking" | "speaking";
 
+/* ── Bid Progress Bar Component (Glassmorphism Style) ── */
+function BidProgressBar({ duration, onComplete }: { duration: number; onComplete?: () => void }) {
+  const [progress, setProgress] = useState(0);
+  const [timeLeft, setTimeLeft] = useState(duration);
+  const [phase, setPhase] = useState<"bidding" | "executing">("bidding");
+
+  useEffect(() => {
+    const startTime = Date.now();
+    const interval = setInterval(() => {
+      const elapsed = (Date.now() - startTime) / 1000;
+      const pct = Math.min((elapsed / duration) * 100, 100);
+      setProgress(pct);
+      setTimeLeft(Math.max(duration - elapsed, 0));
+      
+      if (pct >= 100 && phase === "bidding") {
+        setPhase("executing");
+      }
+    }, 100);
+    return () => clearInterval(interval);
+  }, [duration, onComplete, phase]);
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 10 }}
+      animate={{ opacity: 1, y: 0 }}
+      className="w-full max-w-md mx-auto my-4"
+    >
+      <div 
+        className="rounded-2xl p-4 backdrop-blur-xl border"
+        style={{
+          background: 'rgba(255, 255, 255, 0.04)',
+          borderColor: 'rgba(255, 255, 255, 0.08)',
+          boxShadow: '0 8px 32px rgba(0, 0, 0, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.05)',
+        }}
+      >
+        {phase === "bidding" ? (
+          <>
+            <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center gap-2">
+                <motion.div
+                  animate={{ scale: [1, 1.2, 1] }}
+                  transition={{ duration: 1.5, repeat: Infinity }}
+                  className="w-2 h-2 rounded-full"
+                  style={{ background: 'linear-gradient(135deg, #6366f1, #a78bfa)' }}
+                />
+                <span className="text-sm font-medium" style={{ color: 'var(--text-primary, #f1f5f9)' }}>
+                  Finding specialists...
+                </span>
+              </div>
+              <span className="text-sm font-mono" style={{ color: 'var(--text-muted, #64748b)' }}>
+                {Math.ceil(timeLeft)}s
+              </span>
+            </div>
+            <div 
+              className="h-1.5 rounded-full overflow-hidden"
+              style={{ background: 'rgba(255, 255, 255, 0.06)' }}
+            >
+              <motion.div
+                className="h-full rounded-full"
+                style={{ background: 'linear-gradient(90deg, #6366f1, #a78bfa, #c084fc)' }}
+                initial={{ width: 0 }}
+                animate={{ width: `${progress}%` }}
+                transition={{ duration: 0.1 }}
+              />
+            </div>
+            <p className="text-xs mt-2 text-center" style={{ color: 'var(--text-muted, #64748b)' }}>
+              Collecting bids from available agents
+            </p>
+          </>
+        ) : (
+          <div className="flex flex-col items-center gap-3 py-2">
+            <div className="relative">
+              <motion.div
+                className="w-10 h-10 rounded-full border-2"
+                style={{ 
+                  borderColor: 'rgba(99, 102, 241, 0.3)',
+                  borderTopColor: '#6366f1',
+                }}
+                animate={{ rotate: 360 }}
+                transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+              />
+              <div 
+                className="absolute inset-0 flex items-center justify-center text-lg"
+              >
+                🚀
+              </div>
+            </div>
+            <div className="text-center">
+              <p className="text-sm font-medium" style={{ color: 'var(--text-primary, #f1f5f9)' }}>
+                Specialist assigned!
+              </p>
+              <p className="text-xs mt-1" style={{ color: 'var(--text-muted, #64748b)' }}>
+                Working on your request...
+              </p>
+            </div>
+          </div>
+        )}
+      </div>
+    </motion.div>
+  );
+}
+
+/* ── Task Execution Progress (styled as normal butler message) ── */
+function TaskExecutionProgress({ message }: { message: string }) {
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 12, scale: 0.96 }}
+      animate={{ opacity: 1, y: 0, scale: 1 }}
+      exit={{ opacity: 0, y: -10 }}
+      className="transcript-msg assistant"
+    >
+      <span className="transcript-msg-role">Butler</span>
+      <p className="transcript-msg-text">
+        {message}
+        <span className="inline-flex ml-2 gap-0.5 align-middle">
+          {[0, 1, 2].map((i) => (
+            <motion.span
+              key={i}
+              className="inline-block w-1 h-1 rounded-full bg-current opacity-50"
+              animate={{ opacity: [0.3, 0.8, 0.3] }}
+              transition={{ duration: 1, repeat: Infinity, delay: i * 0.2 }}
+            />
+          ))}
+        </span>
+      </p>
+    </motion.div>
+  );
+}
+
 /* ─────────────────────────────────────────────────── */
 export default function ChatScreen() {
   const [transcript, setTranscript] = useState<TranscriptLine[]>([]);
@@ -50,6 +179,8 @@ export default function ChatScreen() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [conversations, setConversations] = useState<ConvSummary[]>([]);
+  const [bidProgress, setBidProgress] = useState<{ active: boolean; duration: number } | null>(null);
+  const [taskExecution, setTaskExecution] = useState<{ active: boolean; message: string } | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
 
   const { address } = useAccount();
@@ -58,12 +189,12 @@ export default function ChatScreen() {
   const [textInput, setTextInput] = useState("");
   const [isSending, setIsSending] = useState(false);
 
-  // Auto-scroll transcript to bottom on new messages
+  // Auto-scroll transcript to bottom on new messages or progress bar or task execution
   useEffect(() => {
     if (scrollRef.current) {
       scrollRef.current.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" });
     }
-  }, [transcript]);
+  }, [transcript, bidProgress, taskExecution]);
 
   // Load conversations when sidebar opens
   useEffect(() => {
@@ -101,12 +232,20 @@ export default function ChatScreen() {
     if (!jobData.budget_usd) {
       jobData.budget_usd = 0.02; // ~2 C2FLR at current FTSO rate
     }
+    
+    // Show progress bar during bid collection (30 seconds)
+    setBidProgress({ active: true, duration: 30 });
+    
     try {
       const res = await fetch(`${FLARE_BUTLER_URL}/marketplace/post`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(jobData),
       });
+      
+      // Hide progress bar
+      setBidProgress(null);
+      
       if (!res.ok) throw new Error(`Post failed: ${res.statusText}`);
       const data = await res.json();
       console.log("✅ Marketplace post result:", data);
@@ -126,38 +265,74 @@ export default function ChatScreen() {
         const escrowAddr = escrowInfo.address as `0x${string}`;
         const flrRequired = escrowInfo.flr_required;
         const jobId = jobResult?.on_chain_job_id;
-        const winnerAddr = jobResult?.winning_bid?.address || address;
-        const budgetUsd = escrowInfo.budget_usd || 0.02; // USD value for on-chain FTSO validation
+        const boardJobId = jobResult?.job_id;
+        // Use winner address if valid, otherwise use the user's address (poster = provider for self-service)
+        const rawWinnerAddr = jobResult?.winning_bid?.address;
+        const winnerAddr = (rawWinnerAddr && rawWinnerAddr !== "0x0" && rawWinnerAddr.length === 42) 
+          ? rawWinnerAddr 
+          : address;
+        const budgetUsd = escrowInfo.budget_usd || 0.02;
+        const bidPrice = jobResult?.winning_bid?.price_flr || flrRequired;
+        const bidderName = jobResult?.winning_bid?.bidder || "specialist";
+
+        // Notify user about accepted bid
+        addLine("assistant", `✨ Great news! A ${bidderName} has been assigned to your request for ${bidPrice.toFixed(4)} C2FLR (~$${budgetUsd} USD).`);
 
         console.log(`🔒 Funding escrow: ${flrRequired} C2FLR ($${budgetUsd} USD via FTSO) → ${escrowAddr} for job #${jobId}`);
-        addLine("assistant", `🔒 Locking ${flrRequired.toFixed(4)} C2FLR in escrow. Please confirm the transaction in your wallet…`);
+        addLine("assistant", `🔒 Please confirm ${flrRequired.toFixed(4)} C2FLR in your wallet to lock the payment...`);
 
         try {
-          // Encode fundJob(jobId, provider, usdBudget) — usdBudget in 18-decimal wei
+          // Encode fundJob(jobId, provider, usdBudget)
           const callData = encodeFunctionData({
             abi: ESCROW_FUND_JOB_ABI,
             functionName: "fundJob",
             args: [
               BigInt(jobId),
               winnerAddr as `0x${string}`,
-              parseEther(String(budgetUsd)), // USD budget (FTSO validates FLR covers this)
+              parseEther(String(budgetUsd)),
             ],
           });
 
           const txHash = await sendTransactionAsync({
             to: escrowAddr,
             data: callData,
-            value: parseEther(String(flrRequired)), // actual C2FLR sent
+            value: parseEther(String(flrRequired)),
           });
 
           console.log("✅ Escrow funded! tx:", txHash);
-          showToast("Escrow funded! C2FLR locked.", "success");
-          addLine("assistant", `✅ Escrow funded! ${flrRequired.toFixed(4)} C2FLR locked on-chain. Your specialist is now working on your request.`);
+          showToast("Escrow funded! Starting task...", "success");
+          
+          // ── Execute job after escrow funded ──
+          setTaskExecution({ active: true, message: "Searching for results..." });
+          
+          try {
+            const execRes = await fetch(`${FLARE_BUTLER_URL}/marketplace/execute/${boardJobId}`, {
+              method: "POST",
+            });
+            
+            setTaskExecution(null);
+            
+            if (execRes.ok) {
+              const execData = await execRes.json();
+              if (execData.formatted_results) {
+                addLine("assistant", execData.formatted_results);
+              } else {
+                addLine("assistant", "Your request has been completed. The specialist has finished the task.");
+              }
+            } else {
+              addLine("assistant", "The task is being processed. I'll have results for you shortly.");
+            }
+          } catch (execErr) {
+            console.error("Execution failed:", execErr);
+            setTaskExecution(null);
+            addLine("assistant", "I'm still working on your request. Please check back in a moment.");
+          }
+
           return `Job posted and escrow funded (${flrRequired.toFixed(2)} C2FLR locked). Tx: ${txHash}`;
         } catch (fundErr: any) {
           console.error("❌ Escrow funding failed:", fundErr);
-          showToast("Escrow funding failed — job posted but not locked", "warning");
-          addLine("assistant", `⚠️ Job posted but escrow funding was declined. The specialist is still assigned but payment is not locked yet.`);
+          showToast("Escrow funding declined", "warning");
+          addLine("assistant", `⚠️ Payment was declined. The specialist is assigned but won't start until payment is locked.`);
           return "Job posted but escrow funding was not completed.";
         }
       }
@@ -165,6 +340,8 @@ export default function ChatScreen() {
       showToast("Job posted to marketplace!", "success");
       return data.message || "Job posted successfully";
     } catch (err: any) {
+      setBidProgress(null);
+      setTaskExecution(null);
       console.error("❌ Marketplace post error:", err);
       showToast("Failed to post job", "error");
       return `Failed to post job: ${err.message}`;
@@ -180,14 +357,13 @@ export default function ChatScreen() {
       const parsed = JSON.parse(jsonMatch[0]);
       if (parsed.task) {
         console.log("🔍 Intercepted JSON job from assistant text:", parsed);
-        addLine("assistant", "✅ Posting your job to the marketplace...");
-        const result = await postJobToMarketplace(parsed);
-        addLine("assistant", `✅ ${result}`);
+        // Don't add duplicate message - postJobToMarketplace shows progress bar
+        await postJobToMarketplace(parsed);
       }
     } catch {
       // Not valid JSON, ignore
     }
-  }, [addLine, postJobToMarketplace]);
+  }, [postJobToMarketplace]);
 
   /* ── ElevenLabs ── */
   const conversation = useConversation({
@@ -265,9 +441,8 @@ export default function ChatScreen() {
                 jobData = params;
               }
 
-              addLine("assistant", "✅ Posting your job to the marketplace...");
+              // Don't add duplicate message - postJobToMarketplace shows progress bar
               const result = await postJobToMarketplace(jobData);
-              addLine("assistant", `✅ ${result}`);
               return result;
             },
 
@@ -522,6 +697,27 @@ export default function ChatScreen() {
                 <p className="transcript-msg-text">{line.content}</p>
               </motion.div>
             ))}
+            {/* Bid collection progress bar */}
+            <AnimatePresence>
+              {bidProgress?.active && (
+                <motion.div
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -10 }}
+                >
+                  <BidProgressBar 
+                    duration={bidProgress.duration} 
+                    onComplete={() => setBidProgress(null)}
+                  />
+                </motion.div>
+              )}
+            </AnimatePresence>
+            {/* Task execution progress */}
+            <AnimatePresence>
+              {taskExecution?.active && (
+                <TaskExecutionProgress message={taskExecution.message} />
+              )}
+            </AnimatePresence>
           </div>
         )}
       </div>

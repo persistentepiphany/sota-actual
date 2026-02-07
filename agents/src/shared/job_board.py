@@ -78,10 +78,12 @@ class BidResult:
     winning_bid: Optional[Bid]
     all_bids: List[Bid]
     reason: str                              # why this bid won (or why none)
+    execution_result: Optional[Dict[str, Any]] = None  # Result from job execution
 
 
 # Type aliases
 WorkerEvaluator = Callable[[JobListing], Awaitable[Optional[Bid]]]
+WorkerExecutor = Callable[[JobListing, "Bid"], Awaitable[Dict[str, Any]]]
 
 
 # ─── Worker Registration ─────────────────────────────────────
@@ -93,6 +95,7 @@ class RegisteredWorker:
     address: str                             # wallet address
     tags: List[str]                          # capabilities / job type tags
     evaluator: WorkerEvaluator               # async fn that returns a Bid or None
+    executor: Optional[WorkerExecutor] = None  # async fn to execute the job after winning
     max_concurrent: int = 5
     active_jobs: int = 0
 
@@ -126,6 +129,7 @@ class JobBoard:
         self._workers: Dict[str, RegisteredWorker] = {}
         self._jobs: Dict[str, JobListing] = {}
         self._bids: Dict[str, List[Bid]] = {}          # job_id → bids
+        self._winning_bids: Dict[str, Bid] = {}        # job_id → winning bid (for later retrieval)
         self._listeners: List[Callable] = []
 
     # ── Singleton ────────────────────────────────────────────
@@ -165,15 +169,18 @@ class JobBoard:
         job: JobListing,
         *,
         on_chain_accept: Optional[Callable[[Bid], Awaitable[None]]] = None,
+        execute_after_accept: bool = True,
     ) -> BidResult:
         """
         Post a job, broadcast to workers, wait for the bid window,
-        then select the best bid.
+        then select the best bid and optionally execute the job.
 
         Args:
             job: The job listing to post.
             on_chain_accept: Optional async callback to accept the bid
                 on-chain (called with the winning Bid).
+            execute_after_accept: If True, call the winning worker's executor
+                after the bid is accepted.
 
         Returns:
             BidResult with the winner (or None if no bids).
@@ -218,6 +225,8 @@ class JobBoard:
 
         if result.winning_bid:
             job.status = JobStatus.ASSIGNED
+            # Store winning bid for later retrieval (e.g., deferred execution)
+            self._winning_bids[job.job_id] = result.winning_bid
             logger.info(
                 "🏆 Winner for job %s: worker=%s  price=%.2f C2FLR  eta=%ds",
                 job.job_id,
@@ -230,6 +239,19 @@ class JobBoard:
                     await on_chain_accept(result.winning_bid)
                 except Exception as exc:
                     logger.error("On-chain accept failed: %s", exc)
+            
+            # ── 4. Execute the job if requested ──────────────
+            if execute_after_accept:
+                winning_worker = self._workers.get(result.winning_bid.bidder_id)
+                if winning_worker and winning_worker.executor:
+                    logger.info("🔄 Starting job execution for %s…", job.job_id)
+                    try:
+                        exec_result = await winning_worker.executor(job, result.winning_bid)
+                        result.execution_result = exec_result
+                        logger.info("✅ Job %s execution completed", job.job_id)
+                    except Exception as exc:
+                        logger.error("❌ Job execution failed: %s", exc)
+                        result.execution_result = {"error": str(exc)}
         else:
             job.status = JobStatus.EXPIRED
             logger.warning("⚠️ No bids received for job %s", job.job_id)
@@ -331,6 +353,10 @@ class JobBoard:
 
     def get_bids(self, job_id: str) -> List[Bid]:
         return list(self._bids.get(job_id, []))
+
+    def get_winning_bid(self, job_id: str) -> Optional[Bid]:
+        """Get the winning bid for a job (if one was selected)."""
+        return self._winning_bids.get(job_id)
 
     def list_open_jobs(self) -> List[JobListing]:
         return [j for j in self._jobs.values() if j.status == JobStatus.OPEN]
