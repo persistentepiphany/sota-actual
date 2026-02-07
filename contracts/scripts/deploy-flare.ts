@@ -182,7 +182,46 @@ async function main() {
   await delay(2000);
 
   // ═══════════════════════════════════════════════════════════
-  // 6. Wire contracts together
+  // 6. RandomNumberV2 (for AgentStaking gamble)
+  // ═══════════════════════════════════════════════════════════
+
+  let randomNumberAddress: string;
+
+  if (chainId === 31337) {
+    console.log("📦 Deploying MockRandomNumberV2 (local mode)...");
+    const mockRandom = await retryWithBackoff(() =>
+      ethers.deployContract("MockRandomNumberV2")
+    );
+    await retryWithBackoff(() => mockRandom.waitForDeployment());
+    randomNumberAddress = mockRandom.target as string;
+    console.log(`   MockRandomNumberV2: ${randomNumberAddress}`);
+  } else {
+    // Flare Coston2 / mainnet: use the protocol RandomNumberV2 contract
+    randomNumberAddress = "0x5CdF9eAF3EB8b44fB696984a1420B56A7575D250";
+    console.log(`   RandomNumberV2 (protocol): ${randomNumberAddress}`);
+  }
+  await delay(2000);
+
+  // ═══════════════════════════════════════════════════════════
+  // 7. AgentStaking (stake + gamble)
+  // ═══════════════════════════════════════════════════════════
+
+  console.log("📦 Deploying AgentStaking...");
+  const agentStaking = await retryWithBackoff(() =>
+    ethers.deployContract("AgentStaking", [
+      deployer.address,
+      agentRegistryAddress,
+      randomNumberAddress,
+      ethers.parseEther("50"), // 50 FLR minimum stake
+    ])
+  );
+  await retryWithBackoff(() => agentStaking.waitForDeployment());
+  const agentStakingAddress = agentStaking.target as string;
+  console.log(`   AgentStaking: ${agentStakingAddress}`);
+  await delay(2000);
+
+  // ═══════════════════════════════════════════════════════════
+  // 8. Wire contracts together
   // ═══════════════════════════════════════════════════════════
 
   console.log("\n🔗 Wiring contracts...");
@@ -208,8 +247,20 @@ async function main() {
   );
   await delay(1000);
 
+  console.log("   AgentStaking.setEscrow → FlareEscrow");
+  await retryWithBackoff(() =>
+    (agentStaking as any).setEscrow(escrowAddress)
+  );
+  await delay(2000);
+
+  console.log("   FlareEscrow.setAgentStaking → AgentStaking");
+  await retryWithBackoff(() =>
+    (escrow as any).setAgentStaking(agentStakingAddress)
+  );
+  await delay(2000);
+
   // ═══════════════════════════════════════════════════════════
-  // 7. Save deployment artifacts
+  // 9. Save deployment artifacts
   // ═══════════════════════════════════════════════════════════
 
   const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
@@ -221,6 +272,7 @@ async function main() {
     flareIntegration: {
       ftsoUsage: "FLR/USD price feed for job quoting and escrow funding validation",
       fdcUsage: "Web2 delivery-status attestation gates escrow release (trustless)",
+      randomNumberV2Usage: "50/50 cashout gamble on agent earnings via RandomNumberV2",
     },
     contracts: {
       FTSOPriceConsumer: ftsoAddress,
@@ -228,6 +280,8 @@ async function main() {
       FlareOrderBook: orderBookAddress,
       FlareEscrow: escrowAddress,
       AgentRegistry: agentRegistryAddress,
+      AgentStaking: agentStakingAddress,
+      RandomNumberV2: randomNumberAddress,
     },
   } as const;
 
@@ -257,11 +311,14 @@ async function main() {
   console.log(`   FlareOrderBook:   ${orderBookAddress}`);
   console.log(`   FlareEscrow:      ${escrowAddress}`);
   console.log(`   AgentRegistry:    ${agentRegistryAddress}`);
+  console.log(`   AgentStaking:     ${agentStakingAddress}`);
+  console.log(`   RandomNumberV2:   ${randomNumberAddress}`);
 
   console.log("\n📖 Bounty Alignment:");
   console.log("   ✓ FTSO MAIN — createJob() converts USD→FLR via FTSO feed");
   console.log("   ✓ FDC MAIN  — releaseToProvider() gated on FDC attestation");
   console.log("   ✓ FDC BONUS — escrow release driven entirely by FDC, not backend");
+  console.log("   ✓ RNG BONUS — AgentStaking cashout uses RandomNumberV2 for 50/50 gamble");
 }
 
 main().catch((error) => {

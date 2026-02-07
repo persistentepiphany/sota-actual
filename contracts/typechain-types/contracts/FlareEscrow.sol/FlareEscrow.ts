@@ -62,6 +62,7 @@ export declare namespace FlareEscrow {
 export interface FlareEscrowInterface extends Interface {
   getFunction(
     nameOrSignature:
+      | "agentStaking"
       | "allowedStablecoins"
       | "deposits"
       | "fdcVerifier"
@@ -77,6 +78,7 @@ export interface FlareEscrowInterface extends Interface {
       | "refund"
       | "releaseToProvider"
       | "renounceOwnership"
+      | "setAgentStaking"
       | "setAllowedStablecoin"
       | "setFTSO"
       | "setFdcVerifier"
@@ -96,6 +98,10 @@ export interface FlareEscrowInterface extends Interface {
       | "StablecoinUpdated"
   ): EventFragment;
 
+  encodeFunctionData(
+    functionFragment: "agentStaking",
+    values?: undefined
+  ): string;
   encodeFunctionData(
     functionFragment: "allowedStablecoins",
     values: [AddressLike]
@@ -148,6 +154,10 @@ export interface FlareEscrowInterface extends Interface {
     values?: undefined
   ): string;
   encodeFunctionData(
+    functionFragment: "setAgentStaking",
+    values: [AddressLike]
+  ): string;
+  encodeFunctionData(
     functionFragment: "setAllowedStablecoin",
     values: [AddressLike, boolean]
   ): string;
@@ -180,6 +190,10 @@ export interface FlareEscrowInterface extends Interface {
     values: [AddressLike]
   ): string;
 
+  decodeFunctionResult(
+    functionFragment: "agentStaking",
+    data: BytesLike
+  ): Result;
   decodeFunctionResult(
     functionFragment: "allowedStablecoins",
     data: BytesLike
@@ -217,6 +231,10 @@ export interface FlareEscrowInterface extends Interface {
   ): Result;
   decodeFunctionResult(
     functionFragment: "renounceOwnership",
+    data: BytesLike
+  ): Result;
+  decodeFunctionResult(
+    functionFragment: "setAgentStaking",
     data: BytesLike
   ): Result;
   decodeFunctionResult(
@@ -406,6 +424,8 @@ export interface FlareEscrow extends BaseContract {
     event?: TCEvent
   ): Promise<this>;
 
+  agentStaking: TypedContractMethod<[], [string], "view">;
+
   allowedStablecoins: TypedContractMethod<
     [arg0: AddressLike],
     [boolean],
@@ -492,6 +512,12 @@ export interface FlareEscrow extends BaseContract {
 
   renounceOwnership: TypedContractMethod<[], [void], "nonpayable">;
 
+  setAgentStaking: TypedContractMethod<
+    [staking: AddressLike],
+    [void],
+    "nonpayable"
+  >;
+
   setAllowedStablecoin: TypedContractMethod<
     [token: AddressLike, allowed: boolean],
     [void],
@@ -540,6 +566,9 @@ export interface FlareEscrow extends BaseContract {
     key: string | FunctionFragment
   ): T;
 
+  getFunction(
+    nameOrSignature: "agentStaking"
+  ): TypedContractMethod<[], [string], "view">;
   getFunction(
     nameOrSignature: "allowedStablecoins"
   ): TypedContractMethod<[arg0: AddressLike], [boolean], "view">;
@@ -629,6 +658,9 @@ export interface FlareEscrow extends BaseContract {
   getFunction(
     nameOrSignature: "renounceOwnership"
   ): TypedContractMethod<[], [void], "nonpayable">;
+  getFunction(
+    nameOrSignature: "setAgentStaking"
+  ): TypedContractMethod<[staking: AddressLike], [void], "nonpayable">;
   getFunction(
     nameOrSignature: "setAllowedStablecoin"
   ): TypedContractMethod<

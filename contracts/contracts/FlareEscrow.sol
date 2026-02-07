@@ -6,6 +6,7 @@ import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "./FTSOPriceConsumer.sol";
+import "./interfaces/IAgentStaking.sol";
 
 /**
  * @title IFDCVerifier
@@ -64,6 +65,8 @@ contract FlareEscrow is Ownable, ReentrancyGuard {
     FTSOPriceConsumer public ftso;
     IFDCVerifier public fdcVerifier;
     IFlareOrderBook public orderBook;
+
+    IAgentStaking public agentStaking;
 
     address public feeCollector;
     uint96 public platformFeeBps;       // e.g. 200 = 2%
@@ -136,6 +139,10 @@ contract FlareEscrow is Ownable, ReentrancyGuard {
     function setSlippageBps(uint256 bps) external onlyOwner {
         require(bps <= 2_000, "FlareEscrow: slippage too high"); // max 20%
         slippageBps = bps;
+    }
+
+    function setAgentStaking(address staking) external onlyOwner {
+        agentStaking = IAgentStaking(staking);
     }
 
     /**
@@ -267,8 +274,16 @@ contract FlareEscrow is Ownable, ReentrancyGuard {
                 (bool feeOk, ) = feeCollector.call{value: fee}("");
                 require(feeOk, "FlareEscrow: fee transfer failed");
             }
-            (bool ok, ) = dep.provider.call{value: payout}("");
-            require(ok, "FlareEscrow: payout failed");
+            // Route payout through AgentStaking if provider is staked
+            if (
+                address(agentStaking) != address(0) &&
+                agentStaking.isStaked(dep.provider)
+            ) {
+                agentStaking.creditEarnings{value: payout}(dep.provider, payout);
+            } else {
+                (bool ok, ) = dep.provider.call{value: payout}("");
+                require(ok, "FlareEscrow: payout failed");
+            }
         } else {
             IERC20 token = IERC20(dep.token);
             if (fee > 0 && feeCollector != address(0)) {

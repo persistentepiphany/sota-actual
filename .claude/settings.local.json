@@ -17,7 +17,14 @@
       "Bash(del \"D:\\\\SOTA\\\\contracts\\\\.env\")",
       "Bash(npx tsc:*)",
       "Bash(npx next lint:*)",
-      "Bash(git -C D:SOTA status --short)"
+      "Bash(git -C D:SOTA status --short)",
+      "WebFetch(domain:dev.flare.network)",
+      "WebSearch",
+      "Bash(dir:*)",
+      "Bash(xargs:*)",
+      "Bash(npx hardhat compile:*)",
+      "Bash(npx hardhat test:*)",
+      "Bash(npx next build:*)"
     ]
   }
 }

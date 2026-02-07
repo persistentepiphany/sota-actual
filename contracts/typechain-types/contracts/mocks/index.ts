@@ -3,4 +3,4 @@
 /* eslint-disable */
 export type { MockFastUpdater } from "./MockFastUpdater";
 export type { MockFdcVerification } from "./MockFdcVerification";
-export type { MockUSDC } from "./MockUSDC";
+export type { MockRandomNumberV2 } from "./MockRandomNumberV2";

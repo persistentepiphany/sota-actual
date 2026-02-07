@@ -3,4 +3,4 @@
 /* eslint-disable */
 export { MockFastUpdater__factory } from "./MockFastUpdater__factory";
 export { MockFdcVerification__factory } from "./MockFdcVerification__factory";
-export { MockUSDC__factory } from "./MockUSDC__factory";
+export { MockRandomNumberV2__factory } from "./MockRandomNumberV2__factory";

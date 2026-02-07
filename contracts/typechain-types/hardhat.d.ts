@@ -18,29 +18,9 @@ declare module "hardhat/types/runtime" {
       signerOrOptions?: ethers.Signer | FactoryOptions
     ): Promise<Contracts.Ownable__factory>;
     getContractFactory(
-      name: "IERC1155Errors",
-      signerOrOptions?: ethers.Signer | FactoryOptions
-    ): Promise<Contracts.IERC1155Errors__factory>;
-    getContractFactory(
-      name: "IERC20Errors",
-      signerOrOptions?: ethers.Signer | FactoryOptions
-    ): Promise<Contracts.IERC20Errors__factory>;
-    getContractFactory(
-      name: "IERC721Errors",
-      signerOrOptions?: ethers.Signer | FactoryOptions
-    ): Promise<Contracts.IERC721Errors__factory>;
-    getContractFactory(
       name: "IERC1363",
       signerOrOptions?: ethers.Signer | FactoryOptions
     ): Promise<Contracts.IERC1363__factory>;
-    getContractFactory(
-      name: "ERC20",
-      signerOrOptions?: ethers.Signer | FactoryOptions
-    ): Promise<Contracts.ERC20__factory>;
-    getContractFactory(
-      name: "IERC20Metadata",
-      signerOrOptions?: ethers.Signer | FactoryOptions
-    ): Promise<Contracts.IERC20Metadata__factory>;
     getContractFactory(
       name: "IERC20",
       signerOrOptions?: ethers.Signer | FactoryOptions
@@ -62,13 +42,9 @@ declare module "hardhat/types/runtime" {
       signerOrOptions?: ethers.Signer | FactoryOptions
     ): Promise<Contracts.AgentRegistry__factory>;
     getContractFactory(
-      name: "Escrow",
+      name: "AgentStaking",
       signerOrOptions?: ethers.Signer | FactoryOptions
-    ): Promise<Contracts.Escrow__factory>;
-    getContractFactory(
-      name: "IReputationEmitter",
-      signerOrOptions?: ethers.Signer | FactoryOptions
-    ): Promise<Contracts.IReputationEmitter__factory>;
+    ): Promise<Contracts.AgentStaking__factory>;
     getContractFactory(
       name: "FDCVerifier",
       signerOrOptions?: ethers.Signer | FactoryOptions
@@ -94,6 +70,10 @@ declare module "hardhat/types/runtime" {
       signerOrOptions?: ethers.Signer | FactoryOptions
     ): Promise<Contracts.FTSOPriceConsumer__factory>;
     getContractFactory(
+      name: "IAgentStaking",
+      signerOrOptions?: ethers.Signer | FactoryOptions
+    ): Promise<Contracts.IAgentStaking__factory>;
+    getContractFactory(
       name: "IFastUpdater",
       signerOrOptions?: ethers.Signer | FactoryOptions
     ): Promise<Contracts.IFastUpdater__factory>;
@@ -110,9 +90,9 @@ declare module "hardhat/types/runtime" {
       signerOrOptions?: ethers.Signer | FactoryOptions
     ): Promise<Contracts.IFlareContractRegistry__factory>;
     getContractFactory(
-      name: "JobRegistry",
+      name: "IRandomNumberV2",
       signerOrOptions?: ethers.Signer | FactoryOptions
-    ): Promise<Contracts.JobRegistry__factory>;
+    ): Promise<Contracts.IRandomNumberV2__factory>;
     getContractFactory(
       name: "MockFastUpdater",
       signerOrOptions?: ethers.Signer | FactoryOptions
@@ -122,29 +102,9 @@ declare module "hardhat/types/runtime" {
       signerOrOptions?: ethers.Signer | FactoryOptions
     ): Promise<Contracts.MockFdcVerification__factory>;
     getContractFactory(
-      name: "MockUSDC",
+      name: "MockRandomNumberV2",
       signerOrOptions?: ethers.Signer | FactoryOptions
-    ): Promise<Contracts.MockUSDC__factory>;
-    getContractFactory(
-      name: "IAgentRegistryView",
-      signerOrOptions?: ethers.Signer | FactoryOptions
-    ): Promise<Contracts.IAgentRegistryView__factory>;
-    getContractFactory(
-      name: "IEscrow",
-      signerOrOptions?: ethers.Signer | FactoryOptions
-    ): Promise<Contracts.IEscrow__factory>;
-    getContractFactory(
-      name: "IJobRegistry",
-      signerOrOptions?: ethers.Signer | FactoryOptions
-    ): Promise<Contracts.IJobRegistry__factory>;
-    getContractFactory(
-      name: "IReputationToken",
-      signerOrOptions?: ethers.Signer | FactoryOptions
-    ): Promise<Contracts.IReputationToken__factory>;
-    getContractFactory(
-      name: "OrderBook",
-      signerOrOptions?: ethers.Signer | FactoryOptions
-    ): Promise<Contracts.OrderBook__factory>;
+    ): Promise<Contracts.MockRandomNumberV2__factory>;
     getContractFactory(
       name: "IAgentRegistrySync",
       signerOrOptions?: ethers.Signer | FactoryOptions
@@ -160,35 +120,10 @@ declare module "hardhat/types/runtime" {
       signer?: ethers.Signer
     ): Promise<Contracts.Ownable>;
     getContractAt(
-      name: "IERC1155Errors",
-      address: string | ethers.Addressable,
-      signer?: ethers.Signer
-    ): Promise<Contracts.IERC1155Errors>;
-    getContractAt(
-      name: "IERC20Errors",
-      address: string | ethers.Addressable,
-      signer?: ethers.Signer
-    ): Promise<Contracts.IERC20Errors>;
-    getContractAt(
-      name: "IERC721Errors",
-      address: string | ethers.Addressable,
-      signer?: ethers.Signer
-    ): Promise<Contracts.IERC721Errors>;
-    getContractAt(
       name: "IERC1363",
       address: string | ethers.Addressable,
       signer?: ethers.Signer
     ): Promise<Contracts.IERC1363>;
-    getContractAt(
-      name: "ERC20",
-      address: string | ethers.Addressable,
-      signer?: ethers.Signer
-    ): Promise<Contracts.ERC20>;
-    getContractAt(
-      name: "IERC20Metadata",
-      address: string | ethers.Addressable,
-      signer?: ethers.Signer
-    ): Promise<Contracts.IERC20Metadata>;
     getContractAt(
       name: "IERC20",
       address: string | ethers.Addressable,
@@ -215,15 +150,10 @@ declare module "hardhat/types/runtime" {
       signer?: ethers.Signer
     ): Promise<Contracts.AgentRegistry>;
     getContractAt(
-      name: "Escrow",
+      name: "AgentStaking",
       address: string | ethers.Addressable,
       signer?: ethers.Signer
-    ): Promise<Contracts.Escrow>;
-    getContractAt(
-      name: "IReputationEmitter",
-      address: string | ethers.Addressable,
-      signer?: ethers.Signer
-    ): Promise<Contracts.IReputationEmitter>;
+    ): Promise<Contracts.AgentStaking>;
     getContractAt(
       name: "FDCVerifier",
       address: string | ethers.Addressable,
@@ -255,6 +185,11 @@ declare module "hardhat/types/runtime" {
       signer?: ethers.Signer
     ): Promise<Contracts.FTSOPriceConsumer>;
     getContractAt(
+      name: "IAgentStaking",
+      address: string | ethers.Addressable,
+      signer?: ethers.Signer
+    ): Promise<Contracts.IAgentStaking>;
+    getContractAt(
       name: "IFastUpdater",
       address: string | ethers.Addressable,
       signer?: ethers.Signer
@@ -275,10 +210,10 @@ declare module "hardhat/types/runtime" {
       signer?: ethers.Signer
     ): Promise<Contracts.IFlareContractRegistry>;
     getContractAt(
-      name: "JobRegistry",
+      name: "IRandomNumberV2",
       address: string | ethers.Addressable,
       signer?: ethers.Signer
-    ): Promise<Contracts.JobRegistry>;
+    ): Promise<Contracts.IRandomNumberV2>;
     getContractAt(
       name: "MockFastUpdater",
       address: string | ethers.Addressable,
@@ -290,35 +225,10 @@ declare module "hardhat/types/runtime" {
       signer?: ethers.Signer
     ): Promise<Contracts.MockFdcVerification>;
     getContractAt(
-      name: "MockUSDC",
+      name: "MockRandomNumberV2",
       address: string | ethers.Addressable,
       signer?: ethers.Signer
-    ): Promise<Contracts.MockUSDC>;
-    getContractAt(
-      name: "IAgentRegistryView",
-      address: string | ethers.Addressable,
-      signer?: ethers.Signer
-    ): Promise<Contracts.IAgentRegistryView>;
-    getContractAt(
-      name: "IEscrow",
-      address: string | ethers.Addressable,
-      signer?: ethers.Signer
-    ): Promise<Contracts.IEscrow>;
-    getContractAt(
-      name: "IJobRegistry",
-      address: string | ethers.Addressable,
-      signer?: ethers.Signer
-    ): Promise<Contracts.IJobRegistry>;
-    getContractAt(
-      name: "IReputationToken",
-      address: string | ethers.Addressable,
-      signer?: ethers.Signer
-    ): Promise<Contracts.IReputationToken>;
-    getContractAt(
-      name: "OrderBook",
-      address: string | ethers.Addressable,
-      signer?: ethers.Signer
-    ): Promise<Contracts.OrderBook>;
+    ): Promise<Contracts.MockRandomNumberV2>;
     getContractAt(
       name: "IAgentRegistrySync",
       address: string | ethers.Addressable,
@@ -335,29 +245,9 @@ declare module "hardhat/types/runtime" {
       signerOrOptions?: ethers.Signer | DeployContractOptions
     ): Promise<Contracts.Ownable>;
     deployContract(
-      name: "IERC1155Errors",
-      signerOrOptions?: ethers.Signer | DeployContractOptions
-    ): Promise<Contracts.IERC1155Errors>;
-    deployContract(
-      name: "IERC20Errors",
-      signerOrOptions?: ethers.Signer | DeployContractOptions
-    ): Promise<Contracts.IERC20Errors>;
-    deployContract(
-      name: "IERC721Errors",
-      signerOrOptions?: ethers.Signer | DeployContractOptions
-    ): Promise<Contracts.IERC721Errors>;
-    deployContract(
       name: "IERC1363",
       signerOrOptions?: ethers.Signer | DeployContractOptions
     ): Promise<Contracts.IERC1363>;
-    deployContract(
-      name: "ERC20",
-      signerOrOptions?: ethers.Signer | DeployContractOptions
-    ): Promise<Contracts.ERC20>;
-    deployContract(
-      name: "IERC20Metadata",
-      signerOrOptions?: ethers.Signer | DeployContractOptions
-    ): Promise<Contracts.IERC20Metadata>;
     deployContract(
       name: "IERC20",
       signerOrOptions?: ethers.Signer | DeployContractOptions
@@ -379,13 +269,9 @@ declare module "hardhat/types/runtime" {
       signerOrOptions?: ethers.Signer | DeployContractOptions
     ): Promise<Contracts.AgentRegistry>;
     deployContract(
-      name: "Escrow",
+      name: "AgentStaking",
       signerOrOptions?: ethers.Signer | DeployContractOptions
-    ): Promise<Contracts.Escrow>;
-    deployContract(
-      name: "IReputationEmitter",
-      signerOrOptions?: ethers.Signer | DeployContractOptions
-    ): Promise<Contracts.IReputationEmitter>;
+    ): Promise<Contracts.AgentStaking>;
     deployContract(
       name: "FDCVerifier",
       signerOrOptions?: ethers.Signer | DeployContractOptions
@@ -411,6 +297,10 @@ declare module "hardhat/types/runtime" {
       signerOrOptions?: ethers.Signer | DeployContractOptions
     ): Promise<Contracts.FTSOPriceConsumer>;
     deployContract(
+      name: "IAgentStaking",
+      signerOrOptions?: ethers.Signer | DeployContractOptions
+    ): Promise<Contracts.IAgentStaking>;
+    deployContract(
       name: "IFastUpdater",
       signerOrOptions?: ethers.Signer | DeployContractOptions
     ): Promise<Contracts.IFastUpdater>;
@@ -427,9 +317,9 @@ declare module "hardhat/types/runtime" {
       signerOrOptions?: ethers.Signer | DeployContractOptions
     ): Promise<Contracts.IFlareContractRegistry>;
     deployContract(
-      name: "JobRegistry",
+      name: "IRandomNumberV2",
       signerOrOptions?: ethers.Signer | DeployContractOptions
-    ): Promise<Contracts.JobRegistry>;
+    ): Promise<Contracts.IRandomNumberV2>;
     deployContract(
       name: "MockFastUpdater",
       signerOrOptions?: ethers.Signer | DeployContractOptions
@@ -439,29 +329,9 @@ declare module "hardhat/types/runtime" {
       signerOrOptions?: ethers.Signer | DeployContractOptions
     ): Promise<Contracts.MockFdcVerification>;
     deployContract(
-      name: "MockUSDC",
+      name: "MockRandomNumberV2",
       signerOrOptions?: ethers.Signer | DeployContractOptions
-    ): Promise<Contracts.MockUSDC>;
-    deployContract(
-      name: "IAgentRegistryView",
-      signerOrOptions?: ethers.Signer | DeployContractOptions
-    ): Promise<Contracts.IAgentRegistryView>;
-    deployContract(
-      name: "IEscrow",
-      signerOrOptions?: ethers.Signer | DeployContractOptions
-    ): Promise<Contracts.IEscrow>;
-    deployContract(
-      name: "IJobRegistry",
-      signerOrOptions?: ethers.Signer | DeployContractOptions
-    ): Promise<Contracts.IJobRegistry>;
-    deployContract(
-      name: "IReputationToken",
-      signerOrOptions?: ethers.Signer | DeployContractOptions
-    ): Promise<Contracts.IReputationToken>;
-    deployContract(
-      name: "OrderBook",
-      signerOrOptions?: ethers.Signer | DeployContractOptions
-    ): Promise<Contracts.OrderBook>;
+    ): Promise<Contracts.MockRandomNumberV2>;
     deployContract(
       name: "IAgentRegistrySync",
       signerOrOptions?: ethers.Signer | DeployContractOptions
@@ -477,35 +347,10 @@ declare module "hardhat/types/runtime" {
       signerOrOptions?: ethers.Signer | DeployContractOptions
     ): Promise<Contracts.Ownable>;
     deployContract(
-      name: "IERC1155Errors",
-      args: any[],
-      signerOrOptions?: ethers.Signer | DeployContractOptions
-    ): Promise<Contracts.IERC1155Errors>;
-    deployContract(
-      name: "IERC20Errors",
-      args: any[],
-      signerOrOptions?: ethers.Signer | DeployContractOptions
-    ): Promise<Contracts.IERC20Errors>;
-    deployContract(
-      name: "IERC721Errors",
-      args: any[],
-      signerOrOptions?: ethers.Signer | DeployContractOptions
-    ): Promise<Contracts.IERC721Errors>;
-    deployContract(
       name: "IERC1363",
       args: any[],
       signerOrOptions?: ethers.Signer | DeployContractOptions
     ): Promise<Contracts.IERC1363>;
-    deployContract(
-      name: "ERC20",
-      args: any[],
-      signerOrOptions?: ethers.Signer | DeployContractOptions
-    ): Promise<Contracts.ERC20>;
-    deployContract(
-      name: "IERC20Metadata",
-      args: any[],
-      signerOrOptions?: ethers.Signer | DeployContractOptions
-    ): Promise<Contracts.IERC20Metadata>;
     deployContract(
       name: "IERC20",
       args: any[],
@@ -532,15 +377,10 @@ declare module "hardhat/types/runtime" {
       signerOrOptions?: ethers.Signer | DeployContractOptions
     ): Promise<Contracts.AgentRegistry>;
     deployContract(
-      name: "Escrow",
+      name: "AgentStaking",
       args: any[],
       signerOrOptions?: ethers.Signer | DeployContractOptions
-    ): Promise<Contracts.Escrow>;
-    deployContract(
-      name: "IReputationEmitter",
-      args: any[],
-      signerOrOptions?: ethers.Signer | DeployContractOptions
-    ): Promise<Contracts.IReputationEmitter>;
+    ): Promise<Contracts.AgentStaking>;
     deployContract(
       name: "FDCVerifier",
       args: any[],
@@ -572,6 +412,11 @@ declare module "hardhat/types/runtime" {
       signerOrOptions?: ethers.Signer | DeployContractOptions
     ): Promise<Contracts.FTSOPriceConsumer>;
     deployContract(
+      name: "IAgentStaking",
+      args: any[],
+      signerOrOptions?: ethers.Signer | DeployContractOptions
+    ): Promise<Contracts.IAgentStaking>;
+    deployContract(
       name: "IFastUpdater",
       args: any[],
       signerOrOptions?: ethers.Signer | DeployContractOptions
@@ -592,10 +437,10 @@ declare module "hardhat/types/runtime" {
       signerOrOptions?: ethers.Signer | DeployContractOptions
     ): Promise<Contracts.IFlareContractRegistry>;
     deployContract(
-      name: "JobRegistry",
+      name: "IRandomNumberV2",
       args: any[],
       signerOrOptions?: ethers.Signer | DeployContractOptions
-    ): Promise<Contracts.JobRegistry>;
+    ): Promise<Contracts.IRandomNumberV2>;
     deployContract(
       name: "MockFastUpdater",
       args: any[],
@@ -607,35 +452,10 @@ declare module "hardhat/types/runtime" {
       signerOrOptions?: ethers.Signer | DeployContractOptions
     ): Promise<Contracts.MockFdcVerification>;
     deployContract(
-      name: "MockUSDC",
+      name: "MockRandomNumberV2",
       args: any[],
       signerOrOptions?: ethers.Signer | DeployContractOptions
-    ): Promise<Contracts.MockUSDC>;
-    deployContract(
-      name: "IAgentRegistryView",
-      args: any[],
-      signerOrOptions?: ethers.Signer | DeployContractOptions
-    ): Promise<Contracts.IAgentRegistryView>;
-    deployContract(
-      name: "IEscrow",
-      args: any[],
-      signerOrOptions?: ethers.Signer | DeployContractOptions
-    ): Promise<Contracts.IEscrow>;
-    deployContract(
-      name: "IJobRegistry",
-      args: any[],
-      signerOrOptions?: ethers.Signer | DeployContractOptions
-    ): Promise<Contracts.IJobRegistry>;
-    deployContract(
-      name: "IReputationToken",
-      args: any[],
-      signerOrOptions?: ethers.Signer | DeployContractOptions
-    ): Promise<Contracts.IReputationToken>;
-    deployContract(
-      name: "OrderBook",
-      args: any[],
-      signerOrOptions?: ethers.Signer | DeployContractOptions
-    ): Promise<Contracts.OrderBook>;
+    ): Promise<Contracts.MockRandomNumberV2>;
     deployContract(
       name: "IAgentRegistrySync",
       args: any[],

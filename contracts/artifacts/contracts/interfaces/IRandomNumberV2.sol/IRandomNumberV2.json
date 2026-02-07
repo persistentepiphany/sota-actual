@@ -1,0 +1,34 @@
+{
+  "_format": "hh-sol-artifact-1",
+  "contractName": "IRandomNumberV2",
+  "sourceName": "contracts/interfaces/IRandomNumberV2.sol",
+  "abi": [
+    {
+      "inputs": [],
+      "name": "getRandomNumber",
+      "outputs": [
+        {
+          "internalType": "uint256",
+          "name": "_randomNumber",
+          "type": "uint256"
+        },
+        {
+          "internalType": "bool",
+          "name": "_isSecureRandom",
+          "type": "bool"
+        },
+        {
+          "internalType": "uint256",
+          "name": "_randomTimestamp",
+          "type": "uint256"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    }
+  ],
+  "bytecode": "0x",
+  "deployedBytecode": "0x",
+  "linkReferences": {},
+  "deployedLinkReferences": {}
+}
