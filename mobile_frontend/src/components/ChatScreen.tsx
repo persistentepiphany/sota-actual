@@ -47,7 +47,6 @@ type OrbStatus = "idle" | "listening" | "thinking" | "speaking";
 function BidProgressBar({ duration, onComplete }: { duration: number; onComplete?: () => void }) {
   const [progress, setProgress] = useState(0);
   const [timeLeft, setTimeLeft] = useState(duration);
-  const [phase, setPhase] = useState<"bidding" | "executing">("bidding");
 
   useEffect(() => {
     const startTime = Date.now();
@@ -56,90 +55,42 @@ function BidProgressBar({ duration, onComplete }: { duration: number; onComplete
       const pct = Math.min((elapsed / duration) * 100, 100);
       setProgress(pct);
       setTimeLeft(Math.max(duration - elapsed, 0));
-      
-      if (pct >= 100 && phase === "bidding") {
-        setPhase("executing");
+
+      if (pct >= 100) {
+        clearInterval(interval);
+        onComplete?.();
       }
     }, 100);
     return () => clearInterval(interval);
-  }, [duration, onComplete, phase]);
+  }, [duration, onComplete]);
 
   return (
     <motion.div
-      initial={{ opacity: 0, y: 10 }}
-      animate={{ opacity: 1, y: 0 }}
-      className="w-full max-w-md mx-auto my-4"
+      initial={{ opacity: 0, y: 12, scale: 0.96 }}
+      animate={{ opacity: 1, y: 0, scale: 1 }}
+      exit={{ opacity: 0, y: -10 }}
+      className="transcript-msg assistant"
     >
-      <div 
-        className="rounded-2xl p-4 backdrop-blur-xl border"
-        style={{
-          background: 'rgba(255, 255, 255, 0.04)',
-          borderColor: 'rgba(255, 255, 255, 0.08)',
-          boxShadow: '0 8px 32px rgba(0, 0, 0, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.05)',
-        }}
-      >
-        {phase === "bidding" ? (
-          <>
-            <div className="flex items-center justify-between mb-3">
-              <div className="flex items-center gap-2">
-                <motion.div
-                  animate={{ scale: [1, 1.2, 1] }}
-                  transition={{ duration: 1.5, repeat: Infinity }}
-                  className="w-2 h-2 rounded-full"
-                  style={{ background: 'linear-gradient(135deg, #6366f1, #a78bfa)' }}
-                />
-                <span className="text-sm font-medium" style={{ color: 'var(--text-primary, #f1f5f9)' }}>
-                  Finding specialists...
-                </span>
-              </div>
-              <span className="text-sm font-mono" style={{ color: 'var(--text-muted, #64748b)' }}>
-                {Math.ceil(timeLeft)}s
-              </span>
-            </div>
-            <div 
-              className="h-1.5 rounded-full overflow-hidden"
-              style={{ background: 'rgba(255, 255, 255, 0.06)' }}
-            >
-              <motion.div
-                className="h-full rounded-full"
-                style={{ background: 'linear-gradient(90deg, #6366f1, #a78bfa, #c084fc)' }}
-                initial={{ width: 0 }}
-                animate={{ width: `${progress}%` }}
-                transition={{ duration: 0.1 }}
-              />
-            </div>
-            <p className="text-xs mt-2 text-center" style={{ color: 'var(--text-muted, #64748b)' }}>
-              Collecting bids from available agents
-            </p>
-          </>
-        ) : (
-          <div className="flex flex-col items-center gap-3 py-2">
-            <div className="relative">
-              <motion.div
-                className="w-10 h-10 rounded-full border-2"
-                style={{ 
-                  borderColor: 'rgba(99, 102, 241, 0.3)',
-                  borderTopColor: '#6366f1',
-                }}
-                animate={{ rotate: 360 }}
-                transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
-              />
-              <div 
-                className="absolute inset-0 flex items-center justify-center text-lg"
-              >
-                🚀
-              </div>
-            </div>
-            <div className="text-center">
-              <p className="text-sm font-medium" style={{ color: 'var(--text-primary, #f1f5f9)' }}>
-                Specialist assigned!
-              </p>
-              <p className="text-xs mt-1" style={{ color: 'var(--text-muted, #64748b)' }}>
-                Working on your request...
-              </p>
-            </div>
-          </div>
-        )}
+      <span className="transcript-msg-role">Butler</span>
+      <p className="transcript-msg-text">
+        Let me find the best specialist for your request...
+      </p>
+      <div className="mt-2 w-full">
+        <div
+          className="h-1 rounded-full overflow-hidden"
+          style={{ background: 'rgba(255, 255, 255, 0.08)' }}
+        >
+          <motion.div
+            className="h-full rounded-full"
+            style={{ background: 'linear-gradient(90deg, #6366f1, #a78bfa, #c084fc)' }}
+            initial={{ width: 0 }}
+            animate={{ width: `${progress}%` }}
+            transition={{ duration: 0.3, ease: "linear" }}
+          />
+        </div>
+        <p className="text-xs mt-1.5" style={{ color: 'var(--text-muted, #64748b)' }}>
+          {Math.ceil(timeLeft)}s remaining
+        </p>
       </div>
     </motion.div>
   );
@@ -276,10 +227,10 @@ export default function ChatScreen() {
         const bidderName = jobResult?.winning_bid?.bidder || "specialist";
 
         // Notify user about accepted bid
-        addLine("assistant", `✨ Great news! A ${bidderName} has been assigned to your request for ${bidPrice.toFixed(4)} C2FLR (~$${budgetUsd} USD).`);
+        addLine("assistant", `I've found a ${bidderName} for your request. The cost will be ${bidPrice.toFixed(4)} C2FLR (~$${budgetUsd} USD).`);
 
         console.log(`🔒 Funding escrow: ${flrRequired} C2FLR ($${budgetUsd} USD via FTSO) → ${escrowAddr} for job #${jobId}`);
-        addLine("assistant", `🔒 Please confirm ${flrRequired.toFixed(4)} C2FLR in your wallet to lock the payment...`);
+        addLine("assistant", `Please confirm ${flrRequired.toFixed(4)} C2FLR in your wallet to proceed.`);
 
         try {
           // Encode fundJob(jobId, provider, usdBudget)
@@ -301,7 +252,8 @@ export default function ChatScreen() {
 
           console.log("✅ Escrow funded! tx:", txHash);
           showToast("Escrow funded! Starting task...", "success");
-          
+          addLine("assistant", `Escrow funded! ${Number(flrRequired).toFixed(4)} C2FLR locked on-chain. Starting task now...`);
+
           // ── Execute job after escrow funded ──
           setTaskExecution({ active: true, message: "Searching for results..." });
           
@@ -700,16 +652,10 @@ export default function ChatScreen() {
             {/* Bid collection progress bar */}
             <AnimatePresence>
               {bidProgress?.active && (
-                <motion.div
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: -10 }}
-                >
-                  <BidProgressBar 
-                    duration={bidProgress.duration} 
-                    onComplete={() => setBidProgress(null)}
-                  />
-                </motion.div>
+                <BidProgressBar
+                  duration={bidProgress.duration}
+                  onComplete={() => setBidProgress(null)}
+                />
               )}
             </AnimatePresence>
             {/* Task execution progress */}

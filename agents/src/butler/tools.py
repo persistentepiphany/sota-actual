@@ -11,6 +11,7 @@ Tools for the Butler to:
 """
 
 import os
+import re
 import json
 import time
 import asyncio
@@ -55,6 +56,22 @@ except Exception:
 from ..shared.butler_comms import ButlerDataExchange
 
 
+def strip_markdown(text: str) -> str:
+    """Strip common markdown syntax so text reads as plain text in chat."""
+    # Remove bold: **text** or __text__
+    text = re.sub(r'\*\*(.+?)\*\*', r'\1', text)
+    text = re.sub(r'__(.+?)__', r'\1', text)
+    # Remove italic: *text* or _text_ (but not underscores in URLs)
+    text = re.sub(r'(?<!\w)\*(.+?)\*(?!\w)', r'\1', text)
+    # Convert markdown links: [text](url) → url
+    text = re.sub(r'\[([^\]]*)\]\(([^)]+)\)', r'\2', text)
+    # Remove heading markers: ## text → text
+    text = re.sub(r'^#{1,6}\s+', '', text, flags=re.MULTILINE)
+    # Remove bullet markers: - text → text (only at line start)
+    text = re.sub(r'^[-*]\s+', '', text, flags=re.MULTILINE)
+    return text.strip()
+
+
 def format_hackathon_results(data: Any) -> str:
     """
     Convert hackathon JSON results to conversational human-readable text.
@@ -62,10 +79,36 @@ def format_hackathon_results(data: Any) -> str:
     """
     if not data:
         return "I searched but couldn't find any hackathons matching your criteria. Would you like me to try different dates or locations?"
-    
+
     # Handle if data is wrapped in a result envelope
+    hackathons = None
     if isinstance(data, dict):
-        hackathons = data.get("hackathons") or data.get("results") or data.get("data")
+        # Check all possible keys from different parts of the system
+        hackathons = (
+            data.get("hackathons")
+            or data.get("results")
+            or data.get("data")
+        )
+        # The executor wraps in {"success": ..., "result": "...", "job_id": ...}
+        if not hackathons and "result" in data:
+            result_val = data["result"]
+            if isinstance(result_val, list):
+                hackathons = result_val
+            elif isinstance(result_val, str):
+                # The LLM may have returned formatted text — pass it through
+                if result_val.strip():
+                    # Try to parse as JSON in case the LLM returned a JSON string
+                    try:
+                        parsed = json.loads(result_val)
+                        if isinstance(parsed, list):
+                            hackathons = parsed
+                        elif isinstance(parsed, dict):
+                            hackathons = parsed.get("hackathons") or parsed.get("results") or []
+                    except (json.JSONDecodeError, ValueError):
+                        # It's plain text from the LLM — return it directly
+                        # but only if it looks like it has actual content
+                        if len(result_val) > 50 and ("hackathon" in result_val.lower() or "found" in result_val.lower()):
+                            return strip_markdown(result_val)
         if not hackathons:
             # Maybe data itself is the list
             if "name" in data or "title" in data:
@@ -76,7 +119,7 @@ def format_hackathon_results(data: Any) -> str:
         hackathons = data
     else:
         return str(data)
-    
+
     if not hackathons:
         return "I searched but couldn't find any hackathons matching your criteria. Would you like me to try different dates or locations?"
     
@@ -353,6 +396,53 @@ class PostJobTool(BaseTool):
         "required": ["description", "tool", "parameters"]
     }
 
+    async def _get_db(self):
+        """Get the Database singleton (lazy import to avoid circular deps)."""
+        try:
+            from ..shared.database import Database
+            return Database._instance
+        except Exception:
+            return None
+
+    async def _persist_job(self, db, job_id, description, tags, budget_usd, poster, metadata):
+        """Fire-and-forget: persist job to Firestore."""
+        try:
+            await db.create_job(job_id, description, tags, budget_usd, poster, metadata)
+        except Exception as e:
+            print(f"⚠️ DB create_job failed: {e}")
+
+    async def _persist_bid_selection(self, db, job_id, result):
+        """Fire-and-forget: persist bid selection to Firestore."""
+        try:
+            w = result.winning_bid
+            await db.update_job_status(
+                job_id, "assigned",
+                winner=w.bidder_id,
+                winner_price=w.amount_flr,
+            )
+            # Record each bid as an update
+            for bid in result.all_bids:
+                await db.create_update(
+                    job_id=job_id,
+                    agent=bid.bidder_id,
+                    status="bid_submitted",
+                    message=f"Bid: {bid.amount_flr:.4f} FLR, ETA: {bid.estimated_seconds}s",
+                    data={
+                        "price_flr": bid.amount_flr,
+                        "eta_seconds": bid.estimated_seconds,
+                        "tags": bid.tags,
+                    },
+                )
+        except Exception as e:
+            print(f"⚠️ DB persist_bid_selection failed: {e}")
+
+    async def _persist_no_bids(self, db, job_id):
+        """Fire-and-forget: mark job expired when no bids received."""
+        try:
+            await db.update_job_status(job_id, "expired")
+        except Exception as e:
+            print(f"⚠️ DB persist_no_bids failed: {e}")
+
     async def execute(
         self,
         description: str,
@@ -431,6 +521,13 @@ class PostJobTool(BaseTool):
 
             print(f"📢 Job {job_id_str} posted — collecting bids for {listing.bid_window_seconds}s…")
 
+            # ── Persist job to Firestore (fire-and-forget) ────────
+            db = await self._get_db()
+            if db:
+                asyncio.ensure_future(self._persist_job(
+                    db, job_id_str, description, [tool], budget_usd, poster, listing.metadata,
+                ))
+
             # On-chain accept callback: assigns provider on-chain
             async def _accept_on_chain(winning_bid):
                 if on_chain_job_id and pk and assign_provider is not None:
@@ -453,6 +550,10 @@ class PostJobTool(BaseTool):
             # ── 3. After winner selected → return result with escrow info ──
             if result.winning_bid:
                 w = result.winning_bid
+                # Persist bid selection to Firestore
+                if db:
+                    asyncio.ensure_future(self._persist_bid_selection(db, job_id_str, result))
+
                 # Start async monitoring for delivery
                 asyncio.create_task(
                     self._monitor_and_release(on_chain_job_id, job_id_str)
@@ -502,6 +603,10 @@ class PostJobTool(BaseTool):
                 
                 return json.dumps(response, indent=2)
             else:
+                # Persist expired status to Firestore
+                if db:
+                    asyncio.ensure_future(self._persist_no_bids(db, job_id_str))
+
                 return json.dumps({
                     "success": False,
                     "job_id": job_id_str,
@@ -1021,175 +1126,13 @@ class GetAgentUpdatesTool(BaseTool):
             "instruction": "Present these updates to the user. If there are questions, relay them.",
         }, indent=2)
 
-# ═════════════════════════════════════════════════════════════
-#  Agent ↔ Butler Communication Tools
-# ═════════════════════════════════════════════════════════════
-
-class CheckAgentRequestsTool(BaseTool):
-    """
-    Check for pending data requests from worker agents.
-    """
-    name: str = "check_agent_requests"
-    description: str = """
-    Check if any worker agent (hackathon, caller, etc.) is requesting
-    additional data from the user.
-
-    Worker agents call this when they need info during job execution —
-    for example, the hackathon agent might ask for the user's email
-    or location preference.
-
-    Returns pending requests with questions to relay to the user.
-    Use this after posting a job to see if the assigned agent needs
-    anything.
-    """
-    parameters: dict = {
-        "type": "object",
-        "properties": {
-            "job_id": {
-                "type": "string",
-                "description": "Job ID to check requests for (optional — omit for all)"
-            }
-        },
-        "required": []
-    }
-
-    async def execute(self, job_id: str = None) -> str:
-        """Check pending requests from agents."""
-        exchange = ButlerDataExchange.instance()
-        pending = exchange.peek_pending_requests(job_id)
-
-        if not pending:
-            return json.dumps({
-                "pending_requests": [],
-                "count": 0,
-                "instruction": "No pending requests from worker agents. The job is proceeding normally.",
-            })
-
-        formatted = []
-        for req in pending:
-            formatted.append({
-                "request_id": req.get("request_id"),
-                "agent": req.get("agent", "unknown"),
-                "data_type": req.get("data_type"),
-                "question": req.get("question"),
-                "fields": req.get("fields", []),
-            })
-
-        return json.dumps({
-            "pending_requests": formatted,
-            "count": len(formatted),
-            "instruction": (
-                "Worker agent(s) need data from the user. "
-                "Present the questions to the user and use `answer_agent_request` "
-                "to relay their answers back. STOP and wait for user input."
-            ),
-        }, indent=2)
-
-
-class AnswerAgentRequestTool(BaseTool):
-    """
-    Answer a data request from a worker agent.
-    """
-    name: str = "answer_agent_request"
-    description: str = """
-    Send an answer back to a worker agent that requested data.
-
-    After the user provides the requested information (profile data,
-    preferences, confirmation, etc.), use this tool to relay the answer
-    back to the waiting agent.
-
-    Parameters:
-      request_id: the ID from check_agent_requests
-      data: key-value pairs of the answer data
-      message: optional message
-    """
-    parameters: dict = {
-        "type": "object",
-        "properties": {
-            "request_id": {
-                "type": "string",
-                "description": "The request ID to answer"
-            },
-            "data": {
-                "type": "object",
-                "description": "Answer data as key-value pairs"
-            },
-            "message": {
-                "type": "string",
-                "description": "Optional message"
-            },
-        },
-        "required": ["request_id", "data"]
-    }
-
-    async def execute(self, request_id: str, data: dict, message: str = "") -> str:
-        """Submit answer to agent request."""
-        exchange = ButlerDataExchange.instance()
-        exchange.submit_answer(request_id, {
-            "request_id": request_id,
-            "data": data,
-            "message": message or "Answer provided by user via Butler",
-        })
-
-        # Also consume it from pending
-        exchange.get_pending_requests()
-
-        return json.dumps({
-            "success": True,
-            "request_id": request_id,
-            "instruction": "Answer delivered to the worker agent. It will continue processing.",
-        })
-
-
-class GetAgentUpdatesTool(BaseTool):
-    """
-    Get status updates from worker agents.
-    """
-    name: str = "get_agent_updates"
-    description: str = """
-    Check for progress updates from worker agents executing jobs.
-
-    Worker agents push updates like "Found 5 hackathons" or
-    "Registration form filled — awaiting confirmation".
-
-    Use this to keep the user informed about job progress.
-    """
-    parameters: dict = {
-        "type": "object",
-        "properties": {
-            "job_id": {
-                "type": "string",
-                "description": "Job ID to get updates for"
-            }
-        },
-        "required": ["job_id"]
-    }
-
-    async def execute(self, job_id: str) -> str:
-        """Get updates from agents."""
-        exchange = ButlerDataExchange.instance()
-        updates = exchange.get_updates(job_id)
-
-        if not updates:
-            return json.dumps({
-                "updates": [],
-                "count": 0,
-                "instruction": "No new updates from the worker agent.",
-            })
-
-        return json.dumps({
-            "updates": updates,
-            "count": len(updates),
-            "instruction": "Present these updates to the user. If there are questions, relay them.",
-        }, indent=2)
-
 def create_butler_tools() -> ToolManager:
     """Create and register all Butler tools"""
     tools = [
         # RAG and slot filling
         RAGSearchTool(),
         SlotFillingTool(),
-        
+
         # Job posting and management
         PostJobTool(),
         GetBidsTool(),
@@ -1201,11 +1144,6 @@ def create_butler_tools() -> ToolManager:
         CheckAgentRequestsTool(),
         AnswerAgentRequestTool(),
         GetAgentUpdatesTool(),
-
-        # Agent ↔ Butler communication
-        CheckAgentRequestsTool(),
-        AnswerAgentRequestTool(),
-        GetAgentUpdatesTool(),
     ]
-    
+
     return ToolManager(tools=tools)

@@ -8,27 +8,51 @@
  */
 
 import * as admin from 'firebase-admin';
-import { firebaseAdmin } from './firebase-admin';
+import { getAdmin } from './firebase-admin';
 
-const db = admin.firestore(firebaseAdmin);
+let _db: admin.firestore.Firestore | null = null;
+function getDb() {
+  if (!_db) {
+    _db = admin.firestore(getAdmin());
+  }
+  return _db;
+}
+
+// Proxy so all existing code using `db.collection(...)` etc. works unchanged
+const db = new Proxy({} as admin.firestore.Firestore, {
+  get(_, prop) {
+    return (getDb() as any)[prop];
+  },
+});
 
 // ═══════════════════════════════════════════════════════════
-//  Collection references
+//  Collection references (lazy — only resolved on first access)
 // ═══════════════════════════════════════════════════════════
 
-export const collections = {
-  users:             db.collection('users'),
-  agents:            db.collection('agents'),
-  orders:            db.collection('orders'),
-  callSummaries:     db.collection('callSummaries'),
-  marketplaceJobs:   db.collection('marketplaceJobs'),
-  userProfiles:      db.collection('userProfiles'),
-  agentDataRequests: db.collection('agentDataRequests'),
-  agentJobUpdates:   db.collection('agentJobUpdates'),
-  agentApiKeys:      db.collection('agentApiKeys'),
-  sessions:          db.collection('sessions'),
-  counters:          db.collection('counters'),
+const collectionNames = {
+  users: 'users',
+  agents: 'agents',
+  orders: 'orders',
+  callSummaries: 'callSummaries',
+  marketplaceJobs: 'marketplaceJobs',
+  userProfiles: 'userProfiles',
+  agentDataRequests: 'agentDataRequests',
+  agentJobUpdates: 'agentJobUpdates',
+  agentApiKeys: 'agentApiKeys',
+  sessions: 'sessions',
+  counters: 'counters',
 } as const;
+
+type CollectionRefs = { [K in keyof typeof collectionNames]: admin.firestore.CollectionReference };
+
+export const collections = new Proxy({} as CollectionRefs, {
+  get(target, prop: string) {
+    if (prop in collectionNames) {
+      return db.collection(collectionNames[prop as keyof typeof collectionNames]);
+    }
+    return undefined;
+  },
+});
 
 // ═══════════════════════════════════════════════════════════
 //  Auto-increment IDs (mimics Prisma @id @default(autoincrement()))
@@ -828,8 +852,8 @@ export interface DbChatMessage {
   createdAt: Date;
 }
 
-const chatSessions = db.collection('chatSessions');
-const chatMessages = db.collection('chatMessages');
+function getChatSessions() { return db.collection('chatSessions'); }
+function getChatMessages() { return db.collection('chatMessages'); }
 
 function generateCuid(): string {
   // Simple cuid-like ID: timestamp + random
@@ -844,7 +868,7 @@ export const chatSessionDb = {
     orderBy?: Record<string, 'asc' | 'desc'>;
     take?: number;
   }): Promise<DbChatSession[]> {
-    let q: admin.firestore.Query = chatSessions;
+    let q: admin.firestore.Query = getChatSessions();
     if (opts?.where) {
       for (const [k, v] of Object.entries(opts.where)) {
         if (v !== undefined) q = q.where(k, '==', v);
@@ -863,7 +887,7 @@ export const chatSessionDb = {
     update: Partial<DbChatSession>,
     create: Omit<DbChatSession, 'createdAt' | 'updatedAt'>,
   ): Promise<DbChatSession> {
-    const ref = chatSessions.doc(where.id);
+    const ref = getChatSessions().doc(where.id);
     const snap = await ref.get();
     const now = new Date();
     if (snap.exists) {
@@ -891,7 +915,7 @@ export const chatMessageDb = {
       text: data.text,
       createdAt: new Date(),
     };
-    await chatMessages.doc(id).set(message);
+    await getChatMessages().doc(id).set(message);
     return message;
   },
 
@@ -900,7 +924,7 @@ export const chatMessageDb = {
     orderBy?: Record<string, 'asc' | 'desc'>;
     take?: number;
   }): Promise<DbChatMessage[]> {
-    let q: admin.firestore.Query = chatMessages;
+    let q: admin.firestore.Query = getChatMessages();
     if (opts?.where) {
       for (const [k, v] of Object.entries(opts.where)) {
         if (v !== undefined) q = q.where(k, '==', v);

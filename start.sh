@@ -39,6 +39,7 @@ fi
 # Start Backend
 echo -e "${GREEN}🚀 Starting Backend (FastAPI on port 3001)...${NC}"
 cd "$AGENTS_DIR"
+source .venv/bin/activate
 python3 flare_butler_api.py > /tmp/sota_backend.log 2>&1 &
 BACKEND_PID=$!
 echo "   PID: $BACKEND_PID"

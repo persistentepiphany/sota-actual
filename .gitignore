@@ -49,3 +49,5 @@ node_modules
 agents/.env
 .sota-firebase-sdk
 sota-firebase-sdk.json
+firebase-secrets.json
+.vercel

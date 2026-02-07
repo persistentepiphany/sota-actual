@@ -35,6 +35,7 @@ JOB_TYPE_TAGS: dict[JobType, str] = {
     JobType.HACKATHON_REGISTRATION: "hackathon_registration",
     JobType.CALL_VERIFICATION:      "call_verification",
     JobType.GENERIC:                "generic",
+    JobType.MARKET_PREDICTION:      "market_prediction",
 }
 
 
@@ -110,6 +111,7 @@ class AutoBidderMixin:
             deadline=job.deadline_ts,
             status="in_progress",
             metadata_uri=job.metadata.get("tool", ""),
+            params=job.metadata.get("parameters", {}),
         )
         
         # Call the agent's execute_job method
