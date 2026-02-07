@@ -238,11 +238,11 @@ class HackathonAgent(AutoBidderMixin, BaseArchiveAgent):
                 f"- Location: {location or 'any'}\n"
                 f"- Date range: {date_from or 'upcoming'}\n"
                 f"- Keywords: {keywords or 'any'}\n\n"
-                f"## YOUR TASK -- MANDATORY STEPS:\n"
-                f"1. IMMEDIATELY call `search_hackathons` with "
+                f"## YOUR TASK — MANDATORY STEPS:\n"
+                f"1. **IMMEDIATELY** call `search_hackathons` with "
                 f"location=\"{location or 'worldwide'}\"" +
                 (f", date_from/date_to covering {date_from}" if date_from else "") +
-                (f", topics=\"{keywords}\"" if keywords and keywords != "any" else "") +
+                (f", keywords=\"{keywords}\"" if keywords and keywords != "any" else "") +
                 f".\n"
                 f"   Do NOT skip this step. Do NOT wait for user profile data.\n"
                 f"2. Call `notify_butler` with job_id='{job.job_id}', "
@@ -250,7 +250,8 @@ class HackathonAgent(AutoBidderMixin, BaseArchiveAgent):
                 f"3. If search returns results, call `format_hackathon_results`.\n"
                 f"4. Call `notify_butler` with status='completed' and the results.\n\n"
                 f"CRITICAL: You MUST call search_hackathons as your FIRST action. "
-                f"NEVER include past hackathons in the results."
+                f"The search parameters are already provided above — do not ask "
+                f"the Butler for clarification. Proceed immediately with the search."
             )
 
         try:
