@@ -5,6 +5,7 @@ FastAPI server that:
 1. Exposes A2A endpoints for agent communication
 2. Provides health/status endpoints
 3. Offers a direct /search endpoint for hackathon queries
+   accepting time period, location, topics, and mode
 """
 
 import os
@@ -43,12 +44,23 @@ agent: HackathonAgent = None
 # ─── Request / Response Models ────────────────────────────────
 
 class HackathonSearchRequest(BaseModel):
-    """Direct search request (non-A2A)."""
-    location: str
+    """Direct search request (non-A2A).
+
+    All four user-facing search parameters:
+      - location:  city / region / country / "anywhere"
+      - date_from: YYYY-MM-DD (default today)
+      - date_to:   YYYY-MM-DD (default +3 months)
+      - topics:    comma-separated themes (e.g. "AI, blockchain")
+      - mode:      "online" | "in-person" | "both"
+      - user_profile: optional user context dict
+    """
+    location: str = "anywhere"
     date_from: str | None = None
     date_to: str | None = None
-    keywords: str | None = None
-    user_profile: dict | None = None       # optional user context
+    topics: str | None = None
+    mode: str = "both"               # online | in-person | both
+    keywords: str | None = None      # kept for backward compat
+    user_profile: dict | None = None
 
 
 class HackathonRegisterRequest(BaseModel):
@@ -65,7 +77,7 @@ async def lifespan(app: FastAPI):
     """Application lifespan manager."""
     global agent
 
-    logger.info("🏆 Starting SOTA Hackathon Agent...")
+    logger.info("Starting SOTA Hackathon Agent...")
 
     agent = await create_hackathon_agent()
 
@@ -74,13 +86,13 @@ async def lifespan(app: FastAPI):
     # Cleanup
     if agent:
         agent.stop()
-    logger.info("👋 Hackathon Agent stopped")
+    logger.info("Hackathon Agent stopped")
 
 
 app = FastAPI(
     title="SOTA Hackathon Agent",
     description="Hackathon search & registration agent for SOTA on Flare",
-    version="0.1.0",
+    version="0.2.0",
     lifespan=lifespan,
 )
 
@@ -124,13 +136,12 @@ async def get_active_jobs():
 async def search_hackathons(req: HackathonSearchRequest):
     """
     Direct hackathon search (bypasses JobBoard).
-    Useful for quick queries from Butler or the frontend.
-    If user_profile is provided, it's stored for Butler comms.
+    Accepts time period, location, topics, mode.
     """
     if not agent or not agent.llm_agent:
         raise HTTPException(status_code=503, detail="Agent not ready")
 
-    # Store user context if provided (so butler comms tools can use it)
+    # Store user context if provided
     if req.user_profile:
         try:
             import httpx
@@ -143,13 +154,24 @@ async def search_hackathons(req: HackathonSearchRequest):
         except Exception:
             pass  # Non-critical
 
-    prompt = (
-        f"Search for hackathons near {req.location}"
-        + (f" from {req.date_from}" if req.date_from else "")
-        + (f" to {req.date_to}" if req.date_to else "")
-        + (f" related to {req.keywords}" if req.keywords else "")
-        + ".  Return a formatted summary."
-    )
+    # Merge legacy `keywords` into `topics` if topics not set
+    topics = req.topics or req.keywords
+
+    # Build a natural-language prompt that carries all four parameters
+    parts = [f"Search for upcoming hackathons"]
+    if req.location and req.location.lower() not in ("anywhere", ""):
+        parts.append(f"near {req.location}")
+    if req.date_from:
+        parts.append(f"from {req.date_from}")
+    if req.date_to:
+        parts.append(f"to {req.date_to}")
+    if topics:
+        parts.append(f"related to {topics}")
+    if req.mode and req.mode != "both":
+        parts.append(f"({req.mode} only)")
+    parts.append(". Return a formatted summary of upcoming events only.")
+
+    prompt = " ".join(parts)
 
     try:
         result = await agent.llm_agent.run(prompt)
@@ -171,7 +193,7 @@ async def register_for_hackathon(req: HackathonRegisterRequest):
         raise HTTPException(status_code=503, detail="Agent not ready")
 
     profile_str = json.dumps(req.user_profile) if req.user_profile else "{}"
-    dry_label = "DRY RUN — " if req.dry_run else ""
+    dry_label = "DRY RUN -- " if req.dry_run else ""
 
     prompt = (
         f"{dry_label}Register me for the hackathon at {req.hackathon_url}.\n"
@@ -200,10 +222,9 @@ async def rpc(request: Request):
             "unknown", A2AErrorCode.INVALID_REQUEST, "Invalid A2A message"
         )
 
-    logger.info("📨 A2A request: method=%s id=%s", msg.method, msg.id)
+    logger.info("A2A request: method=%s id=%s", msg.method, msg.id)
 
     if msg.method == A2AMethod.EXECUTE:
-        # Execute a hackathon search job
         params = msg.params or {}
         description = params.get("description", "Find hackathons")
         job_id = params.get("job_id", 0)
@@ -237,7 +258,7 @@ async def rpc(request: Request):
 def run_server():
     """Start the Hackathon Agent server."""
     port = int(os.getenv("HACKATHON_AGENT_PORT", "3005"))
-    logger.info("🚀 Hackathon Agent listening on port %d", port)
+    logger.info("Hackathon Agent listening on port %d", port)
     uvicorn.run(app, host="0.0.0.0", port=port, log_level="info")
 
 

@@ -5,8 +5,8 @@ import os
 from dotenv import load_dotenv
 from twilio.rest import Client
 
-# Load environment variables
-load_dotenv()
+# Load from project root .env (single source of truth)
+load_dotenv(os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", ".env"))
 
 def make_test_call():
     # Get Twilio credentials

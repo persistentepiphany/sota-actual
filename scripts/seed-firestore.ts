@@ -53,6 +53,8 @@ async function seed() {
     isVerified: true,
     icon: 'Bot',
     capabilities: JSON.stringify(['task_routing', 'data_request', 'agent_communication']),
+    walletAddress: '0x0dAAB919d45dC217d0F496341083fb6F5e4cBC34',
+    onchainAddress: '0xc62a1e98543c42c475cd37e63188a29f098b35D4',
     reputation: 5.0,
     totalRequests: 42,
     successfulRequests: 40,
@@ -71,6 +73,8 @@ async function seed() {
     isVerified: true,
     icon: 'Phone',
     capabilities: JSON.stringify(['voice_call', 'data_collection']),
+    walletAddress: '0xA3e1c2B9F8d4E6a7C0b5D2f8E1a3B4c5D6e7F8a9',
+    onchainAddress: null,
     minFeeUsdc: 0.05,
     reputation: 4.8,
     totalRequests: 25,
@@ -90,6 +94,8 @@ async function seed() {
     isVerified: true,
     icon: 'Calendar',
     capabilities: JSON.stringify(['web_scrape', 'form_fill', 'hackathon_registration']),
+    walletAddress: '0xB4f2d3C8e7A1b6D9f0C5e8A2b3D4c5E6f7a8B9c0',
+    onchainAddress: null,
     minFeeUsdc: 0.02,
     reputation: 4.5,
     totalRequests: 15,
@@ -109,6 +115,8 @@ async function seed() {
     isVerified: true,
     icon: 'TrendingUp',
     capabilities: JSON.stringify(['ftso_price', 'prediction', 'data_analysis']),
+    walletAddress: '0xC5a3e4D9f8B2c7E0a1D6b3F4c5A8e9B0d1C2e3F4',
+    onchainAddress: null,
     minFeeUsdc: 0.10,
     reputation: 4.2,
     totalRequests: 8,
@@ -183,7 +191,49 @@ async function seed() {
     data: null,
   });
 
-  console.log('   ✅ 2 job updates');
+  // Bid records for the completed job (job1)
+  await agentJobUpdateDb.create({
+    jobId: job1.jobId,
+    agent: hackathonAgent.title,
+    status: 'bid_submitted',
+    message: 'Bid submitted for hackathon registration task.',
+    data: { price: 0.50, eta: '~45s' },
+  });
+
+  await agentJobUpdateDb.create({
+    jobId: job1.jobId,
+    agent: butler.title,
+    status: 'bid_submitted',
+    message: 'Bid submitted for hackathon registration task.',
+    data: { price: 0.75, eta: '~60s' },
+  });
+
+  // Bid records for the open job (job3)
+  await agentJobUpdateDb.create({
+    jobId: job3.jobId,
+    agent: flarePredictor.title,
+    status: 'bid_submitted',
+    message: 'Bid submitted for FLR/USD analysis.',
+    data: { price: 0.80, eta: '~20s' },
+  });
+
+  await agentJobUpdateDb.create({
+    jobId: job3.jobId,
+    agent: butler.title,
+    status: 'bid_submitted',
+    message: 'Bid submitted for FLR/USD analysis.',
+    data: { price: 1.20, eta: '~35s' },
+  });
+
+  await agentJobUpdateDb.create({
+    jobId: job3.jobId,
+    agent: hackathonAgent.title,
+    status: 'bid_submitted',
+    message: 'Bid submitted for FLR/USD analysis.',
+    data: { price: 0.95, eta: '~25s' },
+  });
+
+  console.log('   ✅ 7 job updates');
 
   // ── 5. Agent Data Requests ────────────────────────────
   console.log('\n❓ Creating data requests …');
@@ -248,7 +298,7 @@ async function seed() {
   console.log('  • users          (2 docs)');
   console.log('  • agents         (4 docs)');
   console.log('  • marketplaceJobs (3 docs)');
-  console.log('  • agentJobUpdates (2 docs)');
+  console.log('  • agentJobUpdates (7 docs)');
   console.log('  • agentDataRequests (1 doc)');
   console.log('  • userProfiles   (1 doc)');
   console.log('  • callSummaries  (1 doc)');

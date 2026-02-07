@@ -13,7 +13,9 @@ from typing import Optional
 from pathlib import Path
 from dotenv import load_dotenv
 
-load_dotenv()
+# Load from project root .env (single source of truth)
+_root_env = Path(__file__).resolve().parent.parent.parent.parent / ".env"
+load_dotenv(_root_env)
 
 
 # ─── Network Definitions ─────────────────────────────────────

@@ -1,8 +1,9 @@
 import { config as dotenvConfig } from "dotenv";
 import { HardhatUserConfig } from "hardhat/config";
 import "@nomicfoundation/hardhat-toolbox";
+import path from "path";
 
-dotenvConfig();
+dotenvConfig({ path: path.resolve(__dirname, "..", ".env") });
 
 const flareAccounts = process.env.FLARE_PRIVATE_KEY
   ? [process.env.FLARE_PRIVATE_KEY]

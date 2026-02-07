@@ -25,6 +25,11 @@ import {
   Timer,
   Shield,
   BarChart3,
+  ExternalLink,
+  BadgeCheck,
+  Star,
+  FileText,
+  Link2,
   type LucideIcon,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
@@ -36,6 +41,7 @@ const iconMap: Record<string, LucideIcon> = {
   Phone,
   Calendar,
   Briefcase,
+  TrendingUp,
 };
 
 interface Stage {
@@ -43,6 +49,37 @@ interface Stage {
   name: string;
   description: string;
   status: "complete" | "in_progress" | "pending";
+}
+
+interface BidDetail {
+  id: string;
+  agent: string;
+  agentId: number | null;
+  agentIcon: string;
+  price: number | null;
+  priceFormatted: string;
+  reputation: number;
+  eta: string;
+  isVerified: boolean;
+  explorerLink: string | null;
+  timestamp: string;
+}
+
+interface WinnerInfo {
+  agent: string;
+  agentId: number | null;
+  agentIcon: string;
+  winnerPrice: number | null;
+  winnerPriceFormatted: string;
+  reputation: number;
+  isVerified: boolean;
+  explorerLink: string | null;
+}
+
+interface ContractLinks {
+  orderBook: string;
+  escrow: string;
+  agentRegistry: string;
 }
 
 interface Task {
@@ -57,6 +94,10 @@ interface Task {
   tags: string[];
   createdAt: string;
   stages: Stage[];
+  budgetUsdc: number | null;
+  bids: BidDetail[];
+  winner: WinnerInfo | null;
+  contractLinks: ContractLinks;
 }
 
 interface Agent {
@@ -64,6 +105,10 @@ interface Agent {
   title: string;
   status: string;
   icon: string;
+  walletAddress?: string | null;
+  reputation?: number;
+  isVerified?: boolean;
+  explorerLink?: string | null;
 }
 
 interface MarketplaceData {
@@ -82,17 +127,7 @@ interface MarketplaceData {
     failed: number;
   };
   agents: Agent[];
-}
-
-// Simulated bid data for the order book
-interface Bid {
-  id: string;
-  agent: string;
-  agentIcon: string;
-  price: string;
-  reputation: number;
-  eta: string;
-  timestamp: Date;
+  contractLinks?: ContractLinks;
 }
 
 export default function Marketplace() {
@@ -112,11 +147,11 @@ export default function Marketplace() {
       if (!res.ok) throw new Error("Failed to fetch tasks");
       const json = await res.json();
       setData(json);
-      
+
       // Update recent executions feed
       const completed = json.grouped?.completed || [];
       setRecentExecutions(completed.slice(0, 10));
-      
+
       setError(null);
     } catch (err) {
       console.error("Error fetching tasks:", err);
@@ -128,7 +163,7 @@ export default function Marketplace() {
 
   useEffect(() => {
     fetchTasks();
-    const interval = setInterval(fetchTasks, 5000); // Faster refresh for real-time feel
+    const interval = setInterval(fetchTasks, 5000);
     return () => clearInterval(interval);
   }, [fetchTasks]);
 
@@ -216,27 +251,15 @@ export default function Marketplace() {
     }
   };
 
-  // Generate mock bids for a task
-  const generateBids = (task: Task): Bid[] => {
-    if (task.status !== "queued") return [];
-    const agents = ["Butler AI", "FlarePredictor", "TaskRunner", "DataBot"];
-    return agents.slice(0, Math.floor(Math.random() * 3) + 1).map((agent, i) => ({
-      id: `${task.id}-bid-${i}`,
-      agent,
-      agentIcon: "Bot",
-      price: `${(Math.random() * 0.5 + 0.1).toFixed(3)} FLR`,
-      reputation: Math.floor(Math.random() * 20) + 80,
-      eta: `${Math.floor(Math.random() * 30) + 5}s`,
-      timestamp: new Date(Date.now() - Math.random() * 60000),
-    }));
-  };
-
   // Order Book Row Component
   const OrderBookRow = ({ task, index }: { task: Task; index: number }) => {
     const config = getStatusConfig(task.status);
     const AgentIcon = getIcon(task.agentIcon);
     const isSelected = selectedTask?.id === task.id;
-    const bids = generateBids(task);
+    const bids = task.bids || [];
+    const bestBid = bids.length > 0
+      ? bids.reduce((best, b) => (b.price !== null && (best.price === null || b.price < best.price)) ? b : best, bids[0])
+      : null;
 
     return (
       <motion.div
@@ -273,6 +296,11 @@ export default function Marketplace() {
                   {tag}
                 </span>
               ))}
+              {task.budgetUsdc !== null && (
+                <span className="text-[10px] px-1.5 py-0.5 bg-violet-500/10 text-violet-400 rounded">
+                  {task.budgetUsdc.toFixed(2)} USDC
+                </span>
+              )}
             </div>
           </div>
 
@@ -281,23 +309,45 @@ export default function Marketplace() {
             {task.status === "queued" ? (
               <div className="flex items-center gap-1">
                 <div className="flex -space-x-2">
-                  {bids.slice(0, 3).map((bid, i) => (
-                    <div
+                  {bids.slice(0, 3).map((bid) => (
+                    <a
                       key={bid.id}
-                      className="w-6 h-6 rounded-full bg-slate-700 border-2 border-slate-900 flex items-center justify-center"
+                      href={bid.explorerLink || undefined}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      onClick={(e) => { if (bid.explorerLink) e.stopPropagation(); }}
+                      className={`w-6 h-6 rounded-full bg-slate-700 border-2 border-slate-900 flex items-center justify-center ${
+                        bid.explorerLink ? "hover:border-violet-500 cursor-pointer" : ""
+                      }`}
+                      title={`${bid.agent}${bid.isVerified ? " (Verified)" : ""}`}
                     >
-                      <Bot size={10} className="text-slate-400" />
-                    </div>
+                      {(() => { const I = getIcon(bid.agentIcon); return <I size={10} className="text-slate-400" />; })()}
+                    </a>
                   ))}
                 </div>
-                <span className="text-xs text-slate-500 ml-1">{bids.length} bids</span>
+                <span className="text-xs text-slate-500 ml-1">
+                  {bids.length} bid{bids.length !== 1 ? "s" : ""}
+                </span>
               </div>
             ) : (
               <div className="flex items-center gap-2">
                 <div className="w-6 h-6 rounded-lg bg-violet-500/20 flex items-center justify-center">
                   <AgentIcon size={12} className="text-violet-400" />
                 </div>
-                <span className="text-sm text-slate-300">{task.agent}</span>
+                {task.winner?.explorerLink ? (
+                  <a
+                    href={task.winner.explorerLink}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    onClick={(e) => e.stopPropagation()}
+                    className="text-sm text-slate-300 hover:text-violet-400 transition-colors flex items-center gap-1"
+                  >
+                    {task.agent}
+                    {task.winner.isVerified && <BadgeCheck size={12} className="text-emerald-400" />}
+                  </a>
+                ) : (
+                  <span className="text-sm text-slate-300">{task.agent}</span>
+                )}
               </div>
             )}
           </div>
@@ -322,20 +372,25 @@ export default function Marketplace() {
               <div className="flex items-center gap-1">
                 <DollarSign size={12} className="text-cyan-400" />
                 <span className="text-sm font-medium text-cyan-400">
-                  {bids.length > 0 ? bids[0].price : "0.15 FLR"}
+                  {bestBid ? bestBid.priceFormatted : "No bids"}
                 </span>
-                <span className="text-[10px] text-slate-500">best</span>
+                {bestBid && <span className="text-[10px] text-slate-500">best</span>}
               </div>
             ) : (
               <div className="flex items-center gap-1">
                 {task.status === "completed" ? (
-                  <TrendingUp size={14} className="text-emerald-400" />
+                  <>
+                    <CheckCircle size={14} className="text-emerald-400" />
+                    <span className="text-sm font-medium text-emerald-400">
+                      {task.winner?.winnerPriceFormatted || "Settled"}
+                    </span>
+                  </>
                 ) : (
-                  <TrendingDown size={14} className="text-red-400" />
+                  <>
+                    <TrendingDown size={14} className="text-red-400" />
+                    <span className="text-sm font-medium text-red-400">Failed</span>
+                  </>
                 )}
-                <span className={`text-sm font-medium ${task.status === "completed" ? "text-emerald-400" : "text-red-400"}`}>
-                  {task.status === "completed" ? "+100%" : "Failed"}
-                </span>
               </div>
             )}
           </div>
@@ -348,7 +403,7 @@ export default function Marketplace() {
                 {task.status === "executing"
                   ? `~${Math.ceil((100 - task.progress) / 10)}s left`
                   : task.status === "queued"
-                  ? "Awaiting bids"
+                  ? bids.length > 0 ? `${bids.length} bid${bids.length !== 1 ? "s" : ""} received` : "Awaiting bids"
                   : new Date(task.createdAt).toLocaleTimeString()}
               </span>
             </div>
@@ -377,17 +432,17 @@ export default function Marketplace() {
   };
 
   // Stats Card Component
-  const StatCard = ({ 
-    label, 
-    value, 
-    change, 
-    icon: Icon, 
-    color 
-  }: { 
-    label: string; 
-    value: string | number; 
-    change?: string; 
-    icon: LucideIcon; 
+  const StatCard = ({
+    label,
+    value,
+    change,
+    icon: Icon,
+    color
+  }: {
+    label: string;
+    value: string | number;
+    change?: string;
+    icon: LucideIcon;
     color: string;
   }) => (
     <div className="bg-slate-900/40 backdrop-blur-sm rounded-xl border border-slate-800/50 p-4">
@@ -412,7 +467,7 @@ export default function Marketplace() {
   // Execution Feed Item
   const ExecutionFeedItem = ({ task, index }: { task: Task; index: number }) => {
     const config = getStatusConfig(task.status);
-    
+
     return (
       <motion.div
         initial={{ opacity: 0, y: 10 }}
@@ -439,31 +494,31 @@ export default function Marketplace() {
 
   // CSS Styles
   const pageStyles = `
-    @keyframes grid-draw { 
-      0% { stroke-dashoffset: 1000; opacity: 0; } 
-      50% { opacity: 0.3; } 
-      100% { stroke-dashoffset: 0; opacity: 0.15; } 
+    @keyframes grid-draw {
+      0% { stroke-dashoffset: 1000; opacity: 0; }
+      50% { opacity: 0.3; }
+      100% { stroke-dashoffset: 0; opacity: 0.15; }
     }
-    @keyframes pulse-glow { 
-      0%, 100% { opacity: 0.1; transform: scale(1); } 
-      50% { opacity: 0.3; transform: scale(1.1); } 
+    @keyframes pulse-glow {
+      0%, 100% { opacity: 0.1; transform: scale(1); }
+      50% { opacity: 0.3; transform: scale(1.1); }
     }
     @keyframes ticker {
       0% { transform: translateX(0); }
       100% { transform: translateX(-50%); }
     }
-    .grid-line { 
-      stroke: #6366f1; 
-      stroke-width: 0.5; 
-      opacity: 0; 
-      stroke-dasharray: 5 5; 
-      stroke-dashoffset: 1000; 
-      animation: grid-draw 2s ease-out forwards; 
+    .grid-line {
+      stroke: #6366f1;
+      stroke-width: 0.5;
+      opacity: 0;
+      stroke-dasharray: 5 5;
+      stroke-dashoffset: 1000;
+      animation: grid-draw 2s ease-out forwards;
     }
-    .detail-dot { 
-      fill: #a78bfa; 
-      opacity: 0; 
-      animation: pulse-glow 3s ease-in-out infinite; 
+    .detail-dot {
+      fill: #a78bfa;
+      opacity: 0;
+      animation: pulse-glow 3s ease-in-out infinite;
     }
     .ticker-scroll {
       animation: ticker 30s linear infinite;
@@ -515,7 +570,7 @@ export default function Marketplace() {
         {/* Animated Background */}
         <FloatingPaths position={1} />
         <FloatingPaths position={-1} />
-        
+
         {/* Grid Background */}
         <svg className="absolute inset-0 w-full h-full pointer-events-none" xmlns="http://www.w3.org/2000/svg">
           <defs>
@@ -543,8 +598,11 @@ export default function Marketplace() {
                     <span className="text-slate-500">{task.jobId.slice(0, 6)}</span>
                     <span>{task.title.slice(0, 30)}</span>
                     <span className={task.status === "completed" ? "text-emerald-400" : "text-red-400"}>
-                      {task.status === "completed" ? "✓ Settled" : "✗ Failed"}
+                      {task.status === "completed" ? "Settled" : "Failed"}
                     </span>
+                    {task.winner && (
+                      <span className="text-slate-500">@ {task.winner.winnerPriceFormatted}</span>
+                    )}
                   </span>
                 ))}
               </div>
@@ -584,7 +642,7 @@ export default function Marketplace() {
                   className="w-64 pl-10 pr-4 py-2 bg-slate-900/50 border border-slate-700/50 rounded-lg text-sm text-slate-200 placeholder-slate-500 focus:outline-none focus:border-violet-500/50 transition-all"
                 />
               </div>
-              
+
               <div className="flex items-center gap-2 text-xs text-slate-400">
                 <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
                 <span>{agents.filter((a) => a.status === "active").length} agents online</span>
@@ -729,7 +787,7 @@ export default function Marketplace() {
                   animate={{ opacity: 1, scale: 1 }}
                   className="bg-slate-900/50 backdrop-blur-sm rounded-xl border border-slate-700/50 p-4"
                 >
-                  <div className="flex items-start justify-between mb-4">
+                  <div className="flex items-start justify-between mb-3">
                     <div>
                       <h4 className="text-sm font-semibold text-white">{selectedTask.title}</h4>
                       <p className="text-xs text-slate-500 font-mono mt-0.5">{selectedTask.jobId}</p>
@@ -742,6 +800,145 @@ export default function Marketplace() {
                     </button>
                   </div>
 
+                  {/* Job Description */}
+                  <p className="text-xs text-slate-400 mb-3 leading-relaxed">
+                    {selectedTask.description}
+                  </p>
+
+                  {/* Tags + Budget */}
+                  <div className="flex flex-wrap gap-1.5 mb-3">
+                    {selectedTask.tags.map((tag) => (
+                      <span key={tag} className="text-[10px] px-1.5 py-0.5 bg-slate-800 text-slate-400 rounded">
+                        {tag}
+                      </span>
+                    ))}
+                    {selectedTask.budgetUsdc !== null && (
+                      <span className="text-[10px] px-1.5 py-0.5 bg-violet-500/10 text-violet-400 rounded font-medium">
+                        Budget: {selectedTask.budgetUsdc.toFixed(2)} USDC
+                      </span>
+                    )}
+                  </div>
+
+                  {/* Smart Contract Links */}
+                  <div className="mb-3 p-2.5 bg-slate-800/40 rounded-lg border border-slate-700/30">
+                    <h5 className="text-[10px] font-medium text-slate-500 uppercase tracking-wide mb-2 flex items-center gap-1.5">
+                      <Link2 size={10} />
+                      Smart Contracts
+                    </h5>
+                    <div className="space-y-1.5">
+                      {[
+                        { label: "OrderBook", url: selectedTask.contractLinks.orderBook },
+                        { label: "Escrow", url: selectedTask.contractLinks.escrow },
+                        { label: "AgentRegistry", url: selectedTask.contractLinks.agentRegistry },
+                      ].map((c) => (
+                        <a
+                          key={c.label}
+                          href={c.url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="flex items-center justify-between text-[11px] text-slate-400 hover:text-violet-400 transition-colors group"
+                        >
+                          <span className="flex items-center gap-1.5">
+                            <FileText size={10} className="text-slate-500" />
+                            {c.label}
+                          </span>
+                          <ExternalLink size={10} className="opacity-0 group-hover:opacity-100 transition-opacity" />
+                        </a>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Bids Section */}
+                  {selectedTask.bids.length > 0 && (
+                    <div className="mb-3">
+                      <h5 className="text-[10px] font-medium text-slate-500 uppercase tracking-wide mb-2 flex items-center gap-1.5">
+                        <Gavel size={10} />
+                        Bids ({selectedTask.bids.length})
+                      </h5>
+                      <div className="space-y-1.5 max-h-[150px] overflow-y-auto">
+                        {selectedTask.bids.map((bid) => {
+                          const BidIcon = getIcon(bid.agentIcon);
+                          return (
+                            <div key={bid.id} className="flex items-center gap-2 p-2 bg-slate-800/30 rounded-lg">
+                              <div className="w-6 h-6 rounded-md bg-cyan-500/10 flex items-center justify-center flex-shrink-0">
+                                <BidIcon size={11} className="text-cyan-400" />
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <div className="flex items-center gap-1">
+                                  {bid.explorerLink ? (
+                                    <a
+                                      href={bid.explorerLink}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      className="text-[11px] font-medium text-slate-300 hover:text-violet-400 transition-colors truncate"
+                                    >
+                                      {bid.agent}
+                                    </a>
+                                  ) : (
+                                    <span className="text-[11px] font-medium text-slate-300 truncate">{bid.agent}</span>
+                                  )}
+                                  {bid.isVerified && <BadgeCheck size={10} className="text-emerald-400 flex-shrink-0" />}
+                                </div>
+                                <div className="flex items-center gap-2 text-[10px] text-slate-500">
+                                  <span className="flex items-center gap-0.5">
+                                    <Star size={8} />
+                                    {bid.reputation.toFixed(1)}
+                                  </span>
+                                  <span>{bid.eta}</span>
+                                </div>
+                              </div>
+                              <span className="text-[11px] font-medium text-cyan-400 flex-shrink-0">
+                                {bid.priceFormatted}
+                              </span>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Winner Section */}
+                  {selectedTask.winner && (
+                    <div className="mb-3 p-2.5 bg-emerald-500/5 rounded-lg border border-emerald-500/20">
+                      <h5 className="text-[10px] font-medium text-emerald-400 uppercase tracking-wide mb-2 flex items-center gap-1.5">
+                        <CheckCircle size={10} />
+                        Winner
+                      </h5>
+                      <div className="flex items-center gap-2">
+                        <div className="w-7 h-7 rounded-md bg-emerald-500/10 flex items-center justify-center">
+                          {(() => { const WI = getIcon(selectedTask.winner.agentIcon); return <WI size={13} className="text-emerald-400" />; })()}
+                        </div>
+                        <div className="flex-1">
+                          <div className="flex items-center gap-1">
+                            {selectedTask.winner.explorerLink ? (
+                              <a
+                                href={selectedTask.winner.explorerLink}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="text-xs font-medium text-emerald-300 hover:text-emerald-200 transition-colors"
+                              >
+                                {selectedTask.winner.agent}
+                              </a>
+                            ) : (
+                              <span className="text-xs font-medium text-emerald-300">{selectedTask.winner.agent}</span>
+                            )}
+                            {selectedTask.winner.isVerified && <BadgeCheck size={11} className="text-emerald-400" />}
+                          </div>
+                          <div className="flex items-center gap-2 text-[10px] text-slate-500">
+                            <span className="flex items-center gap-0.5">
+                              <Star size={8} />
+                              {selectedTask.winner.reputation.toFixed(1)}
+                            </span>
+                          </div>
+                        </div>
+                        <span className="text-sm font-bold text-emerald-400">
+                          {selectedTask.winner.winnerPriceFormatted}
+                        </span>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Stage Pipeline */}
                   <div className="space-y-3">
                     {selectedTask.stages.map((stage, index) => {
                       const isComplete = stage.status === "complete";
@@ -785,7 +982,7 @@ export default function Marketplace() {
                   </h3>
                   <span className="text-[10px] text-slate-500">Auto-updating</span>
                 </div>
-                
+
                 <div className="space-y-0 max-h-[300px] overflow-y-auto">
                   {recentExecutions.length > 0 ? (
                     recentExecutions.map((task, index) => (
@@ -812,10 +1009,30 @@ export default function Marketplace() {
                           <AgentIcon size={14} className="text-violet-400" />
                         </div>
                         <div className="flex-1">
-                          <p className="text-xs font-medium text-slate-300">{agent.title}</p>
-                          <div className="flex items-center gap-1 mt-0.5">
+                          <div className="flex items-center gap-1">
+                            {agent.explorerLink ? (
+                              <a
+                                href={agent.explorerLink}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="text-xs font-medium text-slate-300 hover:text-violet-400 transition-colors"
+                              >
+                                {agent.title}
+                              </a>
+                            ) : (
+                              <p className="text-xs font-medium text-slate-300">{agent.title}</p>
+                            )}
+                            {agent.isVerified && <BadgeCheck size={10} className="text-emerald-400" />}
+                          </div>
+                          <div className="flex items-center gap-2 mt-0.5">
                             <div className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
                             <span className="text-[10px] text-emerald-400">Ready</span>
+                            {agent.reputation !== undefined && agent.reputation > 0 && (
+                              <span className="text-[10px] text-slate-500 flex items-center gap-0.5">
+                                <Star size={8} />
+                                {agent.reputation.toFixed(1)}
+                              </span>
+                            )}
                           </div>
                         </div>
                       </div>
