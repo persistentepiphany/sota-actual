@@ -1,167 +1,145 @@
 "use client";
 
 import React, { useEffect, useMemo, useState } from 'react';
-import { useAccount, useConnect, useDisconnect, useBalance } from 'wagmi';
-import { formatUnits } from 'viem';
-
-const FLARE_COSTON2_ID = 114;
-
-const truncateAddress = (address: string) => {
-  if (!address) return '';
-  return `${address.slice(0, 6)}...${address.slice(-4)}`;
-};
+import { useAccount, useConnect } from 'wagmi';
+import { Wallet, Loader2, Plug, Download, ExternalLink } from 'lucide-react';
 
 const isRequestResetError = (err: unknown) => {
   const message = (err as any)?.message || (err as any)?.toString?.() || '';
   return /connection request reset/i.test(message);
 };
 
-/** Detect mobile via user-agent */
-const useIsMobile = () => {
-  const [isMobile, setIsMobile] = useState(false);
-  useEffect(() => {
-    const ua = navigator.userAgent || '';
-    setIsMobile(/iPhone|iPad|iPod|Android|webOS|BlackBerry|IEMobile|Opera Mini/i.test(ua));
-  }, []);
-  return isMobile;
+const isProviderMissing = (err: unknown) => {
+  const message = (err as any)?.shortMessage || (err as any)?.message || (err as any)?.toString?.() || '';
+  return /provider.*not found|no provider|provider.*unavailable/i.test(message);
+};
+
+/** Check if an injected EIP-1193 provider exists */
+const hasInjectedProvider = () =>
+  typeof window !== 'undefined' && typeof (window as any).ethereum !== 'undefined';
+
+/** Connectors that require a browser extension */
+const isInjectedType = (id: string) =>
+  ['injected', 'io.metamask', 'metaMaskSDK', 'metaMask'].includes(id);
+
+/** Friendly connector name */
+const connectorLabel = (id: string, name: string) => {
+  if (id === 'injected' || id === 'io.metamask') return 'Browser Wallet';
+  if (id === 'walletConnect') return 'WalletConnect';
+  if (id === 'metaMaskSDK' || id === 'metaMask') return 'MetaMask';
+  if (id === 'coinbaseWalletSDK') return 'Coinbase';
+  return name;
 };
 
 export const WalletConnectButton: React.FC = () => {
   const [mounted, setMounted] = useState(false);
-  const isMobile = useIsMobile();
-  const { address, isConnected, status: accountStatus } = useAccount();
-  const { connectors, connectAsync, status: connectStatus } = useConnect({
-    mutation: {
-      onError: (err) => {
-        if (isRequestResetError(err)) {
-          console.info('walletconnect pairing cancelled/reset');
-          return;
-        }
-        console.error('wallet connect error', err);
-      },
-    },
-  });
-  const { disconnect } = useDisconnect();
-
-  // Native FLR balance on Flare Coston2
-  const { data: balanceData, isLoading: isBalLoading } = useBalance({
-    address: address,
-    chainId: FLARE_COSTON2_ID,
-    query: {
-      enabled: !!address && isConnected,
-      refetchInterval: 15000,
-    },
-  });
+  const [connectingId, setConnectingId] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const { isConnected } = useAccount();
+  const { connectors, connectAsync } = useConnect();
 
   useEffect(() => {
     setMounted(true);
-    const suppressReset = (event: PromiseRejectionEvent) => {
-      const message = (event.reason?.message || event.reason || '').toString();
-      if (/connection request reset/i.test(message)) {
-        event.preventDefault();
-        console.info('walletconnect pairing cancelled/reset');
+    const suppress = (e: PromiseRejectionEvent) => {
+      if (/connection request reset/i.test((e.reason?.message || e.reason || '').toString())) {
+        e.preventDefault();
       }
     };
-    window.addEventListener('unhandledrejection', suppressReset);
-    return () => {
-      window.removeEventListener('unhandledrejection', suppressReset);
-    };
+    window.addEventListener('unhandledrejection', suppress);
+    return () => window.removeEventListener('unhandledrejection', suppress);
   }, []);
 
-  const isConnecting = connectStatus === 'pending';
+  const injectedAvailable = mounted && hasInjectedProvider();
 
-  // Device-aware connector selection:
-  //   Desktop → WalletConnect (shows QR code modal)
-  //   Mobile  → Injected (deep-links to wallet app) → fallback to WalletConnect
-  const primaryConnector = useMemo(() => {
-    if (!mounted) return undefined;
+  // Deduplicate and filter connectors
+  const available = useMemo(() => {
+    if (!mounted) return [];
+    const seen = new Set<string>();
+    return connectors.filter((c) => {
+      const key = c.id;
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+  }, [mounted, connectors]);
 
-    const injected = connectors.find(
-      (c) => c.type === 'injected' && typeof window !== 'undefined' && !!(window as any).ethereum
-    );
-    const wc = connectors.find((c) => c.id === 'walletConnect');
-    const mm = connectors.find((c) => c.id === 'metaMask');
-
-    if (isMobile) {
-      // Mobile: prefer injected (in-app browser) → WalletConnect deep-link → MetaMask
-      return injected || wc || mm || connectors[0];
+  const handleConnect = async (connector: typeof connectors[0]) => {
+    // Guard: injected connector without window.ethereum
+    if (isInjectedType(connector.id) && !hasInjectedProvider()) {
+      setError('No browser wallet detected. Install MetaMask or open this page in a Web3 browser.');
+      return;
     }
 
-    // Desktop: prefer WalletConnect (shows QR modal) → injected → MetaMask
-    return wc || injected || mm || connectors[0];
-  }, [mounted, connectors, isMobile]);
-
-  const disabled = !mounted || !primaryConnector || isConnecting || accountStatus === 'connecting';
-
-  const label = useMemo(() => {
-    if (isConnecting) return 'Connecting…';
-    if (isMobile) return 'Connect Wallet';
-    return '🔗 Scan QR to Connect';
-  }, [isConnecting, isMobile]);
-
-  const handleConnect = async () => {
-    if (!primaryConnector) return;
+    setError(null);
+    setConnectingId(connector.id);
     try {
-      await connectAsync({ connector: primaryConnector });
+      await connectAsync({ connector });
     } catch (err) {
-      if (isRequestResetError(err)) {
-        console.info('walletconnect pairing cancelled/reset');
-        return;
+      if (isRequestResetError(err)) return;
+      const msg = (err as any)?.shortMessage || (err as any)?.message || 'Connection failed';
+      if (/user rejected|user denied/i.test(msg)) {
+        setError(null);
+      } else if (isProviderMissing(err)) {
+        setError('No browser wallet detected. Install MetaMask or open this page in a Web3 browser.');
+      } else {
+        setError(msg);
       }
-      console.info('connect cancelled or failed', err);
+    } finally {
+      setConnectingId(null);
     }
   };
 
-  const balanceDisplay = useMemo(() => {
-    if (!isConnected || !address) return null;
-    if (isBalLoading) return '…';
-    if (!balanceData) return '—';
-    const num = Number.parseFloat(formatUnits(balanceData.value, balanceData.decimals));
-    return `${num.toFixed(2)} C2FLR`;
-  }, [isConnected, address, isBalLoading, balanceData]);
-
-  if (isConnected && mounted) {
-    return (
-      <div className="wallet-chip">
-        <div className="token-pill">
-          <div className="token-icon">
-            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2">
-              <circle cx="12" cy="12" r="10" />
-              <path d="M12 6v12M6 12h12" />
-            </svg>
-          </div>
-          <div className="token-text">
-            <span className="token-label">{truncateAddress(address!)}</span>
-            <span className="token-amount">{balanceDisplay}</span>
-          </div>
-        </div>
-        <button
-          type="button"
-          onClick={() => disconnect()}
-          className="btn-secondary wallet-disconnect"
-          aria-label="Disconnect wallet"
-        >
-          <svg className="icon-exit" viewBox="0 0 24 24" aria-hidden="true">
-            <path
-              fill="currentColor"
-              d="M5 4a2 2 0 0 1 2-2h6a2 2 0 0 1 2 2v4h-2V4H7v16h6v-4h2v4a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V4Zm13.707 7.293a1 1 0 0 1 0 1.414l-3 3a1 1 0 0 1-1.414-1.414L15.586 13H10v-2h5.586l-1.293-1.293a1 1 0 1 1 1.414-1.414l3 3Z"
-            />
-          </svg>
-        </button>
-      </div>
-    );
-  }
+  if (isConnected || !mounted) return null;
 
   return (
-    <div className="wallet-chip">
-      <button
-        type="button"
-        className="btn-primary wallet-connect"
-        onClick={handleConnect}
-        disabled={disabled}
-      >
-        {label}
-      </button>
+    <div className="wallet-connect-options">
+      {available.map((c) => {
+        const isLoading = connectingId === c.id;
+        const needsExtension = isInjectedType(c.id) && !injectedAvailable;
+
+        return (
+          <button
+            key={c.id}
+            type="button"
+            className={`wallet-connect-btn${needsExtension ? ' wallet-connect-btn--dimmed' : ''}`}
+            onClick={() => handleConnect(c)}
+            disabled={!!connectingId}
+          >
+            {isLoading ? (
+              <Loader2 size={18} className="wallet-connect-btn-icon spinning" />
+            ) : needsExtension ? (
+              <Download size={18} className="wallet-connect-btn-icon" />
+            ) : (
+              <Plug size={18} className="wallet-connect-btn-icon" />
+            )}
+            <span>
+              {isLoading
+                ? 'Connecting…'
+                : needsExtension
+                  ? `${connectorLabel(c.id, c.name)} (not detected)`
+                  : connectorLabel(c.id, c.name)}
+            </span>
+          </button>
+        );
+      })}
+
+      {/* Install MetaMask CTA when no injected provider */}
+      {!injectedAvailable && (
+        <a
+          href="https://metamask.io/download/"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="wallet-install-link"
+        >
+          <Download size={16} />
+          <span>Install MetaMask</span>
+          <ExternalLink size={12} />
+        </a>
+      )}
+
+      {error && (
+        <p className="wallet-connect-error">{error}</p>
+      )}
     </div>
   );
 };

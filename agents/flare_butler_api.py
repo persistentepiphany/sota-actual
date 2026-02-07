@@ -2,20 +2,27 @@
 SOTA Flare Butler API — FastAPI Bridge
 
 Exposes HTTP endpoints for the ElevenLabs voice agent and web frontend.
-Internally delegates to the LangGraph butler graph.
+Internally delegates to the OpenAI-backed Butler Agent and in-memory marketplace.
 
 Endpoints:
+  POST /api/flare/chat      — Chat with OpenAI-backed Butler Agent
+  POST /api/flare/query     — Alias for /api/flare/chat (backward compat)
   POST /api/flare/quote     — Get FTSO price quote (USD → FLR)
   POST /api/flare/create    — Create + fund a job on Flare
   POST /api/flare/status    — Check job status + FDC attestation
   POST /api/flare/release   — Release payment (FDC-gated)
   GET  /api/flare/price     — Current FLR/USD from FTSO
+  GET  /api/flare/marketplace/jobs     — List marketplace jobs
+  GET  /api/flare/marketplace/bids/{id} — Get bids for a job
+  GET  /api/flare/marketplace/workers  — List registered workers
 """
 
 import os
 import sys
 import time
-from typing import Optional, List, Dict
+import asyncio
+import logging
+from typing import Optional, List, Dict, Any
 
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
@@ -42,7 +49,13 @@ from agents.src.shared.flare_contracts import (
     get_escrow_deposit,
 )
 
+# New: OpenAI Butler Agent + JobBoard marketplace
+from agents.src.butler.agent import ButlerAgent, create_butler_agent
+from agents.src.shared.job_board import JobBoard, JobStatus
+
 load_dotenv()
+
+logger = logging.getLogger(__name__)
 
 app = FastAPI(title="SOTA Flare Butler API")
 
@@ -57,9 +70,23 @@ app.add_middleware(
 # ─── Globals ──────────────────────────────────────────────────
 
 contracts: Optional[FlareContracts] = None
+butler_agent: Optional[ButlerAgent] = None
+job_board: Optional[JobBoard] = None
 
 
 # ─── Request / Response Models ────────────────────────────────
+
+class ChatRequest(BaseModel):
+    query: str
+    session_id: Optional[str] = None
+    user_id: Optional[str] = None
+    timestamp: Optional[int] = None
+
+
+class ChatResponse(BaseModel):
+    response: str
+    session_id: Optional[str] = None
+    model: str = "gpt-4o-mini"
 
 class QuoteRequest(BaseModel):
     budget_usd: float
@@ -120,7 +147,7 @@ class PriceResponse(BaseModel):
 
 @app.on_event("startup")
 async def startup_event():
-    global contracts
+    global contracts, butler_agent, job_board
     network = get_network()
     print(f"🚀 Starting SOTA Flare Butler API...")
     print(f"🌐 Network: {network.rpc_url} (chain {network.chain_id})")
@@ -130,6 +157,7 @@ async def startup_event():
         print("⚠️ FLARE_PRIVATE_KEY not set. Read-only mode.")
         return
 
+    # ── Flare contracts ──────────────────────────────────────
     try:
         contracts = get_flare_contracts(pk)
         print(f"✅ Connected to Flare ({network.native_currency})")
@@ -140,10 +168,142 @@ async def startup_event():
     except Exception as e:
         print(f"❌ Failed to connect: {e}")
 
+    # ── OpenAI Butler Agent ──────────────────────────────────
+    openai_key = os.getenv("OPENAI_API_KEY")
+    if openai_key:
+        try:
+            butler_agent = create_butler_agent(
+                private_key=pk,
+                openai_api_key=openai_key,
+            )
+            print(f"🤖 Butler Agent initialized (OpenAI gpt-4o-mini)")
+        except Exception as e:
+            print(f"⚠️ Butler Agent init failed: {e}")
+    else:
+        print("⚠️ OPENAI_API_KEY not set — Butler Agent disabled (Flare endpoints still work)")
+
+    # ── JobBoard Marketplace ─────────────────────────────────
+    job_board = JobBoard.instance()
+    print(f"🏪 JobBoard marketplace ready (in-memory)")
+
 
 @app.get("/")
 async def root():
     return {"status": "SOTA Flare Butler API running", "version": "2.0"}
+
+
+# ─── Butler Agent Chat (OpenAI) ──────────────────────────────
+
+@app.post("/api/flare/chat", response_model=ChatResponse)
+async def chat_with_butler(req: ChatRequest):
+    """
+    Send a message to the OpenAI-backed Butler Agent.
+    The Butler uses tool-calling to search knowledge, fill slots,
+    post jobs to the marketplace, and track deliveries.
+    """
+    if not butler_agent:
+        raise HTTPException(503, "Butler Agent not initialized. Check OPENAI_API_KEY.")
+    try:
+        response = await butler_agent.chat(
+            message=req.query,
+            user_id=req.user_id or "web_user",
+        )
+        return ChatResponse(
+            response=response,
+            session_id=req.session_id,
+            model="gpt-4o-mini",
+        )
+    except Exception as e:
+        logger.error("Butler chat error: %s", e)
+        raise HTTPException(500, f"Butler chat failed: {e}")
+
+
+@app.post("/api/flare/query")
+async def query_butler_compat(req: ChatRequest):
+    """Backward-compatible alias for /api/flare/chat."""
+    result = await chat_with_butler(req)
+    return {
+        "response": result.response,
+        "message": result.response,
+        "session_id": result.session_id,
+    }
+
+
+# ─── Marketplace Endpoints ───────────────────────────────────
+
+@app.get("/api/flare/marketplace/jobs")
+async def list_marketplace_jobs(status: Optional[str] = None):
+    """List all jobs on the in-memory marketplace."""
+    board = JobBoard.instance()
+    if status == "open":
+        jobs = board.list_open_jobs()
+    else:
+        jobs = board.list_all_jobs()
+
+    return {
+        "total": len(jobs),
+        "jobs": [
+            {
+                "job_id": j.job_id,
+                "description": j.description,
+                "tags": j.tags,
+                "budget_usdc": j.budget_usdc,
+                "status": j.status.value,
+                "poster": j.poster,
+                "posted_at": j.posted_at,
+                "deadline_ts": j.deadline_ts,
+                "metadata": j.metadata,
+            }
+            for j in jobs
+        ],
+    }
+
+
+@app.get("/api/flare/marketplace/bids/{job_id}")
+async def get_marketplace_bids(job_id: str):
+    """Get all bids for a specific marketplace job."""
+    board = JobBoard.instance()
+    bids = board.get_bids(job_id)
+    job = board.get_job(job_id)
+
+    return {
+        "job_id": job_id,
+        "job_status": job.status.value if job else "not_found",
+        "total_bids": len(bids),
+        "bids": [
+            {
+                "bid_id": b.bid_id,
+                "bidder_id": b.bidder_id,
+                "bidder_address": b.bidder_address,
+                "amount_usdc": b.amount_usdc,
+                "estimated_seconds": b.estimated_seconds,
+                "tags": b.tags,
+                "submitted_at": b.submitted_at,
+            }
+            for b in bids
+        ],
+    }
+
+
+@app.get("/api/flare/marketplace/workers")
+async def list_marketplace_workers():
+    """List all registered worker agents."""
+    board = JobBoard.instance()
+    workers = board.workers
+
+    return {
+        "total": len(workers),
+        "workers": [
+            {
+                "worker_id": w.worker_id,
+                "address": w.address,
+                "tags": w.tags,
+                "max_concurrent": w.max_concurrent,
+                "active_jobs": w.active_jobs,
+            }
+            for w in workers.values()
+        ],
+    }
 
 
 # ─── FTSO: Price & Quote ─────────────────────────────────────
