@@ -73,7 +73,10 @@ except ImportError:
     create_flare_predictor_agent = None
 
 # Load from project root .env (single source of truth)
-load_dotenv(Path(__file__).resolve().parent.parent / ".env")
+# Load .env from agents/ dir (where the file lives) or project root
+_here = Path(__file__).resolve().parent
+load_dotenv(_here / ".env")
+load_dotenv(_here.parent / ".env")
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -96,6 +99,7 @@ job_board: Optional[JobBoard] = None
 hackathon_agent: Optional[HackathonAgent] = None
 caller_agent: Optional[CallerAgent] = None
 flare_predictor_agent: Optional["FlarePredictor"] = None  # Market signal agent
+db: Optional[Any] = None  # Database connection (PostgreSQL)
 
 
 # ─── Request / Response Models ────────────────────────────────
@@ -209,7 +213,7 @@ class PriceResponse(BaseModel):
 
 @app.on_event("startup")
 async def startup_event():
-    global contracts, butler_agent, job_board, hackathon_agent, caller_agent
+    global contracts, butler_agent, job_board, hackathon_agent, caller_agent, db
     network = get_network()
     print(f"🚀 Starting SOTA Flare Butler API...")
     print(f"🌐 Network: {network.rpc_url} (chain {network.chain_id})")
@@ -449,6 +453,9 @@ async def post_job_from_elevenlabs(req: MarketplacePostRequest):
         "hotel_booking": "hotel_booking",
         "restaurant_booking": "restaurant_booking",
         "call_verification": "call_verification",
+        "market_prediction": "market_prediction",
+        "trading_signal": "market_prediction",
+        "price_prediction": "market_prediction",
     }
     tool_type = TASK_TO_TOOL.get(task_lower, task_lower)
     
@@ -462,6 +469,8 @@ async def post_job_from_elevenlabs(req: MarketplacePostRequest):
             tool_type = "restaurant_booking"
         elif "call" in task_lower:
             tool_type = "call_verification"
+        elif any(kw in task_lower for kw in ["market", "predict", "trading", "signal", "price"]):
+            tool_type = "market_prediction"
 
     description = f"{task}: {', '.join(f'{k}={v}' for k, v in params.items())}"
 
@@ -526,18 +535,71 @@ async def execute_job_after_escrow(job_id: str):
     
     logger.info(f"🚀 Executing job {job_id} with worker {winning_bid.bidder_id}…")
     print(f"🚀 Executing job {job_id} with worker {winning_bid.bidder_id}…")
-    
+
+    # Persist "in_progress" to Firestore
+    if db:
+        try:
+            await db.update_job_status(job_id, "assigned")
+            await db.create_update(job_id, agent=winning_bid.bidder_id, status="in_progress", message="Execution started")
+        except Exception as e:
+            logger.warning(f"DB in_progress update failed: {e}")
+
     try:
         # Run the executor
         exec_result = await worker.executor(job, winning_bid)
-        
-        # Format results for display
-        from agents.src.butler.tools import format_hackathon_results
-        formatted = format_hackathon_results(exec_result)
-        
-        logger.info(f"✅ Job {job_id} execution completed")
+
+        # Format results for display — route by worker type
+        from agents.src.butler.tools import format_hackathon_results, strip_markdown
+        worker_type = winning_bid.bidder_id  # e.g. "hackathon", "flare_predictor", "caller"
+
+        if worker_type == "hackathon":
+            formatted = strip_markdown(format_hackathon_results(exec_result))
+        elif isinstance(exec_result, dict):
+            # Generic result formatting for non-hackathon workers
+            raw_text = exec_result.get("result") or exec_result.get("chat_summary") or ""
+            if isinstance(raw_text, str) and raw_text.strip():
+                formatted = strip_markdown(raw_text)
+            else:
+                formatted = strip_markdown(json.dumps(exec_result, indent=2, default=str))
+        else:
+            formatted = strip_markdown(str(exec_result))
+
+        logger.info(f"✅ Job {job_id} execution completed (worker={worker_type})")
         print(f"✅ Job {job_id} execution completed")
-        
+
+        # If execution returned no useful results and job is hackathon type,
+        # try a direct search as last resort
+        if worker_type == "hackathon" and "couldn't find" in formatted.lower() and "hackathon" in (job.description or "").lower():
+            logger.info(f"🔄 Attempting direct search fallback for job {job_id}...")
+            try:
+                from agents.src.hackathon.tools import SearchHackathonsTool
+                import json as _json
+
+                # Extract location from job metadata
+                loc = job.metadata.get("parameters", {}).get("location", "")
+                if loc:
+                    search_tool = SearchHackathonsTool()
+                    raw = await search_tool.execute(location=loc)
+                    search_data = _json.loads(raw)
+                    if search_data.get("success") and search_data.get("hackathons"):
+                        exec_result = search_data
+                        formatted = format_hackathon_results(search_data)
+                        logger.info(f"✅ Direct fallback found {search_data['count']} hackathons")
+            except Exception as fallback_err:
+                logger.warning(f"Direct search fallback failed: {fallback_err}")
+
+        # Persist "completed" to Firestore
+        if db:
+            try:
+                await db.update_job_status(job_id, "completed")
+                await db.create_update(
+                    job_id, agent=winning_bid.bidder_id,
+                    status="completed", message="Execution complete",
+                    data=exec_result if isinstance(exec_result, dict) else {"result": str(exec_result)},
+                )
+            except Exception as e:
+                logger.warning(f"DB completed update failed: {e}")
+
         return {
             "success": True,
             "job_id": job_id,
@@ -547,6 +609,15 @@ async def execute_job_after_escrow(job_id: str):
     except Exception as e:
         logger.error(f"❌ Job {job_id} execution failed: {e}")
         print(f"❌ Job {job_id} execution failed: {e}")
+
+        # Persist error to Firestore
+        if db:
+            try:
+                await db.update_job_status(job_id, "expired")
+                await db.create_update(job_id, agent=winning_bid.bidder_id, status="error", message=str(e))
+            except Exception:
+                pass
+
         raise HTTPException(500, f"Job execution failed: {e}")
 
 
@@ -583,19 +654,35 @@ async def execute_job_with_sse(job_id: str):
             # Send started event
             yield f"data: {json.dumps({'event': 'started', 'message': f'Starting job with {winning_bid.bidder_id}...'})}\n\n"
             await asyncio.sleep(0.1)
-            
+
             yield f"data: {json.dumps({'event': 'progress', 'message': 'Searching for results...'})}\n\n"
-            
+
             # Run the executor
             exec_result = await worker.executor(job, winning_bid)
-            
+
             # Format results
             from agents.src.butler.tools import format_hackathon_results
             formatted = format_hackathon_results(exec_result)
-            
+
+            # If no results and it's a hackathon job, try direct search fallback
+            if "couldn't find" in formatted.lower() and "hackathon" in (job.description or "").lower():
+                yield f"data: {json.dumps({'event': 'progress', 'message': 'Trying additional sources...'})}\n\n"
+                try:
+                    from agents.src.hackathon.tools import SearchHackathonsTool
+                    loc = job.metadata.get("parameters", {}).get("location", "")
+                    if loc:
+                        search_tool = SearchHackathonsTool()
+                        raw = await search_tool.execute(location=loc)
+                        search_data = json.loads(raw)
+                        if search_data.get("success") and search_data.get("hackathons"):
+                            exec_result = search_data
+                            formatted = format_hackathon_results(search_data)
+                except Exception:
+                    pass
+
             # Send complete event
             yield f"data: {json.dumps({'event': 'complete', 'data': exec_result, 'formatted': formatted})}\n\n"
-            
+
         except Exception as e:
             yield f"data: {json.dumps({'event': 'error', 'message': str(e)})}\n\n"
 
@@ -1036,6 +1123,29 @@ async def handle_agent_data_request(req: AgentDataRequest):
                     "source": "stored_context",
                     "message": f"Full profile retrieved ({len(clean)} fields)",
                 }
+
+        # No stored profile — return job metadata as context so the agent
+        # can proceed without waiting for user input
+        if req.job_id:
+            board = JobBoard.instance()
+            job_listing = board.get_job(req.job_id)
+            if job_listing and job_listing.metadata:
+                job_params = job_listing.metadata.get("parameters", {})
+                if job_params:
+                    return {
+                        "request_id": req.request_id,
+                        "data_type": "user_profile",
+                        "data": {
+                            "note": "No user profile stored. Use the job parameters below.",
+                            **job_params,
+                        },
+                        "source": "job_metadata",
+                        "message": (
+                            "No stored user profile available. "
+                            "Job parameters provided instead — proceed with search "
+                            "using the location and date info from the job."
+                        ),
+                    }
 
     if req.data_type == "preference":
         # Check DB for preferences

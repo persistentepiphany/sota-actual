@@ -39,6 +39,7 @@
   "exclude": [
     "node_modules",
     "contracts",
-    "mobile_frontend"
+    "mobile_frontend",
+    "prisma/seed.ts"
   ]
 }

@@ -108,28 +108,20 @@ Respond with your bid decision.
 
     async def _create_llm_agent(self) -> AgentRunner:
         """Create agent runner for market prediction."""
-        llm_client = LLMClient(
-            api_key=os.getenv("OPENAI_API_KEY"),
-            model=os.getenv("OPENAI_MODEL", "gpt-4o"),
-        )
-        
-        tool_manager = ToolManager()
-        
-        # Register prediction tools
-        for tool in create_flare_predictor_tools():
-            tool_manager.register(tool)
-        
-        # Register wallet + bidding tools
-        for tool in create_wallet_tools():
-            tool_manager.register(tool)
-        for tool in create_bidding_tools():
-            tool_manager.register(tool)
-        
+        all_tools: list = []
+        all_tools.extend(create_flare_predictor_tools())
+        all_tools.extend(create_wallet_tools(self.wallet))
+        all_tools.extend(create_bidding_tools(self._contracts, self.agent_type))
+
+        model_name = os.getenv("OPENAI_MODEL", "gpt-4o-mini")
+
         return AgentRunner(
-            llm_client=llm_client,
-            tool_manager=tool_manager,
+            name="flare_predictor",
+            description="Flare market prediction agent using FTSO data",
             system_prompt=FLARE_PREDICTOR_SYSTEM_PROMPT,
-            agent_name=self.agent_name,
+            max_steps=10,
+            tools=ToolManager(all_tools),
+            llm=LLMClient(model=model_name),
         )
     
     async def execute_job(self, job: ActiveJob) -> Dict[str, Any]:

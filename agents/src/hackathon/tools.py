@@ -129,12 +129,10 @@ class SearchHackathonsTool(BaseTool):
         topics: str | None = None,
         mode: str = "both",
     ) -> str:
-        """Search for upcoming hackathons using OpenAI web search."""
+        """Search for hackathons using OpenAI web search + scraper fallback."""
         from openai import AsyncOpenAI
 
         api_key = os.getenv("OPENAI_API_KEY")
-        if not api_key:
-            return json.dumps({"success": False, "error": "OPENAI_API_KEY not set"})
 
         today = datetime.utcnow()
         today_str = today.strftime("%Y-%m-%d")
@@ -201,10 +199,11 @@ class SearchHackathonsTool(BaseTool):
             f"If you cannot find any, return an empty array []."
         )
 
+        hackathons = []
+
         try:
             client = AsyncOpenAI(api_key=api_key)
 
-            # Try web-search enabled model first, fall back to regular
             try:
                 response = await client.responses.create(
                     model="gpt-4o-mini",
@@ -241,22 +240,93 @@ class SearchHackathonsTool(BaseTool):
             elif mode == "in-person":
                 hackathons = [h for h in hackathons if h.get("is_virtual") is not True]
 
-            return json.dumps({
-                "success": True,
-                "count": len(hackathons),
-                "hackathons": hackathons,
-                "search_params": {
-                    "location": location,
-                    "date_from": date_from,
-                    "date_to": date_to,
-                    "topics": topics,
-                    "mode": mode,
-                },
-            }, indent=2)
+        except Exception as e:
+            logger.error("OpenAI hackathon search failed: %s", e)
+
+        # ── Scraper fallback: if few results, try direct web scraping ──
+        if len(hackathons) < 2:
+            logger.info("Trying direct web scraping fallback (found %d so far)...", len(hackathons))
+            scraped = await self._scrape_hackathon_sites(location)
+            existing_names = {h.get("name", "").lower().strip()[:50] for h in hackathons}
+            for s in scraped:
+                name_key = s.get("name", "").lower().strip()[:50]
+                if name_key and name_key not in existing_names:
+                    hackathons.append(s)
+                    existing_names.add(name_key)
+            logger.info("After scraping: %d total hackathon(s)", len(hackathons))
+
+        return json.dumps({
+            "success": True,
+            "count": len(hackathons),
+            "hackathons": hackathons,
+            "search_params": {
+                "location": location,
+                "date_from": date_from,
+                "date_to": date_to,
+                "topics": topics,
+                "mode": mode,
+            },
+        }, indent=2)
+
+    @staticmethod
+    async def _scrape_hackathon_sites(location: str) -> list:
+        """
+        Scrape Devpost, MLH, and Hackathon.com directly as a fallback.
+        Runs synchronous scrapers in a thread pool.
+        """
+        import asyncio
+
+        results = []
+        try:
+            import sys, os
+            agents_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+            if agents_dir not in sys.path:
+                sys.path.insert(0, agents_dir)
+            from event_finder import scrape_devpost, scrape_mlh, get_fallback_hackathons
+
+            loop = asyncio.get_event_loop()
+
+            # Run scrapers concurrently in thread pool
+            devpost_task = loop.run_in_executor(None, scrape_devpost, location, 5)
+            mlh_task = loop.run_in_executor(None, scrape_mlh, location, 5)
+
+            devpost_results, mlh_results = await asyncio.gather(
+                devpost_task, mlh_task, return_exceptions=True
+            )
+
+            for source_results in [devpost_results, mlh_results]:
+                if isinstance(source_results, list):
+                    for s in source_results:
+                        results.append({
+                            "name": s.get("name", ""),
+                            "location": s.get("location", "Online"),
+                            "date_start": s.get("date", ""),
+                            "date_end": s.get("date", ""),
+                            "url": s.get("url", ""),
+                            "description": s.get("description", ""),
+                            "source": s.get("platform", "scraper").lower(),
+                            "is_virtual": "online" in s.get("location", "").lower(),
+                        })
+
+            # If still nothing, add curated fallback platforms
+            if not results:
+                fallbacks = get_fallback_hackathons(location, 5)
+                for s in fallbacks:
+                    results.append({
+                        "name": s.get("name", ""),
+                        "location": s.get("location", "Online"),
+                        "date_start": s.get("date", ""),
+                        "date_end": s.get("date", ""),
+                        "url": s.get("url", ""),
+                        "description": s.get("description", ""),
+                        "source": s.get("platform", "curated").lower(),
+                        "is_virtual": "online" in s.get("location", "").lower(),
+                    })
 
         except Exception as e:
-            logger.error("Hackathon search failed: %s", e)
-            return json.dumps({"success": False, "error": str(e)})
+            logger.warning("Scraping fallback error: %s", e)
+
+        return results
 
     @staticmethod
     def _extract_json_array(text: str) -> list:
@@ -468,7 +538,8 @@ class FormatHackathonResultsTool(BaseTool):
         if not hackathons:
             return "No upcoming hackathons found matching your criteria."
 
-        lines = [f"Found {len(hackathons)} upcoming hackathon(s):\n"]
+        count = len(hackathons)
+        lines = [f"I found {count} hackathon{'s' if count != 1 else ''} for you:\n"]
         for i, h in enumerate(hackathons, 1):
             name = h.get("name", "Unknown")
             loc = h.get("location", "TBD")
@@ -497,6 +568,7 @@ class FormatHackathonResultsTool(BaseTool):
                 lines.append(f"   Source: {source}")
             lines.append("")
 
+        lines.append("Want me to help you register for any of these?")
         return "\n".join(lines)
 
 

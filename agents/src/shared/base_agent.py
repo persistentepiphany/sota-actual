@@ -61,6 +61,7 @@ class ActiveJob:
     deadline: int
     status: str = "accepted"  # accepted, in_progress, completed, failed
     metadata_uri: str = ""
+    params: dict = field(default_factory=dict)
 
 
 class BaseArchiveAgent(ABC):

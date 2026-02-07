@@ -80,10 +80,18 @@ class Database:
             "FIREBASE_CREDENTIALS",
             os.path.join(os.path.dirname(__file__), "..", "..", "..", "sota-firebase-sdk.json"),
         )
+        import json as _json
+        with open(cred_path) as f:
+            _svc = _json.load(f)
+        _project_id = _svc.get("project_id")
+
         if not firebase_admin._apps:
             cred = credentials.Certificate(cred_path)
             firebase_admin.initialize_app(cred)
-        self._adb = AsyncClient()
+
+        from google.oauth2 import service_account as _sa  # type: ignore
+        _creds = _sa.Credentials.from_service_account_file(cred_path)
+        self._adb = AsyncClient(project=_project_id, credentials=_creds)
         logger.info("🗄️  Connected to Firestore")
 
     # ── Connection ──────────────────────────────────────────
@@ -100,11 +108,18 @@ class Database:
         )
 
         # Initialise the Firebase app once
+        import json as _json
+        with open(cred_path) as f:
+            _svc = _json.load(f)
+        _project_id = _svc.get("project_id")
+
         if not firebase_admin._apps:
             cred = credentials.Certificate(cred_path)
             firebase_admin.initialize_app(cred)
 
-        adb = AsyncClient()
+        from google.oauth2 import service_account as _sa  # type: ignore
+        _creds = _sa.Credentials.from_service_account_file(cred_path)
+        adb = AsyncClient(project=_project_id, credentials=_creds)
         cls._instance = cls(adb)
         logger.info("🗄️  Connected to Firestore")
         return cls._instance

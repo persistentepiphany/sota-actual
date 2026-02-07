@@ -114,6 +114,11 @@ the Butler on behalf of a user.
 8. Check balance and manage bids when needed.
 
 Always be helpful and concise.
+
+## FORMATTING RULES:
+- NEVER use markdown syntax in your responses (no **bold**, no [text](url), no ## headings).
+- Write plain text only. For links, just paste the URL directly.
+- Keep output clean and readable for a chat interface.
 """
 
 
@@ -183,25 +188,41 @@ class HackathonAgent(AutoBidderMixin, BaseArchiveAgent):
             kw in desc_lower for kw in ["register", "sign up", "sign me up", "enroll", "rsvp"]
         )
 
-        butler_header = (
-            f"You are executing marketplace job #{job.job_id}.\n"
-            f"Budget: {job.budget / 1_000_000:.2f} USDC\n\n"
-            f"IMPORTANT: This job came from the marketplace via the Butler.\n"
-            f"You MUST communicate with the Butler to get user data.\n\n"
-            f"Step 1: Call `request_butler_data` with data_type='user_profile', "
-            f"job_id='{job.job_id}' to get the user's profile.\n"
-            f"Step 2: Call `notify_butler` with job_id='{job.job_id}', "
-            f"status='in_progress' to keep the user informed.\n\n"
-        )
+        # Extract structured params from the job description
+        # Description format: "hackathon_discovery: location=London, date_range=Feb 20-22, ..."
+        location = ""
+        date_from = ""
+        date_to = ""
+        keywords = ""
+        if "location=" in job.description:
+            try:
+                parts = job.description.split(": ", 1)[-1]
+                for param in parts.split(", "):
+                    if "=" in param:
+                        k, v = param.split("=", 1)
+                        k = k.strip()
+                        v = v.strip()
+                        if k == "location":
+                            location = v
+                        elif k == "date_range":
+                            date_from = v
+                        elif k == "theme_technology_focus":
+                            keywords = v.strip("[]'\"")
+                        elif k == "online_or_in_person":
+                            if v == "in_person":
+                                keywords = (keywords + " in-person").strip()
+            except Exception:
+                pass
 
         if is_registration:
             logger.info("Executing hackathon registration for job #%s", job.job_id)
             prompt = (
-                butler_header
-                + f"Job description: {job.description}\n\n"
+                f"You are executing marketplace job #{job.job_id}.\n\n"
+                f"Job description: {job.description}\n\n"
                 f"Task: Register the user for a hackathon.\n\n"
                 f"Workflow:\n"
-                f"1. Request user profile from Butler (request_butler_data)\n"
+                f"1. Request user profile from Butler (request_butler_data, "
+                f"   data_type='user_profile', job_id='{job.job_id}')\n"
                 f"2. Detect the registration form\n"
                 f"3. Auto-fill with dry_run=true and notify Butler with results\n"
                 f"4. Request confirmation from Butler (data_type='confirmation')\n"
@@ -211,29 +232,45 @@ class HackathonAgent(AutoBidderMixin, BaseArchiveAgent):
         else:
             logger.info("Executing hackathon search for job #%s", job.job_id)
             prompt = (
-                butler_header
-                + f"Job description: {job.description}\n\n"
-                f"Task: Search for UPCOMING hackathons matching the request.\n\n"
-                f"IMPORTANT: You must collect these four parameters before searching.\n"
-                f"If any are missing from the job description, request clarification\n"
-                f"from the Butler (data_type='clarification'):\n"
-                f"  - Time period (date_from, date_to)\n"
-                f"  - Location\n"
-                f"  - Topics / themes of interest\n"
-                f"  - Mode: online, in-person, or both\n\n"
-                f"Workflow:\n"
-                f"1. Request user profile/preferences from Butler for location hints\n"
-                f"2. If the description is vague about dates/location/topics/mode, request "
-                f"   clarification from Butler (data_type='clarification')\n"
-                f"3. Search for hackathons with all four parameters, scrape details, format\n"
-                f"4. Notify Butler with results (notify_butler status='partial_result')\n"
-                f"5. Notify Butler with final status (notify_butler status='completed')\n\n"
-                f"NEVER include past hackathons in the results."
+                f"You are executing marketplace job #{job.job_id}.\n\n"
+                f"Job description: {job.description}\n\n"
+                f"## EXTRACTED SEARCH PARAMETERS (use these directly):\n"
+                f"- Location: {location or 'any'}\n"
+                f"- Date range: {date_from or 'upcoming'}\n"
+                f"- Keywords: {keywords or 'any'}\n\n"
+                f"## YOUR TASK — MANDATORY STEPS:\n"
+                f"1. **IMMEDIATELY** call `search_hackathons` with "
+                f"location=\"{location or 'worldwide'}\"" +
+                (f", date_from/date_to covering {date_from}" if date_from else "") +
+                (f", keywords=\"{keywords}\"" if keywords and keywords != "any" else "") +
+                f".\n"
+                f"   Do NOT skip this step. Do NOT wait for user profile data.\n"
+                f"2. Call `notify_butler` with job_id='{job.job_id}', "
+                f"status='in_progress', message='Searching for hackathons...'\n"
+                f"3. If search returns results, call `format_hackathon_results`.\n"
+                f"4. Call `notify_butler` with status='completed' and the results.\n\n"
+                f"CRITICAL: You MUST call search_hackathons as your FIRST action. "
+                f"The search parameters are already provided above — do not ask "
+                f"the Butler for clarification. Proceed immediately with the search."
             )
 
         try:
             if self.llm_agent:
                 result = await self.llm_agent.run(prompt)
+
+                # If the LLM returned text without structured data,
+                # do a direct search fallback
+                if not is_registration and self._looks_like_no_results(result):
+                    logger.warning("LLM returned no results — running direct search fallback")
+                    fallback = await self._direct_search_fallback(location, date_from, keywords)
+                    if fallback:
+                        return {
+                            "success": True,
+                            "hackathons": fallback,
+                            "job_id": job.job_id,
+                            "source": "direct_fallback",
+                        }
+
                 return {
                     "success": True,
                     "result": result,
@@ -247,11 +284,96 @@ class HackathonAgent(AutoBidderMixin, BaseArchiveAgent):
                 }
         except Exception as e:
             logger.error("Hackathon job #%s failed: %s", job.job_id, e)
+            # Last resort: try direct search even on error
+            if not is_registration:
+                try:
+                    fallback = await self._direct_search_fallback(location, date_from, keywords)
+                    if fallback:
+                        return {
+                            "success": True,
+                            "hackathons": fallback,
+                            "job_id": job.job_id,
+                            "source": "error_fallback",
+                        }
+                except Exception:
+                    pass
             return {
                 "success": False,
                 "error": str(e),
                 "job_id": job.job_id,
             }
+
+    @staticmethod
+    def _looks_like_no_results(text: str) -> bool:
+        """Check if the LLM response indicates no hackathons were found."""
+        if not text:
+            return True
+        lower = text.lower()
+        no_result_phrases = [
+            "couldn't find",
+            "could not find",
+            "no hackathons",
+            "no results",
+            "unable to find",
+            "didn't find",
+            "no matching",
+            "try different",
+            "step limit",
+        ]
+        return any(phrase in lower for phrase in no_result_phrases)
+
+    async def _direct_search_fallback(
+        self, location: str, date_range: str, keywords: str
+    ) -> list:
+        """
+        Bypass the LLM and call the search tool directly as a fallback.
+        Also tries the event_finder scrapers.
+        """
+        from .tools import SearchHackathonsTool
+        import json
+
+        results = []
+
+        # Try the OpenAI-powered search tool directly
+        try:
+            tool = SearchHackathonsTool()
+            raw = await tool.execute(
+                location=location or "worldwide",
+                keywords=keywords if keywords and keywords != "any" else None,
+            )
+            data = json.loads(raw)
+            if data.get("success") and data.get("hackathons"):
+                results.extend(data["hackathons"])
+        except Exception as e:
+            logger.warning("Direct search tool failed: %s", e)
+
+        # Also try event_finder scrapers
+        if len(results) < 3:
+            try:
+                import sys
+                import os
+                agents_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+                sys.path.insert(0, agents_dir)
+                from event_finder import search_hackathons as scrape_search
+                scraped = scrape_search(
+                    query=f"hackathons in {location}" if location else "hackathons",
+                    location=location,
+                    num=5,
+                )
+                for s in scraped:
+                    results.append({
+                        "name": s.get("name", ""),
+                        "location": s.get("location", ""),
+                        "date_start": s.get("date", ""),
+                        "date_end": s.get("date", ""),
+                        "url": s.get("url", ""),
+                        "description": s.get("description", ""),
+                        "source": s.get("platform", "scraper"),
+                    })
+            except Exception as e:
+                logger.warning("Event finder scraper failed: %s", e)
+
+        return results
 
 
 # ─── Factory ──────────────────────────────────────────────────
