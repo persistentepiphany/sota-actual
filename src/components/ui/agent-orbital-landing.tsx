@@ -1,6 +1,6 @@
 "use client";
 import React, { useState, useEffect, useRef } from 'react';
-import { Bot, Phone, Calendar, Briefcase, X, Zap, Star, Activity, Loader2, type LucideIcon } from 'lucide-react';
+import { Bot, Phone, Calendar, Briefcase, X, Zap, Star, Activity, Loader2, Search, type LucideIcon } from 'lucide-react';
 import { FloatingPaths } from './background-paths-wrapper';
 
 // Icon mapping for dynamic icons from DB
@@ -47,6 +47,8 @@ const AgentOrbitalLanding = () => {
   
   // Data from API
   const [agents, setAgents] = useState<Agent[]>([]);
+  const [allAgents, setAllAgents] = useState<Agent[]>([]);
+  const [searchQuery, setSearchQuery] = useState('');
   const [butler, setButler] = useState<ButlerData>({
     title: "Butler",
     description: "Your AI concierge orchestrating all agents",
@@ -63,14 +65,35 @@ const AgentOrbitalLanding = () => {
   useEffect(() => {
     const fetchAgents = async () => {
       try {
-        const res = await fetch('/api/agents/dashboard');
-        if (!res.ok) throw new Error('Failed to fetch agents');
-        const data = await res.json();
+        // Fetch both dashboard agents and all agents
+        const [dashboardRes, allAgentsRes] = await Promise.all([
+          fetch('/api/agents/dashboard'),
+          fetch('/api/agents')
+        ]);
         
-        setAgents(data.agents || []);
-        if (data.butler) {
-          setButler(data.butler);
+        if (!dashboardRes.ok) throw new Error('Failed to fetch agents');
+        const dashboardData = await dashboardRes.json();
+        
+        setAgents(dashboardData.agents || []);
+        if (dashboardData.butler) {
+          setButler(dashboardData.butler);
         }
+        
+        // Set all agents for the list
+        if (allAgentsRes.ok) {
+          const allData = await allAgentsRes.json();
+          setAllAgents((allData.agents || []).map((a: Record<string, unknown>) => ({
+            id: a.id as number,
+            title: a.title as string,
+            description: a.description as string,
+            icon: (a.icon as string) || 'Bot',
+            status: (a.status === 'active' ? 'online' : a.status === 'busy' ? 'busy' : 'offline') as "online" | "busy" | "offline",
+            totalRequests: (a.totalRequests as number) || 0,
+            reputation: (a.reputation as number) || 5.0,
+            successRate: a.totalRequests ? Math.round(((a.successfulRequests as number) / (a.totalRequests as number)) * 100) : 100,
+          })));
+        }
+        
         setError(null);
       } catch (err) {
         console.error('Error fetching agents:', err);
@@ -79,7 +102,6 @@ const AgentOrbitalLanding = () => {
         setAgents([
           { id: 1, title: "Caller", description: "Phone verification via Twilio", icon: "Phone", status: "online", totalRequests: 0, reputation: 5.0, successRate: 100 },
           { id: 2, title: "Hackathon", description: "Event discovery & registration", icon: "Calendar", status: "online", totalRequests: 0, reputation: 5.0, successRate: 100 },
-          { id: 3, title: "Manager", description: "Job orchestration & workflows", icon: "Briefcase", status: "online", totalRequests: 0, reputation: 5.0, successRate: 100 },
         ]);
       } finally {
         setLoading(false);
@@ -91,6 +113,12 @@ const AgentOrbitalLanding = () => {
     const interval = setInterval(fetchAgents, 30000);
     return () => clearInterval(interval);
   }, []);
+
+  // Filter agents by search query
+  const filteredAgents = allAgents.filter(agent => 
+    agent.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    agent.description.toLowerCase().includes(searchQuery.toLowerCase())
+  );
 
   // Helper to get icon component from string
   const getIcon = (iconName: string): LucideIcon => {
@@ -580,11 +608,85 @@ const AgentOrbitalLanding = () => {
               <span className="word-animate" data-delay="3200">Automate.</span>
               <span className="word-animate" data-delay="3400">Simplify.</span>
             </h2>
-            <div className="mt-6 flex justify-center space-x-4 opacity-0" style={{ animation: 'word-appear 1s ease-out forwards', animationDelay: '4.2s' }}>
-              <div className="w-1 h-1 bg-violet-400 rounded-full opacity-40"></div>
-              <div className="w-1 h-1 bg-violet-400 rounded-full opacity-60"></div>
-              <div className="w-1 h-1 bg-violet-400 rounded-full opacity-40"></div>
+          </div>
+        </div>
+
+        {/* All Agents List Section */}
+        <div className="relative z-10 px-6 pb-16 sm:px-8 md:px-16">
+          <div className="max-w-4xl mx-auto">
+            {/* Section Header with Search */}
+            <div className="flex flex-col sm:flex-row items-center justify-between gap-4 mb-8">
+              <div>
+                <h3 className="text-xl font-semibold text-white text-center sm:text-left">All Agents</h3>
+                <p className="text-sm text-slate-400 text-center sm:text-left">Browse and search available agents</p>
+              </div>
+              
+              {/* Search Bar */}
+              <div className="relative w-full sm:w-72">
+                <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" />
+                <input
+                  type="text"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  placeholder="Search agents..."
+                  className="w-full pl-10 pr-4 py-2.5 bg-slate-800/60 border border-slate-700/50 rounded-xl text-sm text-white placeholder-slate-500 focus:outline-none focus:border-violet-500/50 transition-colors"
+                />
+              </div>
             </div>
+
+            {/* Agents Grid */}
+            {filteredAgents.length === 0 ? (
+              <div className="text-center py-12">
+                <Bot size={40} className="text-slate-600 mx-auto mb-3" />
+                <p className="text-slate-500">
+                  {searchQuery ? 'No agents found matching your search' : 'No agents available'}
+                </p>
+              </div>
+            ) : (
+              <div className="grid gap-4 sm:grid-cols-2">
+                {filteredAgents.map((agent) => {
+                  const Icon = getIcon(agent.icon);
+                  return (
+                    <div
+                      key={agent.id}
+                      className="p-5 rounded-xl bg-slate-900/50 border border-slate-700/30 backdrop-blur-sm hover:border-violet-500/30 transition-all duration-300 group"
+                    >
+                      <div className="flex items-start gap-4">
+                        <div className="w-12 h-12 rounded-xl bg-slate-800 flex items-center justify-center group-hover:bg-violet-500/20 transition-colors">
+                          <Icon size={22} className="text-slate-400 group-hover:text-violet-400 transition-colors" />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 mb-1">
+                            <h4 className="font-semibold text-white truncate">{agent.title}</h4>
+                            <div className={`w-2 h-2 rounded-full flex-shrink-0 ${
+                              agent.status === 'online' ? 'bg-green-500' : 
+                              agent.status === 'busy' ? 'bg-yellow-500' : 'bg-red-500'
+                            }`} />
+                          </div>
+                          <p className="text-sm text-slate-400 line-clamp-2 mb-3">{agent.description}</p>
+                          
+                          {/* Mini Stats */}
+                          <div className="flex items-center gap-4 text-xs">
+                            <div className="flex items-center gap-1 text-slate-500">
+                              <Star size={12} className="text-yellow-500" />
+                              <span>{agent.reputation.toFixed(1)}</span>
+                            </div>
+                            <div className="flex items-center gap-1 text-slate-500">
+                              <Activity size={12} className="text-green-500" />
+                              <span>{agent.successRate}%</span>
+                            </div>
+                            <div className="flex items-center gap-1 text-slate-500">
+                              <Zap size={12} className="text-violet-400" />
+                              <span>{agent.totalRequests.toLocaleString()} jobs</span>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
           </div>
         </div>
 
