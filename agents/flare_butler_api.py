@@ -2,20 +2,26 @@
 SOTA Flare Butler API — FastAPI Bridge
 
 Exposes HTTP endpoints for the ElevenLabs voice agent and web frontend.
-Internally delegates to the LangGraph butler graph.
+Internally delegates to the OpenAI-backed Butler Agent and in-memory marketplace.
 
 Endpoints:
+  POST /api/flare/chat      — Chat with OpenAI-backed Butler Agent
+  POST /api/flare/query     — Alias for /api/flare/chat (backward compat)
   POST /api/flare/quote     — Get FTSO price quote (USD → FLR)
   POST /api/flare/create    — Create + fund a job on Flare
   POST /api/flare/status    — Check job status + FDC attestation
   POST /api/flare/release   — Release payment (FDC-gated)
   GET  /api/flare/price     — Current FLR/USD from FTSO
+  GET  /api/flare/marketplace/jobs     — List marketplace jobs
+  GET  /api/flare/marketplace/bids/{id} — Get bids for a job
+  GET  /api/flare/marketplace/workers  — List registered workers
 """
 
 import os
 import sys
 import time
 import asyncio
+import logging
 from typing import Optional, List, Dict, Any
 
 from fastapi import FastAPI, HTTPException
@@ -43,9 +49,23 @@ from agents.src.shared.flare_contracts import (
     get_escrow_deposit,
 )
 from agents.src.shared.butler_comms import ButlerDataExchange
-from agents.src.shared.database import Database
+try:
+    from agents.src.shared.database import Database
+except ImportError:
+    Database = None  # type: ignore
+
+# New: OpenAI Butler Agent + JobBoard marketplace
+from agents.src.butler.agent import ButlerAgent, create_butler_agent
+from agents.src.shared.job_board import JobBoard, JobStatus
+
+# Worker agents — created in-process for JobBoard bidding
+from agents.src.hackathon.agent import HackathonAgent, create_hackathon_agent
+from agents.src.caller.agent import CallerAgent
 
 load_dotenv()
+
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 app = FastAPI(title="SOTA Flare Butler API")
 
@@ -60,10 +80,25 @@ app.add_middleware(
 # ─── Globals ──────────────────────────────────────────────────
 
 contracts: Optional[FlareContracts] = None
-db: Optional[Database] = None
+butler_agent: Optional[ButlerAgent] = None
+job_board: Optional[JobBoard] = None
+hackathon_agent: Optional[HackathonAgent] = None
+caller_agent: Optional[CallerAgent] = None
 
 
 # ─── Request / Response Models ────────────────────────────────
+
+class ChatRequest(BaseModel):
+    query: str
+    session_id: Optional[str] = None
+    user_id: Optional[str] = None
+    timestamp: Optional[int] = None
+
+
+class ChatResponse(BaseModel):
+    response: str
+    session_id: Optional[str] = None
+    model: str = "gpt-4o-mini"
 
 class QuoteRequest(BaseModel):
     budget_usd: float
@@ -91,6 +126,30 @@ class CreateJobResponse(BaseModel):
     flr_locked: float
     provider: str
     message: str
+
+
+class MarketplacePostRequest(BaseModel):
+    """Accept the raw job JSON from ElevenLabs and post to marketplace."""
+    model_config = {"extra": "allow"}
+
+    task: str
+    location: Optional[str] = None
+    date_range: Optional[str] = None
+    online_or_in_person: Optional[str] = None
+    theme_technology_focus: Optional[Any] = None
+    # Booking fields
+    city: Optional[str] = None
+    date: Optional[str] = None
+    time: Optional[str] = None
+    guests: Optional[int] = None
+    cuisine: Optional[str] = None
+    check_in: Optional[str] = None
+    check_out: Optional[str] = None
+    room_type: Optional[str] = None
+    budget: Optional[str] = None
+    budget_usd: float = 0.02  # USD — FTSO converts to ~2 C2FLR on-chain
+    deadline_hours: int = 24
+    wallet_address: Optional[str] = None
 
 
 class JobStatusRequest(BaseModel):
@@ -124,23 +183,27 @@ class PriceResponse(BaseModel):
 
 @app.on_event("startup")
 async def startup_event():
-    global contracts, db
+    global contracts, butler_agent, job_board, hackathon_agent, caller_agent
     network = get_network()
     print(f"🚀 Starting SOTA Flare Butler API...")
     print(f"🌐 Network: {network.rpc_url} (chain {network.chain_id})")
 
     # ── Connect to PostgreSQL ────────────────────────────────
-    try:
-        db = await Database.connect()
-        print("✅ Connected to PostgreSQL")
-    except Exception as e:
-        print(f"⚠️ PostgreSQL unavailable — running without persistence: {e}")
+    if Database is not None:
+        try:
+            db = await Database.connect()
+            print("✅ Connected to PostgreSQL")
+        except Exception as e:
+            print(f"⚠️ PostgreSQL unavailable — running without persistence: {e}")
+    else:
+        print("⚠️ Database module not available — running without persistence")
 
     pk = get_private_key("butler")
     if not pk:
         print("⚠️ FLARE_PRIVATE_KEY not set. Read-only mode.")
         return
 
+    # ── Flare contracts ──────────────────────────────────────
     try:
         contracts = get_flare_contracts(pk)
         print(f"✅ Connected to Flare ({network.native_currency})")
@@ -151,10 +214,291 @@ async def startup_event():
     except Exception as e:
         print(f"❌ Failed to connect: {e}")
 
+    # ── OpenAI Butler Agent ──────────────────────────────────
+    openai_key = os.getenv("OPENAI_API_KEY")
+    if openai_key:
+        try:
+            butler_agent = create_butler_agent(
+                private_key=pk,
+                openai_api_key=openai_key,
+            )
+            print(f"🤖 Butler Agent initialized (OpenAI gpt-4o-mini)")
+        except Exception as e:
+            print(f"⚠️ Butler Agent init failed: {e}")
+    else:
+        print("⚠️ OPENAI_API_KEY not set — Butler Agent disabled (Flare endpoints still work)")
+
+    # ── JobBoard Marketplace ─────────────────────────────────
+    job_board = JobBoard.instance()
+    print(f"🏪 JobBoard marketplace ready (in-memory)")
+
+    # ── Register Worker Agents (in-process for JobBoard) ─────
+    # These run in the same process so they can receive broadcasts
+    # from the JobBoard and auto-bid on matching jobs.
+
+    try:
+        hackathon_agent = await create_hackathon_agent()
+        print(f"🏆 HackathonAgent registered on JobBoard (tags: hackathon_registration)")
+    except Exception as e:
+        print(f"⚠️ HackathonAgent init failed (non-critical): {e}")
+
+    try:
+        caller_agent = CallerAgent()
+        await caller_agent.initialize()
+        caller_agent.register_on_board()
+        print(f"📞 CallerAgent registered on JobBoard (tags: call_verification, hotel_booking)")
+    except Exception as e:
+        print(f"⚠️ CallerAgent init failed (non-critical): {e}")
+
+    # Log registered workers
+    workers = job_board.workers
+    print(f"📊 {len(workers)} worker(s) registered: {list(workers.keys())}")
+
 
 @app.get("/")
 async def root():
     return {"status": "SOTA Flare Butler API running", "version": "2.0"}
+
+
+# ─── Butler Agent Chat (OpenAI) ──────────────────────────────
+
+@app.post("/api/flare/chat")
+async def chat_with_butler(req: ChatRequest):
+    """
+    Send a message to the OpenAI-backed Butler Agent.
+    The Butler uses tool-calling to search knowledge, fill slots,
+    post jobs to the marketplace, and track deliveries.
+
+    Returns:
+      - response: str — friendly text for user
+      - job_posted: dict|null — structured job data if a job was posted on-chain
+    """
+    if not butler_agent:
+        raise HTTPException(503, "Butler Agent not initialized. Check OPENAI_API_KEY.")
+    try:
+        result = await butler_agent.chat(
+            message=req.query,
+            user_id=req.user_id or "web_user",
+        )
+        return {
+            "response": result["response"],
+            "session_id": req.session_id,
+            "model": "gpt-4o-mini",
+            "job_posted": result.get("job_posted"),
+        }
+    except Exception as e:
+        logger.error("Butler chat error: %s", e)
+        raise HTTPException(500, f"Butler chat failed: {e}")
+
+
+@app.post("/api/flare/query")
+async def query_butler_compat(req: ChatRequest):
+    """Backward-compatible alias for /api/flare/chat."""
+    result = await chat_with_butler(req)
+    return {
+        "response": result["response"],
+        "message": result["response"],
+        "session_id": result.get("session_id"),
+        "job_posted": result.get("job_posted"),
+    }
+
+
+# ─── Marketplace Endpoints ───────────────────────────────────
+
+@app.get("/api/flare/marketplace/jobs")
+async def list_marketplace_jobs(status: Optional[str] = None):
+    """List all jobs on the in-memory marketplace."""
+    board = JobBoard.instance()
+    if status == "open":
+        jobs = board.list_open_jobs()
+    else:
+        jobs = board.list_all_jobs()
+
+    return {
+        "total": len(jobs),
+        "jobs": [
+            {
+                "job_id": j.job_id,
+                "description": j.description,
+                "tags": j.tags,
+                "budget_flr": j.budget_flr,
+                "status": j.status.value,
+                "poster": j.poster,
+                "posted_at": j.posted_at,
+                "deadline_ts": j.deadline_ts,
+                "metadata": j.metadata,
+            }
+            for j in jobs
+        ],
+    }
+
+
+@app.get("/api/flare/marketplace/bids/{job_id}")
+async def get_marketplace_bids(job_id: str):
+    """Get all bids for a specific marketplace job."""
+    board = JobBoard.instance()
+    bids = board.get_bids(job_id)
+    job = board.get_job(job_id)
+
+    return {
+        "job_id": job_id,
+        "job_status": job.status.value if job else "not_found",
+        "total_bids": len(bids),
+        "bids": [
+            {
+                "bid_id": b.bid_id,
+                "bidder_id": b.bidder_id,
+                "bidder_address": b.bidder_address,
+                "amount_flr": b.amount_flr,
+                "estimated_seconds": b.estimated_seconds,
+                "tags": b.tags,
+                "submitted_at": b.submitted_at,
+            }
+            for b in bids
+        ],
+    }
+
+
+@app.get("/api/flare/marketplace/workers")
+async def list_marketplace_workers():
+    """List all registered worker agents."""
+    board = JobBoard.instance()
+    workers = board.workers
+
+    return {
+        "total": len(workers),
+        "workers": [
+            {
+                "worker_id": w.worker_id,
+                "address": w.address,
+                "tags": w.tags,
+                "max_concurrent": w.max_concurrent,
+                "active_jobs": w.active_jobs,
+            }
+            for w in workers.values()
+        ],
+    }
+
+
+# ─── Marketplace Post (from ElevenLabs) ──────────────────────
+
+@app.post("/api/flare/marketplace/post")
+async def post_job_from_elevenlabs(req: MarketplacePostRequest):
+    """
+    Receive a structured job JSON from ElevenLabs voice agent
+    and post it to the marketplace.
+    
+    This is the bridge: ElevenLabs gathers info → creates JSON →
+    calls this endpoint → job is posted to JobBoard → workers bid.
+    """
+    from agents.src.butler.tools import PostJobTool
+
+    # Coerce theme_technology_focus: string -> list
+    if isinstance(req.theme_technology_focus, str):
+        req.theme_technology_focus = [
+            t.strip() for t in req.theme_technology_focus.replace("/", ",").split(",") if t.strip()
+        ]
+
+    # Build description and parameters from the raw job fields
+    task = req.task
+    params = req.model_dump(
+        exclude={"task", "budget_usd", "deadline_hours", "wallet_address"},
+        exclude_none=True,
+    )
+    
+    # Map task name to a tool type
+    task_lower = task.lower().replace(" ", "_")
+    TASK_TO_TOOL = {
+        "hackathon_discovery": "hackathon_registration",
+        "hackathon_registration": "hackathon_registration",
+        "hotel_booking": "hotel_booking",
+        "restaurant_booking": "restaurant_booking",
+        "call_verification": "call_verification",
+    }
+    tool_type = TASK_TO_TOOL.get(task_lower, task_lower)
+    
+    # Fallback substring matching
+    if tool_type == task_lower and tool_type not in TASK_TO_TOOL.values():
+        if "hackathon" in task_lower:
+            tool_type = "hackathon_registration"
+        elif "hotel" in task_lower:
+            tool_type = "hotel_booking"
+        elif "restaurant" in task_lower:
+            tool_type = "restaurant_booking"
+        elif "call" in task_lower:
+            tool_type = "call_verification"
+
+    description = f"{task}: {', '.join(f'{k}={v}' for k, v in params.items())}"
+
+    logger.info(f"📢 ElevenLabs job received: {tool_type} — {description}")
+    print(f"📢 ElevenLabs job received: task={task}, tool={tool_type}")
+    print(f"   params={params}")
+
+    try:
+        post_tool = PostJobTool()
+        result = await post_tool.execute(
+            description=description,
+            tool=tool_type,
+            parameters=params,
+            budget_usd=req.budget_usd,
+            deadline_hours=req.deadline_hours,
+        )
+        print(f"✅ Marketplace post result: {result[:200]}")
+        return {
+            "success": True,
+            "message": result,
+            "tool_type": tool_type,
+            "description": description,
+        }
+    except Exception as e:
+        logger.error(f"Marketplace post failed: {e}")
+        print(f"❌ Marketplace post failed: {e}")
+        return {
+            "success": False,
+            "message": f"Failed to post job: {e}",
+            "tool_type": tool_type,
+        }
+
+
+# ─── Escrow Info (for frontend wallet funding) ───────────────
+
+@app.get("/api/flare/escrow/info")
+async def get_escrow_info():
+    """
+    Return the FlareEscrow contract address so the frontend
+    can prompt the user to fund escrow from their own wallet.
+    """
+    if not contracts:
+        raise HTTPException(503, "Not connected to Flare")
+    return {
+        "escrow_address": contracts.addresses.flare_escrow,
+        "order_book_address": contracts.addresses.flare_order_book,
+        "chain_id": get_network().chain_id,
+        "native_currency": "C2FLR",
+    }
+
+
+@app.get("/api/flare/escrow/deposit/{job_id}")
+async def get_escrow_deposit_info(job_id: int):
+    """
+    Check if a job's escrow has been funded and how much C2FLR is locked.
+    """
+    if not contracts:
+        raise HTTPException(503, "Not connected to Flare")
+    try:
+        dep = get_escrow_deposit(contracts, job_id)
+        return {
+            "job_id": job_id,
+            "funded": dep.get("funded", False),
+            "amount_flr": dep.get("amount_flr", 0),
+            "usd_value": dep.get("usd_value", 0),
+            "released": dep.get("released", False),
+            "refunded": dep.get("refunded", False),
+            "poster": dep.get("poster", ""),
+            "provider": dep.get("provider", ""),
+        }
+    except Exception as e:
+        raise HTTPException(500, f"Failed to get escrow deposit: {e}")
 
 
 # ─── FTSO: Price & Quote ─────────────────────────────────────

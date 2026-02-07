@@ -31,43 +31,53 @@ logger = logging.getLogger(__name__)
 # ──────────────────────────────────────────────────────────────
 
 BUTLER_SYSTEM_PROMPT = """
-You are the Butler AI for SOTA — a decentralized agent marketplace on Flare.
+You are the Butler — a personal AI concierge for SOTA, a decentralized service platform on Flare.
+
+You speak like a warm, professional personal assistant. NEVER use technical
+marketplace jargon with the user. No mention of "posting jobs", "bids",
+"workers", "slots", or "marketplace" — to the user you are simply
+handling their request behind the scenes.
 
 ### MANDATORY WORKFLOW
-For EVERY user request, you must follow this sequence:
+For EVERY user request, follow this sequence:
 
-1. **CHECK KNOWLEDGE (RAG)**:
-   - Call `rag_search` to see if you have context or if this is a simple question.
-   - If the tool says "Match found", answer the user and STOP.
-   - If the tool says "No match", PROCEED to Step 2 (Evaluate Intent).
+1. **UNDERSTAND THE REQUEST**:
+   - If the user wants something done (book, find hackathon, call, search, etc.) → call `fill_slots`.
+   - If unclear → ask a natural clarifying question and STOP.
+   - After `fill_slots`:
+     - If missing info → ask the user naturally and STOP.
+     - If all info gathered → summarize and ask: "Shall I go ahead?"
+       STOP and wait for confirmation.
 
-2. **EVALUATE INTENT**:
-   - **DECISION POINT**:
-     - If the user clearly wants to perform a task (scrape, analyze, etc.) -> Call `fill_slots`.
-     - If the user's intent is unclear or looks like a question you don't know -> ASK for clarification and STOP.
+2. **EXECUTE — THIS IS THE MOST IMPORTANT STEP**:
+   When the user confirms ("yes", "go ahead", "do it", "the details are accurate", etc.):
 
-   - **IF CALLING `fill_slots`**:
-     - If the tool says "Missing slots", ASK the user the questions provided and STOP.
-     - If the tool says "Ready", SUMMARIZE the job and ASK for confirmation. STOP.
+   YOU MUST IMMEDIATELY CALL THE `post_job` FUNCTION.
 
-3. **POST JOB**:
-   - ONLY after the user explicitly confirms "Yes, post it", call `post_job`.
+   Do NOT write JSON. Do NOT show parameters as text.
+   You must make a FUNCTION CALL to `post_job` with these arguments:
+   - description: a natural language description of the task
+   - tool: the job type (e.g. "hackathon_registration", "hotel_booking", "call_verification")
+   - parameters: an object with the gathered details
 
-4. **POLL BIDS**:
-   - Immediately after posting, call `get_bids` to show initial status.
-   - Present the bids to the user and STOP.
+   ⚠️ VIOLATION: Outputting JSON like ```json {...}``` as text is FORBIDDEN.
+   ⚠️ VIOLATION: Saying "I will now create the job request" without calling `post_job` is FORBIDDEN.
+   ✅ CORRECT: Make a function call to `post_job` tool.
 
-5. **AGENT COMMUNICATION** (after job is assigned):
-   - Worker agents may request additional data during job execution.
-   - Call `check_agent_requests` to see if any agent needs information.
-   - If there are requests, relay the questions to the user and STOP.
-   - When the user answers, call `answer_agent_request` to send the data back.
-   - Call `get_agent_updates` periodically to get progress updates from
-     the worker and share them with the user.
+3. **REPORT BACK**:
+   After `post_job` returns:
+   - Success → "I've got someone working on it. I'll keep you updated."
+   - No bids → "I wasn't able to find anyone available right now. Want me to try again?"
+   - NEVER mention bids, workers, job IDs, USDC, or marketplace.
 
-### STOPPING RULES
-- If you generate a text response to the user, you MUST STOP.
-- Do NOT loop. Do NOT call `fill_slots` repeatedly without user input.
+4. **AGENT COMMUNICATION** (after job is assigned):
+   - Call `check_agent_requests` to see if a worker needs information.
+   - Relay questions to user. When user answers, call `answer_agent_request`.
+   - Call `get_agent_updates` for progress and share with user.
+
+### TONE
+- Friendly, concise, professional — like a hotel concierge.
+- NEVER expose internal tool names, job IDs, or marketplace mechanics.
 """
 
 
@@ -122,32 +132,124 @@ class ButlerAgent:
 
         logger.info("🤖 Butler Agent initialized (model=%s)", self.model)
 
-    async def chat(self, message: str, user_id: str = "cli_user") -> str:
+    async def chat(self, message: str, user_id: str = "cli_user") -> dict:
         """
         Main chat interface — send message and get response.
+        Includes safety net: if LLM outputs JSON instead of calling post_job,
+        we detect it and auto-call post_job.
 
-        Args:
-            message: User's message
-            user_id: User identifier for personalization
-
-        Returns:
-            Butler's response
+        Returns dict with:
+          - "response": str — friendly text for user
+          - "job_posted": dict|None — structured job data if post_job was called
         """
         self.conversation_history.append({"role": "user", "content": message})
 
         try:
-            response = await self.agent_runner.run_with_history(
+            result = await self.agent_runner.run_with_history(
                 user_message=message,
                 history=self.conversation_history[:-1],
             )
 
+            response = result["response"]
+            tool_results = result.get("tool_results", [])
+
+            # ── Extract job posting data from tool results ───
+            job_posted = None
+            for tr in tool_results:
+                if tr["tool"] == "post_job":
+                    try:
+                        job_data = json.loads(tr["result"])
+                        if job_data.get("success"):
+                            job_posted = job_data
+                            logger.info("📦 post_job result captured for frontend: job #%s", job_data.get("on_chain_job_id"))
+                    except (json.JSONDecodeError, TypeError):
+                        pass
+
+            # ── Safety net: detect JSON in text response ─────────
+            if not job_posted:
+                response, job_posted = await self._intercept_json_job(response)
+
             self.conversation_history.append({"role": "assistant", "content": response})
-            return response
+            return {"response": response, "job_posted": job_posted}
 
         except Exception as e:
             error_msg = f"I encountered an error: {e}"
             logger.error("Chat error: %s", e)
-            return error_msg
+            return {"response": error_msg, "job_posted": None}
+
+    async def _intercept_json_job(self, response: str) -> tuple:
+        """
+        Safety net: if the LLM returned a text response containing JSON
+        that looks like a job definition, auto-call post_job and return
+        a user-friendly message instead.
+
+        Returns (response_text, job_posted_data_or_None)
+        """
+        import re
+
+        # Look for JSON block in the response
+        json_match = re.search(r'```(?:json)?\s*({[^`]+})\s*```', response)
+        if not json_match:
+            # Try bare JSON object
+            json_match = re.search(r'(\{[\s\S]*"(?:job|tool|description|location|theme)"[\s\S]*\})', response)
+        if not json_match:
+            return response, None
+
+        try:
+            data = json.loads(json_match.group(1))
+        except (json.JSONDecodeError, IndexError):
+            return response, None
+
+        # Check if it looks like a job definition
+        job_keys = {"job", "tool", "description", "location", "theme", "type",
+                    "parameters", "date_range", "online_or_in_person", "phone_number"}
+        if not (set(data.keys()) & job_keys):
+            return response, None
+
+        logger.info("🔄 Intercepted JSON job in text response — auto-posting to marketplace")
+        print("🔄 SAFETY NET: LLM output JSON as text — auto-routing to post_job")
+
+        # Build post_job arguments from the intercepted JSON
+        tool_type = data.get("job", data.get("tool", "generic"))
+        description_parts = []
+        for k, v in data.items():
+            if k not in ("job", "tool"):
+                description_parts.append(f"{k}: {v}")
+        description = data.get("description", "; ".join(description_parts))
+
+        # Parameters = everything except "job" and "description"
+        parameters = {k: v for k, v in data.items() if k not in ("job", "tool", "description")}
+
+        try:
+            result = await self.tool_manager.call(
+                "post_job",
+                json.dumps({
+                    "description": description,
+                    "tool": tool_type,
+                    "parameters": parameters,
+                }),
+            )
+            result_data = json.loads(result)
+
+            if result_data.get("success"):
+                winning = result_data.get("winning_bid", {})
+                eta = winning.get("eta_seconds", 120)
+                return (
+                    f"I've found a specialist and they're working on your request now. "
+                    f"Estimated time: about {eta // 60} minutes. "
+                    f"I'll keep you posted on the progress!"
+                ), result_data
+            else:
+                return (
+                    "I wasn't able to find anyone available at the moment. "
+                    "Would you like me to try again in a few minutes?"
+                ), None
+        except Exception as e:
+            logger.error("Auto post_job failed: %s", e)
+            return (
+                "I'm setting that up for you now. "
+                "Give me a moment to find the best option."
+            ), None
 
     async def post_job(
         self,

@@ -108,23 +108,23 @@ class AutoBidderMixin:
                          getattr(self, "agent_type", "?"), active, max_conc, job.job_id)
             return None
 
-        # Price: bid_price_ratio × budget (never below 0.5 USDC)
+        # Price: bid_price_ratio × budget (never below 0.5 C2FLR)
         ratio = getattr(self, "bid_price_ratio", 0.80)
-        proposed = max(job.budget_usdc * ratio, 0.50)
+        proposed = max(job.budget_flr * ratio, 0.50)
 
         bid = Bid(
             bid_id=str(uuid.uuid4())[:8],
             job_id=job.job_id,
             bidder_id=getattr(self, "agent_type", "worker"),
             bidder_address=getattr(self, "wallet", None) and self.wallet.address or "0x0",
-            amount_usdc=round(proposed, 2),
+            amount_flr=round(proposed, 2),
             estimated_seconds=getattr(self, "bid_eta_seconds", self.bid_eta_seconds),
             tags=list(overlap),
         )
 
         logger.info(
-            "🤖 %s bidding %.2f USDC on job %s  (tags matched: %s)",
+            "🤖 %s bidding %.2f C2FLR on job %s  (tags matched: %s)",
             getattr(self, "agent_name", "Worker"),
-            bid.amount_usdc, job.job_id, list(overlap),
+            bid.amount_flr, job.job_id, list(overlap),
         )
         return bid

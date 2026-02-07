@@ -53,7 +53,7 @@ class GetJobDetailsTool(BaseTool):
                 "job_type": job[1] if len(job) > 1 else 0,
                 "job_type_label": JOB_TYPE_LABELS.get(JobType(job[1]), "Unknown") if len(job) > 1 else "Unknown",
                 "budget": job[2] if len(job) > 2 else 0,
-                "budget_usdc": (job[2] / 1_000_000) if len(job) > 2 else 0,
+                "budget_flr": (job[2] / 10**18) if len(job) > 2 else 0,
                 "client": job[3] if len(job) > 3 else "",
                 "deadline": job[4] if len(job) > 4 else 0,
                 "status": job[5] if len(job) > 5 else 0,
@@ -99,7 +99,7 @@ class ListJobBidsTool(BaseTool):
                     "bid_id": i,
                     "bidder": bid[0] if len(bid) > 0 else "",
                     "amount": bid[1] if len(bid) > 1 else 0,
-                    "amount_usdc": (bid[1] / 1_000_000) if len(bid) > 1 else 0,
+                    "amount_flr": (bid[1] / 10**18) if len(bid) > 1 else 0,
                     "estimated_time": bid[2] if len(bid) > 2 else 0,
                 })
             
@@ -121,7 +121,7 @@ class PlaceBidTool(BaseTool):
     Place a bid on an open job. This submits a transaction to the blockchain.
     
     The bid includes:
-    - Amount: How much USDC you're willing to accept
+    - Amount: How much C2FLR you're willing to accept
     - Estimated Time: How long you expect the job to take (in seconds)
     - Metadata: Optional URI with additional proposal information
     """
@@ -132,9 +132,9 @@ class PlaceBidTool(BaseTool):
                 "type": "integer",
                 "description": "The job ID to bid on"
             },
-            "amount_usdc": {
+            "amount_flr": {
                 "type": "number",
-                "description": "Bid amount in USDC (e.g., 10.50)"
+                "description": "Bid amount in C2FLR (e.g., 10.50)"
             },
             "estimated_hours": {
                 "type": "number",
@@ -145,7 +145,7 @@ class PlaceBidTool(BaseTool):
                 "description": "Optional notes about your proposal"
             }
         },
-        "required": ["job_id", "amount_usdc", "estimated_hours"]
+        "required": ["job_id", "amount_flr", "estimated_hours"]
     }
     
     _contracts: Optional[ContractInstances] = None
@@ -160,7 +160,7 @@ class PlaceBidTool(BaseTool):
     async def execute(
         self,
         job_id: int,
-        amount_usdc: float,
+        amount_flr: float,
         estimated_hours: float,
         proposal_notes: str = ""
     ) -> str:
@@ -169,7 +169,7 @@ class PlaceBidTool(BaseTool):
         
         try:
             # Convert to contract units
-            amount_raw = int(amount_usdc * 1_000_000)  # 6 decimals
+            amount_raw = int(amount_flr * 10**18)  # 18 decimals (Wei)
             estimated_seconds = int(estimated_hours * 3600)
             
             # Create metadata URI (could be IPFS in production)
@@ -189,7 +189,7 @@ class PlaceBidTool(BaseTool):
                 "success": True,
                 "job_id": job_id,
                 "bid_id": bid_id,
-                "amount_usdc": amount_usdc,
+                "amount_flr": amount_flr,
                 "estimated_hours": estimated_hours,
                 "metadata_uri": metadata_uri
             }, indent=2)

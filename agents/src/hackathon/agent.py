@@ -156,10 +156,10 @@ class HackathonAgent(AutoBidderMixin, BaseArchiveAgent):
     def get_bidding_prompt(self, job: JobPostedEvent) -> str:
         """Not used for auto-bid; kept for compatibility."""
         job_type_label = JOB_TYPE_LABELS.get(JobType(job.job_type), "Unknown")
-        budget_usdc = job.budget / 1_000_000
+        budget_flr = job.budget / 10**18
         return (
             f"Auto-bid mode: will place bid on job {job.job_id} "
-            f"({job_type_label}) budget {budget_usdc} USDC."
+            f"({job_type_label}) budget {budget_flr} C2FLR."
         )
 
     async def execute_job(self, job: ActiveJob) -> dict:

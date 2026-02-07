@@ -1,5 +1,5 @@
-import { http, createConfig, createConnector } from 'wagmi';
-import { injected, walletConnect } from 'wagmi/connectors';
+import { http, createConfig } from 'wagmi';
+import { injected, walletConnect, coinbaseWallet } from 'wagmi/connectors';
 import { defineChain } from 'viem';
 
 export const flareCoston2 = defineChain({
@@ -20,17 +20,25 @@ export const flareCoston2 = defineChain({
   testnet: true,
 });
 
-// Build connectors list — WalletConnect only if project ID is provided
-const connectors = (() => {
-  const list = [
-    injected({ shimDisconnect: true }),
-  ];
+// ── WalletConnect project ID ────────────────────────────────
+// Get one free at https://cloud.walletconnect.com
+const WC_PROJECT_ID =
+  process.env.NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID || 'demo-project-id';
 
-  const wcProjectId = process.env.NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID;
-  if (wcProjectId) {
+// ── Build connectors ────────────────────────────────────────
+const hasRealWcId = WC_PROJECT_ID !== 'demo-project-id';
+
+const connectors = (() => {
+  const list: ReturnType<typeof injected>[] = [];
+
+  // 1. Browser-injected wallet (MetaMask, Rabby, etc.)
+  list.push(injected({ shimDisconnect: true }));
+
+  // 2. WalletConnect — only if we have a real project ID
+  if (hasRealWcId) {
     list.push(
       walletConnect({
-        projectId: wcProjectId,
+        projectId: WC_PROJECT_ID,
         metadata: {
           name: 'SOTA Butler',
           description: 'AI Agent Marketplace on Flare',
@@ -41,6 +49,13 @@ const connectors = (() => {
       }) as any
     );
   }
+
+  // 3. Coinbase Wallet — works without WC project ID
+  list.push(
+    coinbaseWallet({
+      appName: 'SOTA Butler',
+    }) as any
+  );
 
   return list;
 })();

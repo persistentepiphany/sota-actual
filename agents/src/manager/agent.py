@@ -531,7 +531,7 @@ class ManagerAgent:
             "job_type": job_type,
             "job_type_label": job_type_label,
             "budget_micro": budget,
-            "budget_usdc": budget / 1_000_000 if budget else 0,
+            "budget_flr": budget / 10**18 if budget else 0,
             "deadline": deadline,
             "tags": normalized_tags,
         }

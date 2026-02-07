@@ -43,7 +43,7 @@ class JobListing:
     job_id: str                              # unique id (on-chain id or uuid)
     description: str
     tags: List[str]                          # e.g. ["hotel_booking", "call_verification"]
-    budget_usdc: float                       # max budget in USDC
+    budget_flr: float                        # max budget in C2FLR
     deadline_ts: int                         # unix timestamp
     poster: str                              # wallet address of poster
     metadata: Dict[str, Any] = field(default_factory=dict)
@@ -59,16 +59,16 @@ class Bid:
     job_id: str
     bidder_id: str                           # agent identifier
     bidder_address: str                      # wallet address
-    amount_usdc: float                       # quoted price
+    amount_flr: float                        # quoted price in C2FLR
     estimated_seconds: int                   # estimated completion time
     tags: List[str]                          # what capabilities matched
     submitted_at: float = field(default_factory=time.time)
     metadata: Dict[str, Any] = field(default_factory=dict)
 
     @property
-    def amount_micro(self) -> int:
-        """Amount in on-chain micro-USDC (6 decimals)."""
-        return int(self.amount_usdc * 1_000_000)
+    def amount_wei(self) -> int:
+        """Amount in wei (18 decimals) for on-chain C2FLR."""
+        return int(self.amount_flr * 10**18)
 
 
 @dataclass
@@ -182,8 +182,8 @@ class JobBoard:
         self._bids[job.job_id] = []
 
         logger.info(
-            "📢 Job posted: id=%s  tags=%s  budget=%.2f USDC  window=%ds",
-            job.job_id, job.tags, job.budget_usdc, job.bid_window_seconds,
+            "📢 Job posted: id=%s  tags=%s  budget=%.2f C2FLR  window=%ds",
+            job.job_id, job.tags, job.budget_flr, job.bid_window_seconds,
         )
 
         # ── 1. Broadcast to matching workers ─────────────────
@@ -219,10 +219,10 @@ class JobBoard:
         if result.winning_bid:
             job.status = JobStatus.ASSIGNED
             logger.info(
-                "🏆 Winner for job %s: worker=%s  price=%.2f USDC  eta=%ds",
+                "🏆 Winner for job %s: worker=%s  price=%.2f C2FLR  eta=%ds",
                 job.job_id,
                 result.winning_bid.bidder_id,
-                result.winning_bid.amount_usdc,
+                result.winning_bid.amount_flr,
                 result.winning_bid.estimated_seconds,
             )
             if on_chain_accept:
@@ -266,8 +266,8 @@ class JobBoard:
                 bid.bidder_address = worker.address
                 self._bids[job.job_id].append(bid)
                 logger.info(
-                    "  💰 Bid received: worker=%s  price=%.2f USDC  eta=%ds",
-                    worker.worker_id, bid.amount_usdc, bid.estimated_seconds,
+                    "  💰 Bid received: worker=%s  price=%.2f C2FLR  eta=%ds",
+                    worker.worker_id, bid.amount_flr, bid.estimated_seconds,
                 )
         except asyncio.TimeoutError:
             logger.debug("  Worker %s timed out on job %s", worker.worker_id, job.job_id)
@@ -295,22 +295,22 @@ class JobBoard:
                 reason="No bids received within the window",
             )
 
-        eligible = [b for b in bids if b.amount_usdc <= job.budget_usdc]
+        eligible = [b for b in bids if b.amount_flr <= job.budget_flr]
         if not eligible:
-            cheapest = min(bids, key=lambda b: b.amount_usdc)
+            cheapest = min(bids, key=lambda b: b.amount_flr)
             return BidResult(
                 job_id=job.job_id,
                 winning_bid=None,
                 all_bids=bids,
                 reason=(
                     f"All {len(bids)} bid(s) exceeded the budget "
-                    f"(cheapest: {cheapest.amount_usdc:.2f} USDC vs "
-                    f"budget {job.budget_usdc:.2f} USDC)"
+                    f"(cheapest: {cheapest.amount_flr:.2f} C2FLR vs "
+                    f"budget {job.budget_flr:.2f} C2FLR)"
                 ),
             )
 
         # Sort: lowest price → earliest submission
-        eligible.sort(key=lambda b: (b.amount_usdc, b.submitted_at))
+        eligible.sort(key=lambda b: (b.amount_flr, b.submitted_at))
         winner = eligible[0]
 
         return BidResult(
@@ -318,7 +318,7 @@ class JobBoard:
             winning_bid=winner,
             all_bids=bids,
             reason=(
-                f"Lowest price: {winner.amount_usdc:.2f} USDC "
+                f"Lowest price: {winner.amount_flr:.2f} C2FLR "
                 f"from {winner.bidder_id} "
                 f"(out of {len(bids)} bid(s), {len(eligible)} under budget)"
             ),

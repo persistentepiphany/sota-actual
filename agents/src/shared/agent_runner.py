@@ -147,10 +147,14 @@ class AgentRunner:
         self,
         user_message: str,
         history: List[dict],
-    ) -> str:
+    ) -> dict:
         """
         Like :meth:`run` but accepts a pre-existing conversation history.
         The system prompt is prepended automatically if not already present.
+
+        Returns a dict with:
+          - "response": str — the final text from the LLM
+          - "tool_results": list[dict] — raw results from each tool call
         """
         messages: List[dict] = []
         if not history or history[0].get("role") != "system":
@@ -159,18 +163,24 @@ class AgentRunner:
         messages.append({"role": "user", "content": user_message})
 
         openai_tools = self.tools.to_openai_tools() or None
+        tool_results: List[dict] = []
 
         for step in range(self.max_steps):
             choice = await self.llm.chat(messages, tools=openai_tools)
             msg = choice.message
 
             if msg.content and not msg.tool_calls:
-                return msg.content
+                logger.info("[%s] step %d → text response (len=%d)", self.name, step+1, len(msg.content))
+                return {"response": msg.content, "tool_results": tool_results}
 
             if msg.tool_calls:
                 messages.append(msg.model_dump())
                 for tc in msg.tool_calls:
+                    fn_name = tc.function.name
+                    logger.info("[%s] step %d → tool call: %s", self.name, step+1, fn_name)
+                    print(f"🔧 [{self.name}] calling tool: {fn_name}")
                     result = await self.tools.call(tc.function.name, tc.function.arguments)
+                    tool_results.append({"tool": fn_name, "result": result})
                     messages.append({
                         "role": "tool",
                         "tool_call_id": tc.id,
@@ -178,6 +188,6 @@ class AgentRunner:
                     })
                 continue
 
-            return msg.content or ""
+            return {"response": msg.content or "", "tool_results": tool_results}
 
-        return "I've reached my step limit. Please try rephrasing your request."
+        return {"response": "I've reached my step limit. Please try rephrasing your request.", "tool_results": tool_results}
