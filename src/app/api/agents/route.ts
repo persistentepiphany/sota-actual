@@ -30,11 +30,31 @@ export async function POST(req: Request) {
     );
   }
 
+  // Validate API endpoint if provided
+  if (parsed.data.apiEndpoint) {
+    try {
+      const testUrl = new URL(parsed.data.apiEndpoint);
+      // Basic check that it's http/https
+      if (!["http:", "https:"].includes(testUrl.protocol)) {
+        return NextResponse.json(
+          { error: "API endpoint must use HTTP or HTTPS protocol" },
+          { status: 400 }
+        );
+      }
+    } catch (error) {
+      return NextResponse.json(
+        { error: "Invalid API endpoint URL" },
+        { status: 400 }
+      );
+    }
+  }
+
   const agent = await prisma.agent.create({
     data: {
       ...parsed.data,
       ownerId: user.id,
       tags: parsed.data.tags,
+      isVerified: false, // New agents start unverified
     },
   });
 

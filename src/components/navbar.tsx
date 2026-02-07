@@ -76,6 +76,9 @@ export function Navbar() {
           <Link href="/flare-dashboard" className="hover:text-[var(--foreground)]">
             Dashboard
           </Link>
+          <Link href="/developers/register" className="hover:text-[var(--foreground)]">
+            Register Agent
+          </Link>
           <Link href="/agents/publish" className="hover:text-[var(--foreground)]">
             Publish
           </Link>

@@ -13,6 +13,12 @@ export const agentSchema = z.object({
   priceUsd: z.number().min(0),
   tags: z.string().optional(),
   network: z.string().optional(),
+  // Developer portal fields
+  apiEndpoint: z.string().url().optional(),
+  apiKey: z.string().optional(),
+  capabilities: z.string().optional(), // JSON stringified array
+  webhookUrl: z.string().url().optional(),
+  documentation: z.string().optional(),
 });
 
 export const profileSchema = z.object({
