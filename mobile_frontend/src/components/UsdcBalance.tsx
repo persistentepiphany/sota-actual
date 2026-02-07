@@ -20,7 +20,7 @@ const erc20Abi = [
   },
 ] as const;
 
-export function UsdcBalance() {
+export default function UsdcBalance() {
   const { data, isLoading, error, isFetching } = useReadContract({
     address: STABLECOIN_ADDRESS,
     abi: erc20Abi,

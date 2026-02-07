@@ -1,19 +1,28 @@
-import type { Metadata } from 'next';
+import type { Metadata, Viewport } from 'next';
 import './globals.css';
-import { ReactNode } from 'react';
-import { Providers } from '../src/providers';
 
 export const metadata: Metadata = {
   title: 'SOTA Butler',
-  description: 'AI Agent Butler on Flare — FTSO + FDC powered marketplace',
+  description: 'Your AI-powered personal concierge on Flare',
 };
 
-export default function RootLayout({ children }: { children: ReactNode }) {
+export const viewport: Viewport = {
+  width: 'device-width',
+  initialScale: 1,
+  maximumScale: 1,
+  userScalable: false,
+};
+
+export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en">
-      <body>
-        <Providers>{children}</Providers>
-      </body>
+      <head>
+        <link
+          href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap"
+          rel="stylesheet"
+        />
+      </head>
+      <body>{children}</body>
     </html>
   );
 }

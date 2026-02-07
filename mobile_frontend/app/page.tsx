@@ -1,124 +1,25 @@
 "use client";
 
-import { useEffect, useState } from 'react';
-import { useAccount } from 'wagmi';
-import { VoiceAgent } from '../src/components/VoiceAgent';
-import { Sidebar } from '../src/components/Sidebar';
-import { WelcomeHeading } from '../src/components/WelcomeHeading';
-import { WalletConnectButton } from '../src/components/WalletConnectButton';
-import './globals.css';
+import { useState } from "react";
+import { Providers } from "@/src/providers";
+import StatusBar from "@/src/components/StatusBar";
+import TabBar, { type TabId } from "@/src/components/TabBar";
+import ChatScreen from "@/src/components/ChatScreen";
+import WalletScreen from "@/src/components/WalletScreen";
 
-export default function HomePage() {
-  const agentId = process.env.NEXT_PUBLIC_ELEVENLABS_AGENT_ID;
-  const flareButlerUrl = process.env.NEXT_PUBLIC_FLARE_BUTLER_URL || 'http://localhost:3001/api/flare';
-
-  const { address } = useAccount();
-  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
-  const [conversations, setConversations] = useState<{ id: string; title: string | null }[]>([]);
-  const [activeSessionId, setActiveSessionId] = useState<string | undefined>(undefined);
-  const [orbVisible, setOrbVisible] = useState(false);
-  const [ctaVisible, setCtaVisible] = useState(false);
-  const [chatReady, setChatReady] = useState(false);
-
-  useEffect(() => {
-    const headerDuration = 900;
-    const orbDelay = 200;
-    const ctaDelay = 600;
-    const chatDelay = 800;
-
-    const t1 = setTimeout(() => setOrbVisible(true), headerDuration + orbDelay);
-    const t2 = setTimeout(() => setCtaVisible(true), headerDuration + ctaDelay);
-    const t3 = setTimeout(() => setChatReady(true), headerDuration + chatDelay);
-
-    return () => {
-      clearTimeout(t1);
-      clearTimeout(t2);
-      clearTimeout(t3);
-    };
-  }, []);
-
-  const handleFlareMessage = (message: any) => {
-    console.log('📨 Received from Flare Butler:', message);
-  };
-
-  // Load conversation list when sidebar opens
-  useEffect(() => {
-    if (isSidebarOpen) {
-      fetch('/api/chat')
-        .then((r) => r.json())
-        .then((sessions: any[]) => {
-          if (Array.isArray(sessions)) {
-            setConversations(sessions.map((s: any) => ({ id: s.id, title: s.title })));
-          }
-        })
-        .catch(() => {});
-    }
-  }, [isSidebarOpen]);
-
-  const handleNewChat = () => {
-    const id = `sess_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
-    localStorage.setItem('sota-session-id', id);
-    setActiveSessionId(id);
-    setIsSidebarOpen(false);
-    window.location.reload(); // fresh session
-  };
-
-  const handleSelectConversation = (id: string) => {
-    localStorage.setItem('sota-session-id', id);
-    setActiveSessionId(id);
-    setIsSidebarOpen(false);
-    window.location.reload(); // load that session
-  };
+export default function Home() {
+  const [activeTab, setActiveTab] = useState<TabId>("chat");
 
   return (
-    <main className="flex flex-col h-screen px-3 sm:px-4 pt-4 sm:pt-5">
-    <header className="app-header flex-none">
-        <button
-          className="icon-button header-icon"
-          aria-label="Open menu"
-          type="button"
-          onClick={() => setIsSidebarOpen(true)}
-        >
-          ☰
-        </button>
-        <div className="app-header-spacer" />
-          <div className="flex items-center gap-3 sm:gap-4">
-            <WalletConnectButton />
-          </div>
-      </header>
-
-      <section className="sphere-section flex-1 flex flex-col overflow-hidden">
-        <div className="flex flex-col flex-1 overflow-hidden">
-        <div className="flex flex-col items-center flex-none pb-4">
-          <div className="welcome-anim">
-            <WelcomeHeading />
-          </div>
-        </div>
-
-        {/* VoiceAgent contains flex-1 scrollable chat and bottom mic */}
-        <div className="flex-1 min-h-0">
-          <VoiceAgent 
-            agentId={agentId}
-            flareButlerUrl={flareButlerUrl}
-            onFlareMessage={handleFlareMessage}
-            sidebarOpen={isSidebarOpen}
-            orbVisible={orbVisible}
-            ctaVisible={ctaVisible}
-            chatReady={chatReady}
-            walletAddress={address}
-            sessionId={activeSessionId}
-            onSessionCreated={(id) => setActiveSessionId(id)}
-          />
-        </div>
-        </div>
-      </section>
-      <Sidebar
-        open={isSidebarOpen}
-        conversations={conversations}
-        onSelect={handleSelectConversation}
-        onClose={() => setIsSidebarOpen(false)}
-        onNewChat={handleNewChat}
-      />
-    </main>
+    <Providers>
+      <div className="app-shell">
+        <StatusBar />
+        <main className="app-content">
+          {activeTab === "chat" && <ChatScreen />}
+          {activeTab === "wallet" && <WalletScreen />}
+        </main>
+        <TabBar activeTab={activeTab} onTabChange={setActiveTab} />
+      </div>
+    </Providers>
   );
 }
