@@ -22,10 +22,12 @@ import sys
 import time
 import asyncio
 import logging
+import json
 from typing import Optional, List, Dict, Any
 
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 from dotenv import load_dotenv
 
@@ -489,6 +491,121 @@ async def post_job_from_elevenlabs(req: MarketplacePostRequest):
             "message": f"Failed to post job: {e}",
             "tool_type": tool_type,
         }
+
+
+# ─── Job Execution (after escrow funded) ─────────────────────
+
+@app.post("/api/flare/marketplace/execute/{job_id}")
+async def execute_job_after_escrow(job_id: str):
+    """
+    Trigger job execution AFTER escrow has been funded.
+    
+    Flow: post_and_select(execute_after_accept=False) → user funds escrow →
+    frontend calls this endpoint → we run the winning worker's executor.
+    
+    Returns results directly (synchronous for short jobs).
+    """
+    board = JobBoard.instance()
+    job = board.get_job(job_id)
+    
+    if not job:
+        raise HTTPException(404, f"Job {job_id} not found")
+    
+    # Get the winning bid (stored during post_and_select)
+    winning_bid = board.get_winning_bid(job_id)
+    
+    if not winning_bid:
+        raise HTTPException(400, f"No winning bid for job {job_id}")
+    
+    # Find the worker
+    worker = board.workers.get(winning_bid.bidder_id)
+    if not worker or not worker.executor:
+        raise HTTPException(400, f"Worker {winning_bid.bidder_id} has no executor")
+    
+    logger.info(f"🚀 Executing job {job_id} with worker {winning_bid.bidder_id}…")
+    print(f"🚀 Executing job {job_id} with worker {winning_bid.bidder_id}…")
+    
+    try:
+        # Run the executor
+        exec_result = await worker.executor(job, winning_bid)
+        
+        # Format results for display
+        from agents.src.butler.tools import format_hackathon_results
+        formatted = format_hackathon_results(exec_result)
+        
+        logger.info(f"✅ Job {job_id} execution completed")
+        print(f"✅ Job {job_id} execution completed")
+        
+        return {
+            "success": True,
+            "job_id": job_id,
+            "execution_result": exec_result,
+            "formatted_results": formatted,
+        }
+    except Exception as e:
+        logger.error(f"❌ Job {job_id} execution failed: {e}")
+        print(f"❌ Job {job_id} execution failed: {e}")
+        raise HTTPException(500, f"Job execution failed: {e}")
+
+
+@app.get("/api/flare/marketplace/execute/{job_id}/stream")
+async def execute_job_with_sse(job_id: str):
+    """
+    Execute job with Server-Sent Events for real-time progress updates.
+    
+    The frontend can listen for events like:
+    - {"event": "started", "message": "Searching for hackathons..."}
+    - {"event": "progress", "message": "Found 3 matching events..."}
+    - {"event": "complete", "data": {...}, "formatted": "..."}
+    - {"event": "error", "message": "..."}
+    """
+    board = JobBoard.instance()
+    job = board.get_job(job_id)
+    
+    if not job:
+        raise HTTPException(404, f"Job {job_id} not found")
+    
+    bids = board.get_bids(job_id)
+    winning_bid = next((b for b in bids if b.bidder_id), None)
+    
+    if not winning_bid:
+        raise HTTPException(400, f"No winning bid for job {job_id}")
+    
+    worker = board.workers.get(winning_bid.bidder_id)
+    if not worker or not worker.executor:
+        raise HTTPException(400, f"Worker {winning_bid.bidder_id} has no executor")
+
+    async def event_generator():
+        """Generate SSE events as job progresses."""
+        try:
+            # Send started event
+            yield f"data: {json.dumps({'event': 'started', 'message': f'Starting job with {winning_bid.bidder_id}...'})}\n\n"
+            await asyncio.sleep(0.1)
+            
+            yield f"data: {json.dumps({'event': 'progress', 'message': 'Searching for results...'})}\n\n"
+            
+            # Run the executor
+            exec_result = await worker.executor(job, winning_bid)
+            
+            # Format results
+            from agents.src.butler.tools import format_hackathon_results
+            formatted = format_hackathon_results(exec_result)
+            
+            # Send complete event
+            yield f"data: {json.dumps({'event': 'complete', 'data': exec_result, 'formatted': formatted})}\n\n"
+            
+        except Exception as e:
+            yield f"data: {json.dumps({'event': 'error', 'message': str(e)})}\n\n"
+
+    return StreamingResponse(
+        event_generator(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            "X-Accel-Buffering": "no",
+        }
+    )
 
 
 # ─── Escrow Info (for frontend wallet funding) ───────────────

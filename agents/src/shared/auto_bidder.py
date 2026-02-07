@@ -45,6 +45,11 @@ def job_types_to_tags(job_types: list[JobType]) -> List[str]:
 
 # ── Mixin ────────────────────────────────────────────────────
 
+# Default wallet address for agents without private keys
+# This address receives escrow payments when jobs are completed
+DEFAULT_AGENT_WALLET = "0xc670ca2A23798BA5ee52dFfcEC86b3E220618225"
+
+
 class AutoBidderMixin:
     """
     Mixin for BaseArchiveAgent subclasses.
@@ -68,22 +73,57 @@ class AutoBidderMixin:
         board = JobBoard.instance()
 
         tags = job_types_to_tags(getattr(self, "supported_job_types", []))
-        address = getattr(self, "wallet", None)
-        address = address.address if address else "0x0"
+        wallet = getattr(self, "wallet", None)
+        address = wallet.address if wallet else DEFAULT_AGENT_WALLET
 
         worker = RegisteredWorker(
             worker_id=getattr(self, "agent_type", "worker"),
             address=address,
             tags=tags,
             evaluator=self._evaluate_job_for_board,
+            executor=self._execute_job_for_board,
             max_concurrent=getattr(self, "max_concurrent_jobs", 5),
             active_jobs=len(getattr(self, "active_jobs", {})),
         )
         board.register_worker(worker)
         logger.info(
-            "🏪 %s registered on JobBoard  tags=%s",
-            getattr(self, "agent_name", "Worker"), tags,
+            "🏪 %s registered on JobBoard  tags=%s  addr=%s",
+            getattr(self, "agent_name", "Worker"), tags, address[:10] + "…",
         )
+
+    async def _execute_job_for_board(self, job: JobListing, winning_bid: Bid) -> dict:
+        """
+        Called by JobBoard after this worker wins a bid.
+        Executes the job and returns results.
+        """
+        from .base_agent import ActiveJob
+        
+        logger.info("🔄 %s executing job %s", getattr(self, "agent_name", "Worker"), job.job_id)
+        
+        # Create ActiveJob object
+        active_job = ActiveJob(
+            job_id=int(job.job_id) if job.job_id.isdigit() else 0,
+            bid_id=0,
+            job_type=0,
+            description=job.description,
+            budget=int(job.budget_flr * 1e6),
+            deadline=job.deadline_ts,
+            status="in_progress",
+            metadata_uri=job.metadata.get("tool", ""),
+        )
+        
+        # Call the agent's execute_job method
+        execute_fn = getattr(self, "execute_job", None)
+        if execute_fn:
+            try:
+                result = await execute_fn(active_job)
+                logger.info("✅ %s completed job %s", getattr(self, "agent_name", "Worker"), job.job_id)
+                return result
+            except Exception as e:
+                logger.error("❌ %s failed job %s: %s", getattr(self, "agent_name", "Worker"), job.job_id, e)
+                return {"error": str(e), "success": False}
+        else:
+            return {"error": "No execute_job method found", "success": False}
 
     async def _evaluate_job_for_board(self, job: JobListing) -> Optional[Bid]:
         """
@@ -116,7 +156,7 @@ class AutoBidderMixin:
             bid_id=str(uuid.uuid4())[:8],
             job_id=job.job_id,
             bidder_id=getattr(self, "agent_type", "worker"),
-            bidder_address=getattr(self, "wallet", None) and self.wallet.address or "0x0",
+            bidder_address=getattr(self, "wallet", None) and self.wallet.address or DEFAULT_AGENT_WALLET,
             amount_flr=round(proposed, 2),
             estimated_seconds=getattr(self, "bid_eta_seconds", self.bid_eta_seconds),
             tags=list(overlap),
