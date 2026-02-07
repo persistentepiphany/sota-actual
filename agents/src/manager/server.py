@@ -122,7 +122,7 @@ class BookingPlanRequest(BaseModel):
     top_k_experiences: int = 4
     top_k_playbooks: int = 2
     auto_post_job: bool = False
-    budget_usdc: Optional[float] = None
+    budget_flr: Optional[float] = None
     deadline_seconds: Optional[int] = None
 
 
@@ -317,7 +317,7 @@ async def plan_booking(request: BookingPlanRequest):
             description_parts.append("Slots: " + ", ".join(f"{k}={v}" for k, v in slots.items() if k != "prompt"))
         description = " | ".join(description_parts)
 
-        budget_micro = int(request.budget_usdc * 1_000_000) if request.budget_usdc else 0
+        budget_micro = int(request.budget_flr * 10**18) if request.budget_flr else 0
         deadline = request.deadline_seconds or 0
         job_tags: list[str] = ["booking"]
         if slots:

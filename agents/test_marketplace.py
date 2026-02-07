@@ -48,7 +48,7 @@ async def booking_evaluator(job: JobListing):
         job_id=job.job_id,
         bidder_id="booker",
         bidder_address="0xBOOKER",
-        amount_usdc=round(job.budget_usdc * 0.75, 2),
+        amount_flr=round(job.budget_flr * 0.75, 2),
         estimated_seconds=600,
         tags=["hotel_booking"],
     )
@@ -62,7 +62,7 @@ async def caller_evaluator(job: JobListing):
         job_id=job.job_id,
         bidder_id="caller",
         bidder_address="0xCALLER",
-        amount_usdc=round(job.budget_usdc * 0.90, 2),
+        amount_flr=round(job.budget_flr * 0.90, 2),
         estimated_seconds=1800,
         tags=["call_verification"],
     )
@@ -109,7 +109,7 @@ async def test_matching_and_selection():
         job_id="test-001",
         description="Book a hotel room in Paris for 2 nights",
         tags=["hotel_booking"],
-        budget_usdc=10.0,
+        budget_flr=10.0,
         deadline_ts=int(time.time()) + 3600,
         poster="0xBUTLER",
         bid_window_seconds=BID_WINDOW,
@@ -121,11 +121,11 @@ async def test_matching_and_selection():
     assert result.winning_bid.bidder_id == "booker", (
         f"Expected 'booker' to win (75 % < 90 %), got {result.winning_bid.bidder_id}"
     )
-    assert result.winning_bid.amount_usdc == 7.50
+    assert result.winning_bid.amount_flr == 7.50
     assert len(result.all_bids) == 2, f"Expected 2 bids, got {len(result.all_bids)}"
     assert board.get_job("test-001").status == JobStatus.ASSIGNED
 
-    print(f"  ✅ Winner: {result.winning_bid.bidder_id} @ {result.winning_bid.amount_usdc} USDC")
+    print(f"  ✅ Winner: {result.winning_bid.bidder_id} @ {result.winning_bid.amount_flr} C2FLR")
     print(f"  ✅ Total bids: {len(result.all_bids)}")
     print(f"  ✅ Reason: {result.reason}")
 
@@ -150,7 +150,7 @@ async def test_no_matching_workers():
         job_id="test-002",
         description="Register for an AI hackathon",
         tags=["hackathon_registration"],
-        budget_usdc=50.0,
+        budget_flr=50.0,
         deadline_ts=int(time.time()) + 3600,
         poster="0xBUTLER",
         bid_window_seconds=BID_WINDOW,
@@ -181,7 +181,7 @@ async def test_budget_filter():
             job_id=job.job_id,
             bidder_id="expensive",
             bidder_address="0xEXP",
-            amount_usdc=100.0,   # way over budget
+            amount_flr=100.0,   # way over budget
             estimated_seconds=300,
             tags=["generic"],
         )
@@ -197,7 +197,7 @@ async def test_budget_filter():
         job_id="test-003",
         description="Do a generic expensive task",
         tags=["generic"],
-        budget_usdc=5.0,
+        budget_flr=5.0,
         deadline_ts=int(time.time()) + 3600,
         poster="0xBUTLER",
         bid_window_seconds=BID_WINDOW,
@@ -235,7 +235,7 @@ async def test_capacity_limit():
         job_id="test-004",
         description="Verify a phone number",
         tags=["call_verification"],
-        budget_usdc=10.0,
+        budget_flr=10.0,
         deadline_ts=int(time.time()) + 3600,
         poster="0xBUTLER",
         bid_window_seconds=BID_WINDOW,
@@ -264,7 +264,7 @@ async def test_tie_breaking():
             job_id=job.job_id,
             bidder_id="fast",
             bidder_address="0xFAST",
-            amount_usdc=5.0,
+            amount_flr=5.0,
             estimated_seconds=300,
             tags=["hotel_booking"],
             submitted_at=time.time(),        # submitted first
@@ -277,7 +277,7 @@ async def test_tie_breaking():
             job_id=job.job_id,
             bidder_id="slow",
             bidder_address="0xSLOW",
-            amount_usdc=5.0,                 # same price
+            amount_flr=5.0,                 # same price
             estimated_seconds=300,
             tags=["hotel_booking"],
             submitted_at=time.time(),        # submitted later
@@ -296,7 +296,7 @@ async def test_tie_breaking():
         job_id="test-005",
         description="Book a hotel room",
         tags=["hotel_booking"],
-        budget_usdc=10.0,
+        budget_flr=10.0,
         deadline_ts=int(time.time()) + 3600,
         poster="0xBUTLER",
         bid_window_seconds=BID_WINDOW,

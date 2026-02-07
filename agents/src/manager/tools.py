@@ -330,8 +330,8 @@ class PostJobTool(BaseTool):
 
     name: str = "post_job"
     description: str = """
-    Post a job to the OrderBook smart contract. Budget should be in USDC micro-units
-    (1 USDC = 1_000_000). If you only have a float budget_usdc, provide that instead
+    Post a job to the OrderBook smart contract. Budget should be in Wei
+    (1 C2FLR = 10**18 Wei). If you only have a float budget_flr, provide that instead
     and it will be converted.
     """
     parameters: dict = {
@@ -339,8 +339,8 @@ class PostJobTool(BaseTool):
         "properties": {
             "description": {"type": "string", "description": "Job description"},
             "job_type": {"type": "integer", "description": "JobType enum id", "default": JobType.COMPOSITE.value},
-            "budget": {"type": "integer", "description": "Budget in micro USDC", "default": 0},
-            "budget_usdc": {"type": "number", "description": "Budget in USDC (will be converted)", "default": 0},
+            "budget": {"type": "integer", "description": "Budget in Wei", "default": 0},
+            "budget_flr": {"type": "number", "description": "Budget in C2FLR (will be converted)", "default": 0},
             "deadline": {"type": "integer", "description": "Deadline in seconds", "default": 0},
             "tags": {
                 "type": "array",
@@ -360,7 +360,7 @@ class PostJobTool(BaseTool):
         description: str,
         job_type: int = JobType.COMPOSITE.value,
         budget: int = 0,
-        budget_usdc: float = 0,
+        budget_flr: float = 0,
         deadline: int = 0,
         tags: list[str] | None = None,
     ) -> str:
@@ -372,7 +372,7 @@ class PostJobTool(BaseTool):
         except Exception as e:
             return json.dumps({"success": False, "error": f"Contract setup failed: {e}"})
 
-        resolved_budget = budget or int(budget_usdc * 1_000_000)
+        resolved_budget = budget or int(budget_flr * 10**18)
         normalized_tags: list[str] = []
         for t in tags or []:
             if isinstance(t, str):
@@ -389,7 +389,7 @@ class PostJobTool(BaseTool):
             "job_type": job_type,
             "job_type_label": job_type_label,
             "budget_micro": resolved_budget,
-            "budget_usdc": resolved_budget / 1_000_000 if resolved_budget else 0,
+            "budget_flr": resolved_budget / 10**18 if resolved_budget else 0,
             "deadline": deadline,
             "tags": normalized_tags,
         }
@@ -452,7 +452,7 @@ class GetBidsForJobTool(BaseTool):
                 formatted_bids.append({
                     "bid_id": bid_id,
                     "bidder": bidder,
-                    "amount_usdc": amount / 1_000_000,  # Convert from micro-units
+                    "amount_flr": amount / 10**18,  # Convert from wei
                     "estimated_time_hours": estimated_time / 3600,
                     "metadata_uri": metadata_uri
                 })
@@ -521,7 +521,7 @@ class SelectBestBidTool(BaseTool):
         # Score each bid
         scored_bids = []
         for bid in bids:
-            amount = bid.get("amount_usdc", float('inf'))
+            amount = bid.get("amount_flr", float('inf'))
             time_hours = bid.get("estimated_time_hours", float('inf'))
             
             # Calculate score based on priority

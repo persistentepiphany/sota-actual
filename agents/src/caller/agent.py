@@ -75,8 +75,12 @@ class CallerAgent(AutoBidderMixin, BaseArchiveAgent):
     capabilities = [
         AgentCapability.PHONE_CALL,
     ]
-    # Handle all job types (auto-bid)
-    supported_job_types = list(JobType)
+    # Only handle booking and call verification jobs
+    supported_job_types = [
+        JobType.HOTEL_BOOKING,
+        JobType.RESTAURANT_BOOKING,
+        JobType.CALL_VERIFICATION,
+    ]
     
     # Bidding configuration
     min_profit_margin = 0.20  # 20% margin (calls are more expensive)
@@ -105,8 +109,8 @@ class CallerAgent(AutoBidderMixin, BaseArchiveAgent):
     def get_bidding_prompt(self, job: JobPostedEvent) -> str:
         """Not used for auto-bid; kept for compatibility."""
         job_type_label = JOB_TYPE_LABELS.get(JobType(job.job_type), "Unknown")
-        budget_usdc = job.budget / 1_000_000
-        return f"Auto-bid mode: will place 1 USDC bid on job {job.job_id} ({job_type_label}) budget {budget_usdc} USDC."
+        budget_flr = job.budget / 10**18
+        return f"Auto-bid mode: will place 1 C2FLR bid on job {job.job_id} ({job_type_label}) budget {budget_flr} C2FLR."
 
     async def _evaluate_and_bid(self, job: JobPostedEvent):
         """

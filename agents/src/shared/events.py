@@ -23,59 +23,63 @@ logger = logging.getLogger(__name__)
 
 
 class EventType(str, Enum):
-    """Contract event types we care about"""
-    JOB_POSTED = "JobPosted"
+    """Contract event types we care about (FlareOrderBook)"""
+    JOB_POSTED = "JobCreated"        # FlareOrderBook emits JobCreated
     BID_PLACED = "BidPlaced"
     BID_ACCEPTED = "BidAccepted"
-    DELIVERY_SUBMITTED = "DeliverySubmitted"
-    DELIVERY_APPROVED = "DeliveryApproved"
+    DELIVERY_SUBMITTED = "JobCompleted"  # FlareOrderBook emits JobCompleted
+    PROVIDER_ASSIGNED = "ProviderAssigned"
+    JOB_RELEASED = "JobReleased"
     JOB_CANCELLED = "JobCancelled"
     AGENT_REGISTERED = "AgentRegistered"
 
 
 @dataclass
 class JobPostedEvent:
-    """Parsed JobPosted event"""
+    """Parsed JobCreated event from FlareOrderBook"""
     job_id: int
-    client: str
-    job_type: int
-    budget: int
-    deadline: int
-    description: str
+    client: str        # poster
+    job_type: int      # not in event; default 0
+    budget: int        # maxPriceUsd
+    budget_flr: int    # maxPriceFlr
+    deadline: int      # not in event; default 0
+    description: str   # not in event; default ''
     block_number: int
     tx_hash: str
 
 
 @dataclass
 class BidPlacedEvent:
-    """Parsed BidPlaced event"""
+    """Parsed BidPlaced event from FlareOrderBook"""
     job_id: int
     bid_id: int
-    bidder: str
-    amount: int
-    estimated_time: int
+    bidder: str        # agent address
+    amount: int        # priceUsd
+    amount_flr: int    # priceFlr
+    estimated_time: int  # not in event; default 0
     block_number: int
     tx_hash: str
 
 
 @dataclass
 class BidAcceptedEvent:
-    """Parsed BidAccepted event"""
+    """Parsed BidAccepted event from FlareOrderBook"""
     job_id: int
     bid_id: int
-    worker: str
-    amount: int
+    worker: str        # provider
+    amount: int        # not in event; default 0
     block_number: int
     tx_hash: str
 
 
 @dataclass
 class DeliverySubmittedEvent:
-    """Parsed DeliverySubmitted event"""
+    """Parsed JobCompleted event from FlareOrderBook"""
     job_id: int
-    worker: str
-    result_uri: str
-    timestamp: int
+    worker: str        # not in event; default ''
+    result_uri: str    # not in event; default ''
+    delivery_proof: str  # bytes32 hex
+    timestamp: int     # not in event; default 0
     block_number: int
     tx_hash: str
 
@@ -127,10 +131,10 @@ class EventListener:
         """Initialize Web3 and contract instances"""
         self._w3 = Web3(Web3.HTTPProvider(self.network.rpc_url))
         
-        if self.addresses.order_book:
-            order_book_abi = load_abi("OrderBook")
+        if self.addresses.flare_order_book:
+            order_book_abi = load_abi("FlareOrderBook")
             self._order_book = self._w3.eth.contract(
-                address=Web3.to_checksum_address(self.addresses.order_book),
+                address=Web3.to_checksum_address(self.addresses.flare_order_book),
                 abi=order_book_abi
             )
         
@@ -172,25 +176,26 @@ class EventListener:
         self.on_event(EventType.DELIVERY_SUBMITTED, callback)
     
     async def _process_job_posted(self, event: dict):
-        """Parse and dispatch JobPosted event"""
+        """Parse and dispatch JobCreated event"""
         args = event['args']
         parsed = JobPostedEvent(
-            job_id=args.get('jobId', args.get('id', 0)),
-            client=args.get('client', args.get('poster', '')),
-            job_type=args.get('jobType', 0),
-            budget=args.get('budget', 0),
-            deadline=args.get('deadline', 0),
-            description=args.get('description', ''),
+            job_id=args.get('jobId', 0),
+            client=args.get('poster', ''),
+            job_type=0,  # not in JobCreated event
+            budget=args.get('maxPriceUsd', 0),
+            budget_flr=args.get('maxPriceFlr', 0),
+            deadline=0,  # not in JobCreated event
+            description='',  # not in JobCreated event
             block_number=event['blockNumber'],
             tx_hash=event['transactionHash'].hex() if event['transactionHash'] else ''
         )
-        logger.info("JobPosted evt job_id=%s type=%s budget=%s deadline=%s desc=%s tx=%s",
-                    parsed.job_id, parsed.job_type, parsed.budget, parsed.deadline, parsed.description, parsed.tx_hash)
+        logger.info("JobCreated evt job_id=%s poster=%s budget_usd=%s budget_flr=%s tx=%s",
+                    parsed.job_id, parsed.client, parsed.budget, parsed.budget_flr, parsed.tx_hash)
         for callback in self._callbacks[EventType.JOB_POSTED]:
             try:
                 await callback(parsed)
             except Exception as e:
-                logger.error(f"Error in JobPosted callback: {e}")
+                logger.error(f"Error in JobCreated callback: {e}")
     
     async def _process_bid_placed(self, event: dict):
         """Parse and dispatch BidPlaced event"""
@@ -198,13 +203,14 @@ class EventListener:
         parsed = BidPlacedEvent(
             job_id=args.get('jobId', 0),
             bid_id=args.get('bidId', 0),
-            bidder=args.get('bidder', ''),
-            amount=args.get('amount', 0),
-            estimated_time=args.get('estimatedTime', 0),
+            bidder=args.get('agent', ''),
+            amount=args.get('priceUsd', 0),
+            amount_flr=args.get('priceFlr', 0),
+            estimated_time=0,  # not in BidPlaced event
             block_number=event['blockNumber'],
             tx_hash=event['transactionHash'].hex() if event['transactionHash'] else ''
         )
-        logger.info("BidPlaced evt job_id=%s bid_id=%s bidder=%s amount=%s tx=%s",
+        logger.info("BidPlaced evt job_id=%s bid_id=%s agent=%s price_usd=%s tx=%s",
                     parsed.job_id, parsed.bid_id, parsed.bidder, parsed.amount, parsed.tx_hash)
         for callback in self._callbacks[EventType.BID_PLACED]:
             try:
@@ -218,13 +224,13 @@ class EventListener:
         parsed = BidAcceptedEvent(
             job_id=args.get('jobId', 0),
             bid_id=args.get('bidId', 0),
-            worker=args.get('agent', args.get('worker', args.get('bidder', ''))),
-            amount=args.get('amount', 0),
+            worker=args.get('provider', ''),
+            amount=0,  # not in BidAccepted event
             block_number=event['blockNumber'],
             tx_hash=event['transactionHash'].hex() if event['transactionHash'] else ''
         )
-        logger.info("BidAccepted evt job_id=%s bid_id=%s worker=%s amount=%s tx=%s",
-                    parsed.job_id, parsed.bid_id, parsed.worker, parsed.amount, parsed.tx_hash)
+        logger.info("BidAccepted evt job_id=%s bid_id=%s provider=%s tx=%s",
+                    parsed.job_id, parsed.bid_id, parsed.worker, parsed.tx_hash)
         for callback in self._callbacks[EventType.BID_ACCEPTED]:
             try:
                 await callback(parsed)
@@ -232,18 +238,21 @@ class EventListener:
                 logger.error(f"Error in BidAccepted callback: {e}")
     
     async def _process_delivery_submitted(self, event: dict):
-        """Parse and dispatch DeliverySubmitted event"""
+        """Parse and dispatch JobCompleted event"""
         args = event['args']
+        proof = args.get('deliveryProof', b'')
+        proof_hex = proof.hex() if isinstance(proof, bytes) else str(proof)
         parsed = DeliverySubmittedEvent(
             job_id=args.get('jobId', 0),
-            worker=args.get('worker', ''),
-            result_uri=args.get('resultUri', args.get('deliveryUri', '')),
-            timestamp=args.get('timestamp', 0),
+            worker='',  # not in JobCompleted event
+            result_uri='',  # not in JobCompleted event
+            delivery_proof=proof_hex,
+            timestamp=0,  # not in JobCompleted event
             block_number=event['blockNumber'],
             tx_hash=event['transactionHash'].hex() if event['transactionHash'] else ''
         )
-        logger.info("DeliverySubmitted evt job_id=%s worker=%s result=%s tx=%s",
-                    parsed.job_id, parsed.worker, parsed.result_uri, parsed.tx_hash)
+        logger.info("JobCompleted evt job_id=%s proof=%s tx=%s",
+                    parsed.job_id, parsed.delivery_proof[:16], parsed.tx_hash)
         for callback in self._callbacks[EventType.DELIVERY_SUBMITTED]:
             try:
                 await callback(parsed)
@@ -270,17 +279,17 @@ class EventListener:
             
             logger.debug(f"Polling blocks {from_block} to {to_block}")
             
-            # Get JobPosted events
+            # Get JobCreated events
             if self._callbacks[EventType.JOB_POSTED]:
                 try:
-                    events = self._order_book.events.JobPosted.get_logs(
+                    events = self._order_book.events.JobCreated.get_logs(
                         from_block=from_block,
                         to_block=to_block
                     )
                     for event in events:
                         await self._process_job_posted(event)
                 except Exception as e:
-                    logger.debug(f"No JobPosted events or error: {e}")
+                    logger.debug(f"No JobCreated events or error: {e}")
             
             # Get BidPlaced events
             if self._callbacks[EventType.BID_PLACED]:
@@ -306,17 +315,17 @@ class EventListener:
                 except Exception as e:
                     logger.debug(f"No BidAccepted events or error: {e}")
             
-            # Get DeliverySubmitted events
+            # Get JobCompleted events
             if self._callbacks[EventType.DELIVERY_SUBMITTED]:
                 try:
-                    events = self._order_book.events.DeliverySubmitted.get_logs(
+                    events = self._order_book.events.JobCompleted.get_logs(
                         from_block=from_block,
                         to_block=to_block
                     )
                     for event in events:
                         await self._process_delivery_submitted(event)
                 except Exception as e:
-                    logger.debug(f"No DeliverySubmitted events or error: {e}")
+                    logger.debug(f"No JobCompleted events or error: {e}")
             
             self._last_block = to_block
             
@@ -352,7 +361,7 @@ class EventListener:
             logger.info("Catching up events from block %s to %s", from_block, to_block)
 
             if self._callbacks[EventType.JOB_POSTED]:
-                events = self._order_book.events.JobPosted.get_logs(
+                events = self._order_book.events.JobCreated.get_logs(
                     from_block=from_block,
                     to_block=to_block,
                 )
@@ -376,7 +385,7 @@ class EventListener:
                     await self._process_bid_accepted(event)
 
             if self._callbacks[EventType.DELIVERY_SUBMITTED]:
-                events = self._order_book.events.DeliverySubmitted.get_logs(
+                events = self._order_book.events.JobCompleted.get_logs(
                     from_block=from_block,
                     to_block=to_block,
                 )
