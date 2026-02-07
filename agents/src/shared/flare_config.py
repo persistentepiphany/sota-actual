@@ -140,6 +140,7 @@ class JobType(IntEnum):
     HACKATHON_REGISTRATION = 2
     CALL_VERIFICATION = 5
     GENERIC = 6
+    JOB_SCOURING = 7
 
 
 JOB_TYPE_LABELS = {
@@ -148,6 +149,7 @@ JOB_TYPE_LABELS = {
     JobType.HACKATHON_REGISTRATION: "Hackathon Registration",
     JobType.CALL_VERIFICATION: "Call Verification",
     JobType.GENERIC: "Generic Task",
+    JobType.JOB_SCOURING: "Job Scouring",
 }
 
 

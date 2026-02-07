@@ -1,15 +1,6 @@
 "use client";
 
-import React, { createContext, useContext, useEffect, useState } from "react";
-import {
-  onAuthStateChanged,
-  signInWithEmailAndPassword,
-  createUserWithEmailAndPassword,
-  signOut as firebaseSignOut,
-  updateProfile,
-  type User as FirebaseUser,
-} from "firebase/auth";
-import { getFirebaseAuth } from "@/lib/firebase-client";
+import React, { createContext, useContext, useState } from "react";
 
 interface AuthUser {
   uid: string;
@@ -30,71 +21,40 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<AuthUser | null>(null);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    const auth = getFirebaseAuth();
-    const unsubscribe = onAuthStateChanged(auth, async (firebaseUser: FirebaseUser | null) => {
-      if (firebaseUser) {
-        setUser({
-          uid: firebaseUser.uid,
-          email: firebaseUser.email,
-          displayName: firebaseUser.displayName,
-        });
-
-        // Sync user with our database
-        try {
-          const token = await firebaseUser.getIdToken();
-          await fetch("/api/auth/session", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ idToken: token }),
-          });
-        } catch (err) {
-          console.error("Failed to sync session:", err);
-        }
-      } else {
-        setUser(null);
-      }
-      setLoading(false);
-    });
-
-    return () => unsubscribe();
-  }, []);
+  const [loading] = useState(false);
 
   const signIn = async (email: string, password: string) => {
-    const auth = getFirebaseAuth();
-    await signInWithEmailAndPassword(auth, email, password);
+    // TODO: Implement wallet-based auth for SOTA
+    console.log("Sign in:", email);
+    setUser({
+      uid: "demo-user",
+      email,
+      displayName: email.split("@")[0],
+    });
   };
 
   const signUp = async (email: string, password: string, name?: string) => {
-    const auth = getFirebaseAuth();
-    const credential = await createUserWithEmailAndPassword(auth, email, password);
-    if (name) {
-      await updateProfile(credential.user, { displayName: name });
-    }
+    // TODO: Implement wallet-based auth for SOTA
+    console.log("Sign up:", email, name);
+    setUser({
+      uid: "demo-user",
+      email,
+      displayName: name || email.split("@")[0],
+    });
   };
 
   const signOut = async () => {
-    const auth = getFirebaseAuth();
-    // Clear server-side session
-    try {
-      await fetch("/api/auth/session", { method: "DELETE" });
-    } catch (err) {
-      console.error("Failed to clear session:", err);
-    }
-    await firebaseSignOut(auth);
+    setUser(null);
   };
 
-  const getIdToken = async (): Promise<string | null> => {
-    const auth = getFirebaseAuth();
-    const currentUser = auth.currentUser;
-    if (!currentUser) return null;
-    return currentUser.getIdToken();
+  const getIdToken = async () => {
+    return user ? "demo-token" : null;
   };
 
   return (
-    <AuthContext.Provider value={{ user, loading, signIn, signUp, signOut, getIdToken }}>
+    <AuthContext.Provider
+      value={{ user, loading, signIn, signUp, signOut, getIdToken }}
+    >
       {children}
     </AuthContext.Provider>
   );

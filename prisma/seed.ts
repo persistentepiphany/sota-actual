@@ -163,9 +163,81 @@ The Hackathon agent discovers and registers users for tech events, hackathons, a
 
   console.log("🤖 Created agents: Caller, Hackathon");
 
-  // Generate API keys for both agents
+  // Create CV Magic Agent - Job scouring and resume matching
+  const cvMagic = await prisma.agent.create({
+    data: {
+      title: "CV Magic",
+      description: "AI-powered job scouring agent. Analyzes your resume/CV to find and score job listings from LinkedIn, Indeed, and other job boards based on your skills and preferences.",
+      category: "Career",
+      priceUsd: 0.08,
+      tags: "jobs,resume,cv,career,linkedin,indeed,job-search",
+      network: "flare-coston2",
+      ownerId: user.id,
+      status: "active",
+      icon: "FileSearch",
+      walletAddress: "0x1234567890123456789012345678901234567890",
+      apiEndpoint: "http://localhost:3007/api/v1/cv-magic/execute",
+      capabilities: JSON.stringify(["web_scrape", "document_parsing", "job_matching", "resume_analysis"]),
+      minFeeUsdc: 0.05,
+      maxConcurrent: 5,
+      isVerified: true,
+      documentation: `# CV Magic Agent API
+
+## Overview
+The CV Magic agent scours job boards to find positions matching your resume/CV.
+
+## API Endpoint
+\`POST /api/v1/cv-magic/execute\`
+
+## Request Body
+\`\`\`json
+{
+  "task": "scour_jobs",
+  "document_base64": "<base64-encoded-resume>",
+  "document_filename": "resume.pdf",
+  "job_title": "Software Engineer",
+  "location": "United Kingdom",
+  "preferences": {
+    "remote": true,
+    "seniority": "mid",
+    "employment_type": "full-time"
+  }
+}
+\`\`\`
+
+## Response
+\`\`\`json
+{
+  "success": true,
+  "jobs": [
+    {
+      "title": "Senior Software Engineer",
+      "company": "TechCorp",
+      "location": "London, UK",
+      "relevance_score": 0.92,
+      "url": "https://...",
+      "tips": ["Highlight your Python experience"]
+    }
+  ],
+  "meta": {
+    "total_found": 150,
+    "returned_jobs": 25
+  }
+}
+\`\`\`
+`,
+      totalRequests: 0,
+      successfulRequests: 0,
+      reputation: 5.0,
+    },
+  });
+
+  console.log("🤖 Created agents: Caller, Hackathon, CV Magic");
+
+  // Generate API keys for all agents
   const callerKey = generateApiKey();
   const hackathonKey = generateApiKey();
+  const cvMagicKey = generateApiKey();
 
   await prisma.agentApiKey.createMany({
     data: [
@@ -183,6 +255,13 @@ The Hackathon agent discovers and registers users for tech events, hackathons, a
         name: "Production",
         permissions: ["execute", "bid"],
       },
+      {
+        keyId: cvMagicKey.keyId,
+        keyHash: cvMagicKey.keyHash,
+        agentId: cvMagic.id,
+        name: "Production",
+        permissions: ["execute", "bid"],
+      },
     ],
   });
 
@@ -197,6 +276,11 @@ The Hackathon agent discovers and registers users for tech events, hackathons, a
   console.log("├─────────────────────────────────────────────────────────────────────────────┤");
   console.log(`│ Key ID:   ${hackathonKey.keyId.padEnd(65)}│`);
   console.log(`│ Full Key: ${hackathonKey.fullKey.substring(0, 60)}...│`);
+  console.log("│                                                                             │");
+  console.log("│ CV MAGIC AGENT                                                              │");
+  console.log("├─────────────────────────────────────────────────────────────────────────────┤");
+  console.log(`│ Key ID:   ${cvMagicKey.keyId.padEnd(65)}│`);
+  console.log(`│ Full Key: ${cvMagicKey.fullKey.substring(0, 60)}...│`);
   console.log("└─────────────────────────────────────────────────────────────────────────────┘");
   console.log("\n⚠️  Save these keys! They cannot be retrieved after this.\n");
 
@@ -208,6 +292,7 @@ The Hackathon agent discovers and registers users for tech events, hackathons, a
 
 CALLER_API_KEY=${callerKey.fullKey}
 HACKATHON_API_KEY=${hackathonKey.fullKey}
+CV_MAGIC_API_KEY=${cvMagicKey.fullKey}
 `;
 
   fs.writeFileSync(".env.agent-keys", keysContent);
