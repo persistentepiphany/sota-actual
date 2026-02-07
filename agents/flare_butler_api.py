@@ -49,7 +49,10 @@ from agents.src.shared.flare_contracts import (
     get_escrow_deposit,
 )
 from agents.src.shared.butler_comms import ButlerDataExchange
-from agents.src.shared.database import Database
+try:
+    from agents.src.shared.database import Database
+except ImportError:
+    Database = None  # type: ignore
 
 # New: OpenAI Butler Agent + JobBoard marketplace
 from agents.src.butler.agent import ButlerAgent, create_butler_agent
@@ -186,11 +189,14 @@ async def startup_event():
     print(f"🌐 Network: {network.rpc_url} (chain {network.chain_id})")
 
     # ── Connect to PostgreSQL ────────────────────────────────
-    try:
-        db = await Database.connect()
-        print("✅ Connected to PostgreSQL")
-    except Exception as e:
-        print(f"⚠️ PostgreSQL unavailable — running without persistence: {e}")
+    if Database is not None:
+        try:
+            db = await Database.connect()
+            print("✅ Connected to PostgreSQL")
+        except Exception as e:
+            print(f"⚠️ PostgreSQL unavailable — running without persistence: {e}")
+    else:
+        print("⚠️ Database module not available — running without persistence")
 
     pk = get_private_key("butler")
     if not pk:
