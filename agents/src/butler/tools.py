@@ -2,10 +2,11 @@
 Butler Agent Tools
 
 Tools for the Butler to:
-- Query RAG (Qdrant + Mem0) — degrades gracefully if not configured
+- Query RAG (Qdrant + Mem0)
 - Fill slots with slot_questioning
 - Post jobs to FlareOrderBook
 - Monitor job status and deliveries
+- Handle data requests from worker agents
 """
 
 import os
@@ -16,21 +17,10 @@ from pydantic import Field
 
 from ..shared.tool_base import BaseTool, ToolManager
 
-# Import shared tools — graceful fallback for contracts
-try:
-    from ..shared.contracts import get_contracts, post_job, get_bids_for_job, accept_bid, get_job_status
-except Exception:
-    get_contracts = None  # type: ignore
-    post_job = None  # type: ignore
-    get_bids_for_job = None  # type: ignore
-    accept_bid = None  # type: ignore
-    get_job_status = None  # type: ignore
-
-# Optional slot filler — may not be available
-try:
-    from ..shared.slot_questioning import SlotFiller
-except Exception:
-    SlotFiller = None  # type: ignore
+# Import shared tools
+from ..shared.contracts import get_contracts, post_job, get_bids_for_job, accept_bid, get_job_status
+from ..shared.slot_questioning import SlotFiller
+from ..shared.butler_comms import ButlerDataExchange
 
 
 class RAGSearchTool(BaseTool):
@@ -66,51 +56,56 @@ class RAGSearchTool(BaseTool):
     }
     
     async def execute(self, query: str, user_id: str = "anonymous", limit: int = 5) -> str:
-        """Search RAG knowledge base — degrades gracefully if Qdrant/Mem0 not configured."""
-        results = {
-            "query": query,
-            "qdrant_results": [],
-            "mem0_results": [],
-        }
-
-        # Try Qdrant
-        qdrant_url = os.getenv("QDRANT_URL")
-        if qdrant_url:
+        """Search RAG knowledge base"""
+        try:
+            from qdrant_client import QdrantClient
+            from mem0 import MemoryClient
+            
+            # Qdrant search
+            qdrant = QdrantClient(
+                url=os.getenv("QDRANT_URL"),
+                api_key=os.getenv("QDRANT_API_KEY")
+            )
+            
+            # Mem0 search
+            mem0 = MemoryClient(api_key=os.getenv("MEM0_API_KEY"))
+            
+            results = {
+                "query": query,
+                "qdrant_results": [],
+                "mem0_results": [],
+            }
+            
+            # Try Qdrant
             try:
-                from qdrant_client import QdrantClient
-                qdrant = QdrantClient(
-                    url=qdrant_url,
-                    api_key=os.getenv("QDRANT_API_KEY")
-                )
-                # Placeholder search — would be real vector search in production
-                results["qdrant_results"] = []
+                # Placeholder: In production, this would be real search results.
+                # For now, return empty to simulate "no match" unless query contains "test"
+                if "test" in query.lower():
+                    results["qdrant_results"] = ["This is a test result from Qdrant."]
+                else:
+                    results["qdrant_results"] = []
             except Exception as e:
                 results["qdrant_error"] = str(e)
-        else:
-            results["qdrant_note"] = "Qdrant not configured — skipped"
-
-        # Try Mem0
-        mem0_key = os.getenv("MEM0_API_KEY")
-        if mem0_key:
+            
+            # Try Mem0
             try:
-                from mem0 import MemoryClient
-                mem0_client = MemoryClient(api_key=mem0_key)
-                mem_results = mem0_client.search(query, user_id=user_id, limit=limit)
+                mem_results = mem0.search(query, user_id=user_id, limit=limit)
                 if mem_results:
                     results["mem0_results"] = [m.get("memory") for m in mem_results if "memory" in m]
             except Exception as e:
                 results["mem0_error"] = str(e)
-        else:
-            results["mem0_note"] = "Mem0 not configured — skipped"
-
-        if results["qdrant_results"] or results["mem0_results"]:
-            results["status"] = "match"
-            results["instruction"] = "Use the information above to answer the user's question. Do NOT call any more tools. STOP."
-        else:
-            results["status"] = "no_match"
-            results["instruction"] = "No relevant info found in knowledge base. DECIDE: If user wants a job -> `fill_slots`. If unclear -> Ask user to clarify. STOP."
-
-        return json.dumps(results, indent=2)
+            
+            if results["qdrant_results"] or results["mem0_results"]:
+                results["status"] = "match"
+                results["instruction"] = "Use the information above to answer the user's question. Do NOT call any more tools. STOP."
+            else:
+                results["status"] = "no_match"
+                results["instruction"] = "No relevant info found in knowledge base. DECIDE: If user wants a job -> `fill_slots`. If unclear -> Ask user to clarify. STOP."
+            
+            return json.dumps(results, indent=2)
+            
+        except Exception as e:
+            return json.dumps({"error": f"RAG search failed: {str(e)}"})
 
 
 class SlotFillingTool(BaseTool):
@@ -152,74 +147,48 @@ class SlotFillingTool(BaseTool):
         current_slots: Optional[Dict] = None,
         candidate_tools: Optional[List] = None
     ) -> str:
-        """Fill slots using SlotFiller — falls back to basic extraction if unavailable"""
+        """Fill slots using SlotFiller"""
         try:
             if candidate_tools is None:
                 candidate_tools = [
                     {"name": "call_verification", "required_params": ["phone_number", "purpose"]},
                     {"name": "hotel_booking", "required_params": ["location", "dates", "guests"]},
                     {"name": "data_analysis", "required_params": ["data_source", "analysis_type"]},
-                    {"name": "web_scraping", "required_params": ["url", "data_points"]},
-                    {"name": "social_media", "required_params": ["platform", "action", "target"]},
                 ]
             
             current_slots = current_slots or {}
             
-            # Try to use SlotFiller if available
-            if SlotFiller is not None:
-                try:
-                    filler = SlotFiller(user_id="butler")
-                    missing_slots, questions, chosen_tool = filler.fill(
-                        user_message=user_message,
-                        current_slots=current_slots,
-                        candidate_tools=candidate_tools
-                    )
-                    
-                    result = {
-                        "tool": chosen_tool,
-                        "current_slots": current_slots,
-                        "missing_slots": missing_slots,
-                        "questions": questions,
-                        "ready": len(missing_slots) == 0
-                    }
-                    
-                    if not result["ready"]:
-                        result["instruction"] = "CRITICAL: Ask the user the questions in the 'questions' list naturally. Do NOT call this tool again until the user responds."
-                    else:
-                        result["instruction"] = "All details gathered. Summarize what you will do and ask the user: 'Would you like me to go ahead and proceed with this?' Do NOT mention jobs, bids, or posting."
-                    
-                    return json.dumps(result, indent=2)
-                    
-                except Exception as e:
-                    pass  # Fall through to basic extraction
-
-            # Basic slot extraction fallback (no SlotFiller dependency)
-            msg_lower = user_message.lower()
-            chosen_tool = "general_task"
-            for ct in candidate_tools:
-                name = ct.get("name", "")
-                if any(kw in msg_lower for kw in name.replace("_", " ").split()):
-                    chosen_tool = name
-                    break
-
-            tool_def = next((ct for ct in candidate_tools if ct["name"] == chosen_tool), candidate_tools[0])
-            required = tool_def.get("required_params", [])
-            missing = [p for p in required if p not in current_slots]
-            questions = [f"Could you provide the {p.replace('_', ' ')}?" for p in missing]
-
-            result = {
-                "tool": chosen_tool,
-                "current_slots": current_slots,
-                "missing_slots": missing,
-                "questions": questions,
-                "ready": len(missing) == 0,
-            }
-            if not result["ready"]:
-                result["instruction"] = "CRITICAL: Ask the user the questions in the 'questions' list naturally. Do NOT call this tool again until the user responds."
-            else:
-                result["instruction"] = "All details gathered. Summarize what you will do and ask the user: 'Would you like me to go ahead and proceed with this?' Do NOT mention jobs, bids, or posting."
-
-            return json.dumps(result, indent=2)
+            # Try to use SlotFiller
+            try:
+                filler = SlotFiller(user_id="butler")
+                missing_slots, questions, chosen_tool = filler.fill(
+                    user_message=user_message,
+                    current_slots=current_slots,
+                    candidate_tools=candidate_tools
+                )
+                
+                result = {
+                    "tool": chosen_tool,
+                    "current_slots": current_slots,
+                    "missing_slots": missing_slots,
+                    "questions": questions,
+                    "ready": len(missing_slots) == 0
+                }
+                
+                if not result["ready"]:
+                    result["instruction"] = "CRITICAL: You MUST ask the user the questions in the 'questions' list. Do NOT call this tool again until the user responds. OUTPUT THE QUESTIONS NOW."
+                else:
+                    result["instruction"] = "Slots are complete. Summarize the job details to the user and ask for confirmation to post."
+                
+                return json.dumps(result, indent=2)
+                
+            except Exception as e:
+                # Fallback to basic extraction
+                return json.dumps({
+                    "error": f"SlotFiller unavailable: {e}",
+                    "fallback": "basic",
+                    "message": "Please provide job details manually"
+                })
                 
         except Exception as e:
             return json.dumps({"error": str(e)})
@@ -344,10 +313,8 @@ class PostJobTool(BaseTool):
                     "total_bids": len(result.all_bids),
                     "reason": result.reason,
                     "instruction": (
-                        "Great news — a specialist has been assigned and is working on it now. "
-                        f"Estimated time: about {w.estimated_seconds // 60} minutes. "
-                        "Tell the user you're on it and they can check back for updates. "
-                        "Do NOT mention bids, workers, job IDs, or USDC amounts."
+                        f"Job assigned to {w.bidder_id} for {w.amount_usdc:.2f} USDC. "
+                        "The worker will start executing. Use `check_job_status` later to track progress."
                     ),
                 }, indent=2)
             else:
@@ -356,11 +323,7 @@ class PostJobTool(BaseTool):
                     "job_id": job_id,
                     "total_bids": len(result.all_bids),
                     "reason": result.reason,
-                    "instruction": (
-                        "No one is available right now. Tell the user: "
-                        "'I wasn't able to find anyone available at the moment — would you like me to try again in a few minutes?' "
-                        "Do NOT mention bids, marketplace, or technical details."
-                    ),
+                    "instruction": "No suitable bids received. Ask the user if they want to increase the budget or try again later.",
                 }, indent=2)
 
         except Exception as e:
@@ -415,7 +378,7 @@ class GetBidsTool(BaseTool):
                 "total_bids": len(formatted_bids),
                 "bids": formatted_bids,
                 "best_bid": formatted_bids[0] if formatted_bids else None,
-                "instruction": "Update the user on progress. If there are results, say something like 'I found some great options for you'. Do NOT expose bid IDs, prices in USDC, or technical details. STOP."
+                "instruction": "Present these bids to the user. Ask which one they want to accept (or if they want to wait). STOP."
             }, indent=2)
             
         except Exception as e:
@@ -573,6 +536,168 @@ class GetDeliveryTool(BaseTool):
             return json.dumps({"error": f"Failed to get delivery: {str(e)}"})
 
 
+# ═════════════════════════════════════════════════════════════
+#  Agent ↔ Butler Communication Tools
+# ═════════════════════════════════════════════════════════════
+
+class CheckAgentRequestsTool(BaseTool):
+    """
+    Check for pending data requests from worker agents.
+    """
+    name: str = "check_agent_requests"
+    description: str = """
+    Check if any worker agent (hackathon, caller, etc.) is requesting
+    additional data from the user.
+
+    Worker agents call this when they need info during job execution —
+    for example, the hackathon agent might ask for the user's email
+    or location preference.
+
+    Returns pending requests with questions to relay to the user.
+    Use this after posting a job to see if the assigned agent needs
+    anything.
+    """
+    parameters: dict = {
+        "type": "object",
+        "properties": {
+            "job_id": {
+                "type": "string",
+                "description": "Job ID to check requests for (optional — omit for all)"
+            }
+        },
+        "required": []
+    }
+
+    async def execute(self, job_id: str = None) -> str:
+        """Check pending requests from agents."""
+        exchange = ButlerDataExchange.instance()
+        pending = exchange.peek_pending_requests(job_id)
+
+        if not pending:
+            return json.dumps({
+                "pending_requests": [],
+                "count": 0,
+                "instruction": "No pending requests from worker agents. The job is proceeding normally.",
+            })
+
+        formatted = []
+        for req in pending:
+            formatted.append({
+                "request_id": req.get("request_id"),
+                "agent": req.get("agent", "unknown"),
+                "data_type": req.get("data_type"),
+                "question": req.get("question"),
+                "fields": req.get("fields", []),
+            })
+
+        return json.dumps({
+            "pending_requests": formatted,
+            "count": len(formatted),
+            "instruction": (
+                "Worker agent(s) need data from the user. "
+                "Present the questions to the user and use `answer_agent_request` "
+                "to relay their answers back. STOP and wait for user input."
+            ),
+        }, indent=2)
+
+
+class AnswerAgentRequestTool(BaseTool):
+    """
+    Answer a data request from a worker agent.
+    """
+    name: str = "answer_agent_request"
+    description: str = """
+    Send an answer back to a worker agent that requested data.
+
+    After the user provides the requested information (profile data,
+    preferences, confirmation, etc.), use this tool to relay the answer
+    back to the waiting agent.
+
+    Parameters:
+      request_id: the ID from check_agent_requests
+      data: key-value pairs of the answer data
+      message: optional message
+    """
+    parameters: dict = {
+        "type": "object",
+        "properties": {
+            "request_id": {
+                "type": "string",
+                "description": "The request ID to answer"
+            },
+            "data": {
+                "type": "object",
+                "description": "Answer data as key-value pairs"
+            },
+            "message": {
+                "type": "string",
+                "description": "Optional message"
+            },
+        },
+        "required": ["request_id", "data"]
+    }
+
+    async def execute(self, request_id: str, data: dict, message: str = "") -> str:
+        """Submit answer to agent request."""
+        exchange = ButlerDataExchange.instance()
+        exchange.submit_answer(request_id, {
+            "request_id": request_id,
+            "data": data,
+            "message": message or "Answer provided by user via Butler",
+        })
+
+        # Also consume it from pending
+        exchange.get_pending_requests()
+
+        return json.dumps({
+            "success": True,
+            "request_id": request_id,
+            "instruction": "Answer delivered to the worker agent. It will continue processing.",
+        })
+
+
+class GetAgentUpdatesTool(BaseTool):
+    """
+    Get status updates from worker agents.
+    """
+    name: str = "get_agent_updates"
+    description: str = """
+    Check for progress updates from worker agents executing jobs.
+
+    Worker agents push updates like "Found 5 hackathons" or
+    "Registration form filled — awaiting confirmation".
+
+    Use this to keep the user informed about job progress.
+    """
+    parameters: dict = {
+        "type": "object",
+        "properties": {
+            "job_id": {
+                "type": "string",
+                "description": "Job ID to get updates for"
+            }
+        },
+        "required": ["job_id"]
+    }
+
+    async def execute(self, job_id: str) -> str:
+        """Get updates from agents."""
+        exchange = ButlerDataExchange.instance()
+        updates = exchange.get_updates(job_id)
+
+        if not updates:
+            return json.dumps({
+                "updates": [],
+                "count": 0,
+                "instruction": "No new updates from the worker agent.",
+            })
+
+        return json.dumps({
+            "updates": updates,
+            "count": len(updates),
+            "instruction": "Present these updates to the user. If there are questions, relay them.",
+        }, indent=2)
+
 def create_butler_tools() -> ToolManager:
     """Create and register all Butler tools"""
     tools = [
@@ -586,6 +711,11 @@ def create_butler_tools() -> ToolManager:
         AcceptBidTool(),
         CheckJobStatusTool(),
         GetDeliveryTool(),
+
+        # Agent ↔ Butler communication
+        CheckAgentRequestsTool(),
+        AnswerAgentRequestTool(),
+        GetAgentUpdatesTool(),
     ]
     
     return ToolManager(tools=tools)

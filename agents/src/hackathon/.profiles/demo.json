@@ -1,0 +1,11 @@
+{
+  "full_name": "Alice Builder",
+  "email": "alice@sotaflare.dev",
+  "bio": "Full-stack dev passionate about blockchain and AI",
+  "skills": "Python, Solidity, React, TypeScript",
+  "experience_level": "advanced",
+  "country": "UK",
+  "city": "London",
+  "github_url": "https://github.com/alicebuilder",
+  "linkedin_url": "https://linkedin.com/in/alicebuilder"
+}

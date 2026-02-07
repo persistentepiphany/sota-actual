@@ -2,26 +2,20 @@
 SOTA Flare Butler API — FastAPI Bridge
 
 Exposes HTTP endpoints for the ElevenLabs voice agent and web frontend.
-Internally delegates to the OpenAI-backed Butler Agent and in-memory marketplace.
+Internally delegates to the LangGraph butler graph.
 
 Endpoints:
-  POST /api/flare/chat      — Chat with OpenAI-backed Butler Agent
-  POST /api/flare/query     — Alias for /api/flare/chat (backward compat)
   POST /api/flare/quote     — Get FTSO price quote (USD → FLR)
   POST /api/flare/create    — Create + fund a job on Flare
   POST /api/flare/status    — Check job status + FDC attestation
   POST /api/flare/release   — Release payment (FDC-gated)
   GET  /api/flare/price     — Current FLR/USD from FTSO
-  GET  /api/flare/marketplace/jobs     — List marketplace jobs
-  GET  /api/flare/marketplace/bids/{id} — Get bids for a job
-  GET  /api/flare/marketplace/workers  — List registered workers
 """
 
 import os
 import sys
 import time
 import asyncio
-import logging
 from typing import Optional, List, Dict, Any
 
 from fastapi import FastAPI, HTTPException
@@ -48,14 +42,9 @@ from agents.src.shared.flare_contracts import (
     get_job,
     get_escrow_deposit,
 )
-
-# New: OpenAI Butler Agent + JobBoard marketplace
-from agents.src.butler.agent import ButlerAgent, create_butler_agent
-from agents.src.shared.job_board import JobBoard, JobStatus
+from agents.src.shared.butler_comms import ButlerDataExchange
 
 load_dotenv()
-
-logger = logging.getLogger(__name__)
 
 app = FastAPI(title="SOTA Flare Butler API")
 
@@ -70,23 +59,9 @@ app.add_middleware(
 # ─── Globals ──────────────────────────────────────────────────
 
 contracts: Optional[FlareContracts] = None
-butler_agent: Optional[ButlerAgent] = None
-job_board: Optional[JobBoard] = None
 
 
 # ─── Request / Response Models ────────────────────────────────
-
-class ChatRequest(BaseModel):
-    query: str
-    session_id: Optional[str] = None
-    user_id: Optional[str] = None
-    timestamp: Optional[int] = None
-
-
-class ChatResponse(BaseModel):
-    response: str
-    session_id: Optional[str] = None
-    model: str = "gpt-4o-mini"
 
 class QuoteRequest(BaseModel):
     budget_usd: float
@@ -147,7 +122,7 @@ class PriceResponse(BaseModel):
 
 @app.on_event("startup")
 async def startup_event():
-    global contracts, butler_agent, job_board
+    global contracts
     network = get_network()
     print(f"🚀 Starting SOTA Flare Butler API...")
     print(f"🌐 Network: {network.rpc_url} (chain {network.chain_id})")
@@ -157,7 +132,6 @@ async def startup_event():
         print("⚠️ FLARE_PRIVATE_KEY not set. Read-only mode.")
         return
 
-    # ── Flare contracts ──────────────────────────────────────
     try:
         contracts = get_flare_contracts(pk)
         print(f"✅ Connected to Flare ({network.native_currency})")
@@ -168,142 +142,10 @@ async def startup_event():
     except Exception as e:
         print(f"❌ Failed to connect: {e}")
 
-    # ── OpenAI Butler Agent ──────────────────────────────────
-    openai_key = os.getenv("OPENAI_API_KEY")
-    if openai_key:
-        try:
-            butler_agent = create_butler_agent(
-                private_key=pk,
-                openai_api_key=openai_key,
-            )
-            print(f"🤖 Butler Agent initialized (OpenAI gpt-4o-mini)")
-        except Exception as e:
-            print(f"⚠️ Butler Agent init failed: {e}")
-    else:
-        print("⚠️ OPENAI_API_KEY not set — Butler Agent disabled (Flare endpoints still work)")
-
-    # ── JobBoard Marketplace ─────────────────────────────────
-    job_board = JobBoard.instance()
-    print(f"🏪 JobBoard marketplace ready (in-memory)")
-
 
 @app.get("/")
 async def root():
     return {"status": "SOTA Flare Butler API running", "version": "2.0"}
-
-
-# ─── Butler Agent Chat (OpenAI) ──────────────────────────────
-
-@app.post("/api/flare/chat", response_model=ChatResponse)
-async def chat_with_butler(req: ChatRequest):
-    """
-    Send a message to the OpenAI-backed Butler Agent.
-    The Butler uses tool-calling to search knowledge, fill slots,
-    post jobs to the marketplace, and track deliveries.
-    """
-    if not butler_agent:
-        raise HTTPException(503, "Butler Agent not initialized. Check OPENAI_API_KEY.")
-    try:
-        response = await butler_agent.chat(
-            message=req.query,
-            user_id=req.user_id or "web_user",
-        )
-        return ChatResponse(
-            response=response,
-            session_id=req.session_id,
-            model="gpt-4o-mini",
-        )
-    except Exception as e:
-        logger.error("Butler chat error: %s", e)
-        raise HTTPException(500, f"Butler chat failed: {e}")
-
-
-@app.post("/api/flare/query")
-async def query_butler_compat(req: ChatRequest):
-    """Backward-compatible alias for /api/flare/chat."""
-    result = await chat_with_butler(req)
-    return {
-        "response": result.response,
-        "message": result.response,
-        "session_id": result.session_id,
-    }
-
-
-# ─── Marketplace Endpoints ───────────────────────────────────
-
-@app.get("/api/flare/marketplace/jobs")
-async def list_marketplace_jobs(status: Optional[str] = None):
-    """List all jobs on the in-memory marketplace."""
-    board = JobBoard.instance()
-    if status == "open":
-        jobs = board.list_open_jobs()
-    else:
-        jobs = board.list_all_jobs()
-
-    return {
-        "total": len(jobs),
-        "jobs": [
-            {
-                "job_id": j.job_id,
-                "description": j.description,
-                "tags": j.tags,
-                "budget_usdc": j.budget_usdc,
-                "status": j.status.value,
-                "poster": j.poster,
-                "posted_at": j.posted_at,
-                "deadline_ts": j.deadline_ts,
-                "metadata": j.metadata,
-            }
-            for j in jobs
-        ],
-    }
-
-
-@app.get("/api/flare/marketplace/bids/{job_id}")
-async def get_marketplace_bids(job_id: str):
-    """Get all bids for a specific marketplace job."""
-    board = JobBoard.instance()
-    bids = board.get_bids(job_id)
-    job = board.get_job(job_id)
-
-    return {
-        "job_id": job_id,
-        "job_status": job.status.value if job else "not_found",
-        "total_bids": len(bids),
-        "bids": [
-            {
-                "bid_id": b.bid_id,
-                "bidder_id": b.bidder_id,
-                "bidder_address": b.bidder_address,
-                "amount_usdc": b.amount_usdc,
-                "estimated_seconds": b.estimated_seconds,
-                "tags": b.tags,
-                "submitted_at": b.submitted_at,
-            }
-            for b in bids
-        ],
-    }
-
-
-@app.get("/api/flare/marketplace/workers")
-async def list_marketplace_workers():
-    """List all registered worker agents."""
-    board = JobBoard.instance()
-    workers = board.workers
-
-    return {
-        "total": len(workers),
-        "workers": [
-            {
-                "worker_id": w.worker_id,
-                "address": w.address,
-                "tags": w.tags,
-                "max_concurrent": w.max_concurrent,
-                "active_jobs": w.active_jobs,
-            }
-            for w in workers.values()
-        ],
-    }
 
 
 # ─── FTSO: Price & Quote ─────────────────────────────────────
@@ -474,6 +316,205 @@ async def demo_confirm_delivery(req: ReleaseRequest):
         }
     except Exception as e:
         raise HTTPException(500, f"Manual confirm failed: {e}")
+
+
+# ═════════════════════════════════════════════════════════════
+#  Agent ↔ Butler Communication
+# ═════════════════════════════════════════════════════════════
+# These endpoints let worker agents (Hackathon, Caller, etc.)
+# request additional data from the user via the Butler and
+# push status updates back.
+# ─────────────────────────────────────────────────────────────
+
+# In-memory store for user context that agents can query
+_user_context: Dict[str, Dict[str, Any]] = {}
+
+
+class AgentDataRequest(BaseModel):
+    """Incoming data request from a worker agent."""
+    request_id: str
+    job_id: str
+    data_type: str          # user_profile, preference, confirmation, clarification, custom
+    question: str
+    fields: List[str] = []
+    context: str = ""
+    agent: str = ""
+
+
+class AgentDataAnswer(BaseModel):
+    """Butler's answer to an agent data request."""
+    request_id: str
+    data: Dict[str, Any] = {}
+    message: str = ""
+
+
+class AgentUpdate(BaseModel):
+    """Status update pushed by a worker agent."""
+    job_id: str
+    status: str             # in_progress, partial_result, completed, error
+    message: str
+    data: Dict[str, Any] = {}
+    agent: str = ""
+
+
+class SetUserContextRequest(BaseModel):
+    """Set user context that agents can retrieve."""
+    user_id: str = "default"
+    profile: Dict[str, Any] = {}
+
+
+@app.post("/api/agent/set-user-context")
+async def set_user_context(req: SetUserContextRequest):
+    """
+    Set the user context/profile that worker agents can retrieve.
+
+    Call this BEFORE posting a job so the hackathon agent (or any
+    worker) can access the user's info when it asks for it.
+    """
+    _user_context[req.user_id] = req.profile
+    return {"success": True, "user_id": req.user_id, "fields": list(req.profile.keys())}
+
+
+@app.get("/api/agent/user-context/{user_id}")
+async def get_user_context(user_id: str = "default"):
+    """Get stored user context."""
+    return _user_context.get(user_id, {})
+
+
+@app.post("/api/agent/request-data")
+async def handle_agent_data_request(req: AgentDataRequest):
+    """
+    Receive a data request from a worker agent.
+
+    The Butler tries to answer immediately from stored user context.
+    If the data isn't available, it queues the request for the user
+    to answer (via the chat interface or a future poll endpoint).
+
+    This is the key endpoint that enables agent → butler communication
+    when a job is selected via the marketplace.
+    """
+    exchange = ButlerDataExchange.instance()
+
+    # ── Try to auto-answer from stored user context ──────────
+    if req.data_type == "user_profile":
+        # Look for stored profile across all user IDs
+        for uid, profile in _user_context.items():
+            if profile:
+                # If specific fields were requested, filter
+                if req.fields:
+                    filtered = {k: v for k, v in profile.items() if k in req.fields}
+                    if filtered:
+                        return {
+                            "request_id": req.request_id,
+                            "data_type": "user_profile",
+                            "data": filtered,
+                            "source": "stored_context",
+                            "message": f"Profile data retrieved ({len(filtered)} fields)",
+                        }
+                else:
+                    return {
+                        "request_id": req.request_id,
+                        "data_type": "user_profile",
+                        "data": profile,
+                        "source": "stored_context",
+                        "message": f"Full profile retrieved ({len(profile)} fields)",
+                    }
+
+    if req.data_type == "preference":
+        # Check if the preference is in any user context
+        for uid, profile in _user_context.items():
+            prefs = profile.get("preferences", {})
+            if prefs and req.fields:
+                matched = {k: v for k, v in prefs.items() if k in req.fields}
+                if matched:
+                    return {
+                        "request_id": req.request_id,
+                        "data_type": "preference",
+                        "data": matched,
+                        "source": "stored_context",
+                        "message": f"Preferences found ({len(matched)} fields)",
+                    }
+
+    # ── Auto-answer confirmations as "proceed" in automated mode ──
+    if req.data_type == "confirmation":
+        auto_confirm = os.getenv("BUTLER_AUTO_CONFIRM", "true").lower() == "true"
+        if auto_confirm:
+            return {
+                "request_id": req.request_id,
+                "data_type": "confirmation",
+                "data": {"confirmed": True},
+                "source": "auto_confirm",
+                "message": "Auto-confirmed (BUTLER_AUTO_CONFIRM=true)",
+            }
+
+    # ── Queue for human answer ───────────────────────────────
+    exchange.post_request(req.request_id, req.job_id, req.model_dump())
+
+    return {
+        "request_id": req.request_id,
+        "data_type": req.data_type,
+        "data": {},
+        "source": "queued",
+        "message": (
+            f"Request queued — awaiting user response. "
+            f"Agent '{req.agent}' asked: {req.question}"
+        ),
+    }
+
+
+@app.get("/api/agent/pending-requests")
+async def get_pending_requests(job_id: Optional[str] = None):
+    """
+    Get pending data requests from worker agents.
+
+    The frontend or Butler chat can poll this to see what agents
+    are asking for and relay questions to the user.
+    """
+    exchange = ButlerDataExchange.instance()
+    pending = exchange.peek_pending_requests(job_id)
+    return {"pending": pending, "count": len(pending)}
+
+
+@app.post("/api/agent/answer")
+async def answer_agent_request(req: AgentDataAnswer):
+    """
+    Submit an answer to a pending agent data request.
+
+    Called by the Butler (or frontend) after the user provides
+    the requested information.
+    """
+    exchange = ButlerDataExchange.instance()
+    exchange.submit_answer(req.request_id, {
+        "request_id": req.request_id,
+        "data": req.data,
+        "message": req.message or "Answer provided",
+    })
+    return {"success": True, "request_id": req.request_id}
+
+
+@app.post("/api/agent/update")
+async def receive_agent_update(update: AgentUpdate):
+    """
+    Receive a status update from a worker agent.
+
+    The Butler stores these so the user can be kept informed
+    about job progress.
+    """
+    exchange = ButlerDataExchange.instance()
+    exchange.push_update(update.job_id, update.model_dump())
+    return {"received": True, "job_id": update.job_id, "status": update.status}
+
+
+@app.get("/api/agent/updates/{job_id}")
+async def get_agent_updates(job_id: str):
+    """
+    Get status updates from worker agents for a specific job.
+
+    The frontend can poll this to show real-time progress.
+    """
+    exchange = ButlerDataExchange.instance()
+    updates = exchange.get_updates(job_id)
+    return {"job_id": job_id, "updates": updates, "count": len(updates)}
 
 
 if __name__ == "__main__":
