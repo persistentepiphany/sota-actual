@@ -131,12 +131,12 @@ const toBaseUnits = (amountStr: string, decimals = STABLECOIN_DECIMALS): bigint 
 
 // Client tools that bridge ElevenLabs to Flare Butler API
 const createFlareTools = (flareButlerUrl: string, onMessage?: (msg: any) => void) => ({
-  // Send user query to Flare Butler and get response
+  // Send user query to OpenAI-backed Butler Agent
   query_butler: async ({ query }: { query: string }) => {
-    console.log('📤 Sending to Flare Butler:', query);
+    console.log('📤 Sending to Flare Butler (OpenAI):', query);
     
     try {
-      const response = await fetch(`${flareButlerUrl}/query`, {
+      const response = await fetch(`${flareButlerUrl}/chat`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ query, timestamp: Date.now() }),
@@ -147,13 +147,13 @@ const createFlareTools = (flareButlerUrl: string, onMessage?: (msg: any) => void
       }
       
       const data = await response.json();
-      console.log('✅ Flare Butler response:', data);
+      console.log('✅ Butler Agent response:', data);
       
       onMessage?.(data);
       
       return data.response || data.message || 'Request processed';
     } catch (error) {
-      console.error('❌ Flare Butler error:', error);
+      console.error('❌ Butler Agent error:', error);
       return `I had trouble connecting to the butler agent. ${error}`;
     }
   },
@@ -173,19 +173,21 @@ const createFlareTools = (flareButlerUrl: string, onMessage?: (msg: any) => void
 
   // Get job listings from Flare OrderBook
   get_job_listings: async ({ filters }: { filters?: any }) => {
-    console.log('📋 Fetching jobs from Flare:', filters);
+    console.log('📋 Fetching marketplace jobs:', filters);
     
     try {
-      const response = await fetch(`${flareButlerUrl}/jobs`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ filters }),
-      });
+      const response = await fetch(`${flareButlerUrl}/marketplace/jobs`);
+      const data = await response.json();
       
-      const jobs = await response.json();
-      return `Found ${jobs.length} jobs: ${JSON.stringify(jobs)}`;
+      if (data.jobs && data.jobs.length > 0) {
+        const summary = data.jobs.map((j: any) => 
+          `Job ${j.job_id}: ${j.description} (${j.status}, budget: $${j.budget_usdc})`
+        ).join('; ');
+        return `Found ${data.total} jobs on the marketplace: ${summary}`;
+      }
+      return `No jobs currently on the marketplace.`;
     } catch (error) {
-      return `Error fetching jobs: ${error}`;
+      return `Error fetching marketplace jobs: ${error}`;
     }
   },
 
