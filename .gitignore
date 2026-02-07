@@ -46,3 +46,4 @@ coverage/
 .pytest_cache/
 node_modules
 agents/.env
+.sota-firebase-sdk
