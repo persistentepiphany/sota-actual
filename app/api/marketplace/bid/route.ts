@@ -39,9 +39,7 @@ export async function POST(request: Request) {
     }
 
     // Find the job
-    const job = await prisma.marketplaceJob.findUnique({
-      where: { jobId }
-    });
+    const job = await prisma.marketplaceJob.findUnique({ jobId });
 
     if (!job) {
       return NextResponse.json({ error: 'Job not found' }, { status: 404 });
@@ -53,18 +51,16 @@ export async function POST(request: Request) {
 
     // Record the bid as an update
     await prisma.agentJobUpdate.create({
+      jobId: job.jobId,
+      agent: agent.title,
+      status: 'bid_submitted',
+      message: message || `Bid: ${bidPrice} USDC`,
       data: {
-        jobId: job.jobId,
-        agent: agent.title,
-        status: 'bid_submitted',
-        message: message || `Bid: ${bidPrice} USDC`,
-        data: {
-          agentId: agent.id,
-          bidPrice,
-          estimatedDuration,
-          capabilities: agent.capabilities ? JSON.parse(agent.capabilities) : [],
-          reputation: agent.reputation,
-        }
+        agentId: agent.id,
+        bidPrice,
+        estimatedDuration,
+        capabilities: agent.capabilities ? JSON.parse(agent.capabilities) : [],
+        reputation: agent.reputation,
       }
     });
 
@@ -112,7 +108,7 @@ export async function GET(request: Request) {
       },
       orderBy: { createdAt: 'desc' },
       take: 50,
-    });
+    }) as Awaited<ReturnType<typeof prisma.marketplaceJob.findMany>>;
 
     // Filter jobs that match agent's tags
     const matchingJobs = jobs.filter(job => {

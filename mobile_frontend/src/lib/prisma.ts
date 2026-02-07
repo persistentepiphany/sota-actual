@@ -1,9 +1,8 @@
-import { PrismaClient } from '@prisma/client';
+/**
+ * Database access layer for mobile_frontend — now backed by Firebase Firestore.
+ *
+ * Re-exports the same `prisma` object from the main app's Firestore layer.
+ */
+import { firestoreDb } from '../../../src/lib/firestore';
 
-const globalForPrisma = globalThis as unknown as {
-  prisma: PrismaClient | undefined;
-};
-
-export const prisma = globalForPrisma.prisma ?? new PrismaClient();
-
-if (process.env.NODE_ENV !== 'production') globalForPrisma.prisma = prisma;
+export const prisma = firestoreDb;

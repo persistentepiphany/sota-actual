@@ -7,34 +7,36 @@ import { agentSchema } from '@/lib/validators';
 export async function GET() {
   try {
     const agents = await prisma.agent.findMany({
-      select: {
-        id: true,
-        title: true,
-        description: true,
-        category: true,
-        priceUsd: true,
-        tags: true,
-        icon: true,
-        status: true,
-        isVerified: true,
-        reputation: true,
-        totalRequests: true,
-        successfulRequests: true,
-        capabilities: true,
-        minFeeUsdc: true,
-        walletAddress: true,
-        ownerId: true,
-        owner: {
-          select: {
-            id: true,
-            name: true,
-          }
-        }
-      },
-      orderBy: { reputation: 'desc' }
+      orderBy: { reputation: 'desc' },
     });
 
-    return NextResponse.json({ agents });
+    // Hydrate owner info
+    const agentsWithOwner = await Promise.all(
+      agents.map(async (agent) => {
+        const owner = await prisma.user.findUnique({ id: agent.ownerId });
+        return {
+          id: agent.id,
+          title: agent.title,
+          description: agent.description,
+          category: agent.category,
+          priceUsd: agent.priceUsd,
+          tags: agent.tags,
+          icon: agent.icon,
+          status: agent.status,
+          isVerified: agent.isVerified,
+          reputation: agent.reputation,
+          totalRequests: agent.totalRequests,
+          successfulRequests: agent.successfulRequests,
+          capabilities: agent.capabilities,
+          minFeeUsdc: agent.minFeeUsdc,
+          walletAddress: agent.walletAddress,
+          ownerId: agent.ownerId,
+          owner: owner ? { id: owner.id, name: owner.name } : null,
+        };
+      })
+    );
+
+    return NextResponse.json({ agents: agentsWithOwner });
   } catch (error) {
     console.error('Error fetching agents:', error);
     return NextResponse.json({ error: 'Failed to fetch agents' }, { status: 500 });
@@ -80,26 +82,24 @@ export async function POST(request: Request) {
 
     // Create the agent
     const agent = await prisma.agent.create({
-      data: {
-        title: data.title,
-        description: data.description,
-        category: data.category,
-        priceUsd: data.priceUsd,
-        tags: data.tags,
-        network: data.network || 'flare-coston2',
-        apiEndpoint: data.apiEndpoint,
-        capabilities: data.capabilities,
-        webhookUrl: data.webhookUrl,
-        documentation: data.documentation,
-        walletAddress: body.walletAddress as string || null,
-        ownerId: user.id,
-        status: 'pending', // Needs verification
-        isVerified: false,
-        minFeeUsdc: (body.minFeeUsdc as number) || 0.01,
-        maxConcurrent: (body.maxConcurrent as number) || 5,
-        bidAggressiveness: (body.bidAggressiveness as number) || 0.8,
-        icon: body.icon || 'Bot',
-      },
+      title: data.title,
+      description: data.description,
+      category: data.category ?? null,
+      priceUsd: data.priceUsd,
+      tags: data.tags ?? null,
+      network: data.network || 'flare-coston2',
+      apiEndpoint: data.apiEndpoint ?? null,
+      capabilities: data.capabilities ?? null,
+      webhookUrl: data.webhookUrl ?? null,
+      documentation: data.documentation ?? null,
+      walletAddress: (body.walletAddress as string) || null,
+      ownerId: user.id,
+      status: 'pending',
+      isVerified: false,
+      minFeeUsdc: (body.minFeeUsdc as number) || 0.01,
+      maxConcurrent: (body.maxConcurrent as number) || 5,
+      bidAggressiveness: (body.bidAggressiveness as number) || 0.8,
+      icon: body.icon || 'Bot',
     });
 
     return NextResponse.json({ 

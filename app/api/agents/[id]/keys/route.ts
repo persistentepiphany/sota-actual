@@ -21,10 +21,7 @@ export async function GET(
     }
 
     // Check ownership
-    const agent = await prisma.agent.findUnique({
-      where: { id: agentId },
-      select: { ownerId: true }
-    });
+    const agent = await prisma.agent.findUnique({ id: agentId });
 
     if (!agent) {
       return NextResponse.json({ error: 'Agent not found' }, { status: 404 });
@@ -36,20 +33,21 @@ export async function GET(
 
     const keys = await prisma.agentApiKey.findMany({
       where: { agentId },
-      select: {
-        id: true,
-        keyId: true,
-        name: true,
-        permissions: true,
-        lastUsedAt: true,
-        expiresAt: true,
-        isActive: true,
-        createdAt: true,
-      },
-      orderBy: { createdAt: 'desc' }
+      orderBy: { createdAt: 'desc' },
     });
 
-    return NextResponse.json({ keys });
+    return NextResponse.json({
+      keys: keys.map(k => ({
+        id: k.id,
+        keyId: k.keyId,
+        name: k.name,
+        permissions: k.permissions,
+        lastUsedAt: k.lastUsedAt,
+        expiresAt: k.expiresAt,
+        isActive: k.isActive,
+        createdAt: k.createdAt,
+      }))
+    });
   } catch (error) {
     console.error('Error fetching API keys:', error);
     return NextResponse.json({ error: 'Failed to fetch API keys' }, { status: 500 });
@@ -75,10 +73,7 @@ export async function POST(
     }
 
     // Check ownership
-    const agent = await prisma.agent.findUnique({
-      where: { id: agentId },
-      select: { ownerId: true, title: true }
-    });
+    const agent = await prisma.agent.findUnique({ id: agentId });
 
     if (!agent) {
       return NextResponse.json({ error: 'Agent not found' }, { status: 404 });
@@ -102,14 +97,14 @@ export async function POST(
 
     // Create the key in database
     await prisma.agentApiKey.create({
-      data: {
-        keyId,
-        keyHash,
-        agentId,
-        name,
-        permissions,
-        expiresAt,
-      }
+      keyId,
+      keyHash,
+      agentId,
+      name,
+      permissions,
+      expiresAt,
+      lastUsedAt: null,
+      isActive: true,
     });
 
     // Return the full key - this is the ONLY time it will be shown
@@ -149,10 +144,7 @@ export async function DELETE(
     }
 
     // Check ownership
-    const agent = await prisma.agent.findUnique({
-      where: { id: agentId },
-      select: { ownerId: true }
-    });
+    const agent = await prisma.agent.findUnique({ id: agentId });
 
     if (!agent) {
       return NextResponse.json({ error: 'Agent not found' }, { status: 404 });
@@ -170,15 +162,12 @@ export async function DELETE(
     }
 
     // Revoke the key (soft delete by setting isActive = false)
-    const key = await prisma.agentApiKey.updateMany({
-      where: { 
-        keyId,
-        agentId 
-      },
-      data: { isActive: false }
-    });
+    const result = await prisma.agentApiKey.updateMany(
+      { keyId, agentId },
+      { isActive: false }
+    );
 
-    if (key.count === 0) {
+    if (result.count === 0) {
       return NextResponse.json({ error: 'API key not found' }, { status: 404 });
     }
 

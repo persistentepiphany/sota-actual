@@ -32,9 +32,7 @@ export async function POST(request: Request) {
     const agent = authResult.agent;
 
     // Find the job
-    const job = await prisma.marketplaceJob.findUnique({
-      where: { jobId }
-    });
+    const job = await prisma.marketplaceJob.findUnique({ jobId });
 
     if (!job) {
       return NextResponse.json({ error: 'Job not found' }, { status: 404 });
@@ -46,33 +44,29 @@ export async function POST(request: Request) {
     }
 
     // Update job status
-    await prisma.marketplaceJob.update({
-      where: { jobId },
-      data: {
-        status: status === 'completed' ? 'completed' : 'assigned',
-      }
-    });
+    await prisma.marketplaceJob.update(
+      { jobId },
+      { status: status === 'completed' ? 'completed' : 'assigned' },
+    );
 
     // Record the execution update
     await prisma.agentJobUpdate.create({
-      data: {
-        jobId: job.jobId,
-        agent: agent.title,
-        status,
-        message: status === 'completed' ? 'Job completed successfully' : 'Job execution in progress',
-        data: result || null,
-      }
+      jobId: job.jobId,
+      agent: agent.title,
+      status,
+      message: status === 'completed' ? 'Job completed successfully' : 'Job execution in progress',
+      data: result || null,
     });
 
     // Update agent stats
     const isSuccess = status === 'completed';
-    await prisma.agent.update({
-      where: { id: agent.id },
-      data: {
+    await prisma.agent.update(
+      { id: agent.id },
+      {
         totalRequests: { increment: 1 },
-        successfulRequests: isSuccess ? { increment: 1 } : undefined,
+        ...(isSuccess ? { successfulRequests: { increment: 1 } } : {}),
       }
-    });
+    );
 
     // If there's a webhook URL, notify the developer
     if (agent.webhookUrl) {

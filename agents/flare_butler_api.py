@@ -212,13 +212,13 @@ async def startup_event():
     print(f"🚀 Starting SOTA Flare Butler API...")
     print(f"🌐 Network: {network.rpc_url} (chain {network.chain_id})")
 
-    # ── Connect to PostgreSQL ────────────────────────────────
+    # ── Connect to Firestore ────────────────────────────────
     if Database is not None:
         try:
             db = await Database.connect()
-            print("✅ Connected to PostgreSQL")
+            print("✅ Connected to Firestore")
         except Exception as e:
-            print(f"⚠️ PostgreSQL unavailable — running without persistence: {e}")
+            print(f"⚠️ Firestore unavailable — running without persistence: {e}")
     else:
         print("⚠️ Database module not available — running without persistence")
 
@@ -949,7 +949,7 @@ async def set_user_context(req: SetUserContextRequest):
 
     Call this BEFORE posting a job so the hackathon agent (or any
     worker) can access the user's info when it asks for it.
-    Persists to PostgreSQL and keeps an in-memory cache.
+    Persists to Firestore and keeps an in-memory cache.
     """
     # Always keep in-memory copy for fast reads
     _user_context[req.user_id] = req.profile

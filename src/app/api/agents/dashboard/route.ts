@@ -17,7 +17,7 @@ export async function GET() {
   try {
     // Fetch all agents from DB
     const dbAgents = await prisma.agent.findMany({
-      orderBy: { createdAt: "asc" },
+      orderBy: { createdAt: 'asc' },
     });
 
     // Transform to dashboard format

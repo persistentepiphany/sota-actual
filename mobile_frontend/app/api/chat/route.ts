@@ -12,20 +12,18 @@ export async function POST(req: NextRequest) {
     }
 
     // Upsert session (create if not exists)
-    await prisma.chatSession.upsert({
-      where: { id: sessionId },
-      update: { updatedAt: new Date() },
-      create: {
+    await prisma.chatSession.upsert(
+      { id: sessionId },
+      { updatedAt: new Date() },
+      {
         id: sessionId,
         wallet: wallet || null,
         title: role === 'user' ? text.slice(0, 80) : null,
       },
-    });
+    );
 
     // Create the message
-    const message = await prisma.chatMessage.create({
-      data: { sessionId, role, text },
-    });
+    const message = await prisma.chatMessage.create({ sessionId, role, text });
 
     return NextResponse.json(message, { status: 201 });
   } catch (error) {

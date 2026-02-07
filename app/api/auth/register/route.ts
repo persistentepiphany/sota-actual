@@ -19,9 +19,7 @@ export async function POST(request: Request) {
     const { email, password, name } = validation.data;
 
     // Check if user already exists
-    const existingUser = await prisma.user.findUnique({
-      where: { email }
-    });
+    const existingUser = await prisma.user.findUnique({ email });
 
     if (existingUser) {
       return NextResponse.json({ error: 'Email already registered' }, { status: 409 });
@@ -29,12 +27,12 @@ export async function POST(request: Request) {
 
     // Create user
     const user = await prisma.user.create({
-      data: {
-        email,
-        passwordHash: hashPassword(password),
-        name: name || email.split('@')[0],
-        role: 'developer',
-      }
+      email,
+      passwordHash: hashPassword(password),
+      name: name || email.split('@')[0],
+      role: 'developer',
+      firebaseUid: null,
+      walletAddress: null,
     });
 
     // Create session token
