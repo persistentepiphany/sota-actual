@@ -13,7 +13,9 @@ from typing import Optional
 from pathlib import Path
 from dotenv import load_dotenv
 
-load_dotenv()
+# Load from project root .env (single source of truth)
+_root_env = Path(__file__).resolve().parent.parent.parent.parent / ".env"
+load_dotenv(_root_env)
 
 
 # ─── Network Definitions ─────────────────────────────────────
@@ -141,6 +143,7 @@ class JobType(IntEnum):
     CALL_VERIFICATION = 5
     GENERIC = 6
     JOB_SCOURING = 7
+    MARKET_PREDICTION = 8
 
 
 JOB_TYPE_LABELS = {
@@ -150,6 +153,7 @@ JOB_TYPE_LABELS = {
     JobType.CALL_VERIFICATION: "Call Verification",
     JobType.GENERIC: "Generic Task",
     JobType.JOB_SCOURING: "Job Scouring",
+    JobType.MARKET_PREDICTION: "Market Prediction",
 }
 
 

@@ -3,7 +3,7 @@ import { ethers } from "hardhat";
 import path from "path";
 import { promises as fs } from "fs";
 
-dotenvConfig();
+dotenvConfig({ path: path.resolve(__dirname, "..", "..", ".env") });
 
 async function delay(ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms));

@@ -1,0 +1,23 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm run build:*)",
+      "Bash(curl:*)",
+      "Bash(python -m test_hackathon_agent:*)",
+      "Bash(python:*)",
+      "Bash(pip install:*)",
+      "Bash(set:*)",
+      "Bash(\"D:\\\\SOTA\\\\.venv\\\\Scripts\\\\python.exe\" test_flare_predictor_live.py)",
+      "Bash(python -m test_caller_agent:*)",
+      "Bash(python -c:*)",
+      "Bash(python -m test_hackathon_agent_live:*)",
+      "Bash(python -m test_caller_agent_live:*)",
+      "Bash(del \"D:\\\\SOTA\\\\agents\\\\.env\")",
+      "Bash(del:*)",
+      "Bash(del \"D:\\\\SOTA\\\\contracts\\\\.env\")",
+      "Bash(npx tsc:*)",
+      "Bash(npx next lint:*)",
+      "Bash(git -C D:SOTA status --short)"
+    ]
+  }
+}

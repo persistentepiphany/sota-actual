@@ -234,10 +234,74 @@ The CV Magic agent scours job boards to find positions matching your resume/CV.
 
   console.log("🤖 Created agents: Caller, Hackathon, CV Magic");
 
+  // Create Flare Predictor Agent - Market prediction signals
+  const flarePredictor = await prisma.agent.create({
+    data: {
+      title: "Flare Predictor",
+      description: "On-chain trading advisor using Flare FTSO data. Generates discrete market signals (STRONGLY_BUY, BUY, HOLD, SELL, STRONGLY_SELL) for smart contract strategies using real-time price feeds and external indicators via FDC.",
+      category: "Trading",
+      priceUsd: 0.05,
+      tags: "trading,ftso,signals,prediction,defi,market-analysis",
+      network: "flare-coston2",
+      ownerId: user.id,
+      status: "active",
+      icon: "TrendingUp",
+      walletAddress: "0x9876543210987654321098765432109876543210",
+      apiEndpoint: "http://localhost:3009/predict",
+      capabilities: JSON.stringify(["ftso_data", "market_analysis", "signal_generation", "fdc_integration"]),
+      minFeeUsdc: 0.02,
+      maxConcurrent: 10,
+      isVerified: true,
+      documentation: `# Flare Predictor Agent API
+
+## Overview
+On-chain trading signals using Flare FTSO price feeds and FDC external indicators.
+
+## API Endpoint
+POST /predict
+
+## Request Body
+{
+  "asset": "BTC/USD",
+  "horizon_minutes": 60,
+  "risk_profile": "moderate",
+  "include_external": true
+}
+
+## Response
+{
+  "signal": "BUY",
+  "confidence": 0.72,
+  "reasoning_short": "Bullish momentum with supportive sentiment.",
+  "reasoning_detailed": "Positive 15m momentum, RSI neutral, Short SMA above long SMA",
+  "risk_flags": ["Moderate volatility"],
+  "recommended_action": "Increase BTC/USD allocation by 5-10%",
+  "time_horizon_minutes": 60
+}
+
+## Supported Assets
+BTC/USD, ETH/USD, FLR/USD, XRP/USD, DOGE/USD, LTC/USD, ADA/USD
+
+## Signal Levels
+- STRONGLY_BUY: High conviction bullish
+- BUY: Mild bullish bias
+- HOLD: Neutral / conflicting signals
+- SELL: Mild bearish bias
+- STRONGLY_SELL: High conviction bearish
+`,
+      totalRequests: 0,
+      successfulRequests: 0,
+      reputation: 5.0,
+    },
+  });
+
+  console.log("🤖 Created agents: Caller, Hackathon, CV Magic, Flare Predictor");
+
   // Generate API keys for all agents
   const callerKey = generateApiKey();
   const hackathonKey = generateApiKey();
   const cvMagicKey = generateApiKey();
+  const flarePredictorKey = generateApiKey();
 
   await prisma.agentApiKey.createMany({
     data: [
@@ -262,6 +326,13 @@ The CV Magic agent scours job boards to find positions matching your resume/CV.
         name: "Production",
         permissions: ["execute", "bid"],
       },
+      {
+        keyId: flarePredictorKey.keyId,
+        keyHash: flarePredictorKey.keyHash,
+        agentId: flarePredictor.id,
+        name: "Production",
+        permissions: ["execute", "bid"],
+      },
     ],
   });
 
@@ -281,6 +352,11 @@ The CV Magic agent scours job boards to find positions matching your resume/CV.
   console.log("├─────────────────────────────────────────────────────────────────────────────┤");
   console.log(`│ Key ID:   ${cvMagicKey.keyId.padEnd(65)}│`);
   console.log(`│ Full Key: ${cvMagicKey.fullKey.substring(0, 60)}...│`);
+  console.log("│                                                                             │");
+  console.log("│ FLARE PREDICTOR AGENT                                                       │");
+  console.log("├─────────────────────────────────────────────────────────────────────────────┤");
+  console.log(`│ Key ID:   ${flarePredictorKey.keyId.padEnd(65)}│`);
+  console.log(`│ Full Key: ${flarePredictorKey.fullKey.substring(0, 60)}...│`);
   console.log("└─────────────────────────────────────────────────────────────────────────────┘");
   console.log("\n⚠️  Save these keys! They cannot be retrieved after this.\n");
 
@@ -293,6 +369,7 @@ The CV Magic agent scours job boards to find positions matching your resume/CV.
 CALLER_API_KEY=${callerKey.fullKey}
 HACKATHON_API_KEY=${hackathonKey.fullKey}
 CV_MAGIC_API_KEY=${cvMagicKey.fullKey}
+FLARE_PREDICTOR_API_KEY=${flarePredictorKey.fullKey}
 `;
 
   fs.writeFileSync(".env.agent-keys", keysContent);
