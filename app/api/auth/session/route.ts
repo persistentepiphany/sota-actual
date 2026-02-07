@@ -3,7 +3,7 @@ import { adminAuth } from '@/lib/firebase-admin';
 import { prisma } from '@/lib/prisma';
 import { cookies } from 'next/headers';
 
-// POST /api/auth/session — Verify Firebase ID token, sync user to Prisma, set session cookie
+// POST /api/auth/session — Verify Firebase ID token, sync user to Firestore, set session cookie
 export async function POST(request: Request) {
   try {
     const { idToken } = await request.json();
@@ -20,21 +20,22 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Email is required' }, { status: 400 });
     }
 
-    // Upsert user in Prisma — create if first time, update if returning
-    const user = await prisma.user.upsert({
-      where: { firebaseUid: uid },
-      update: {
+    // Upsert user in Firestore — create if first time, update if returning
+    const user = await prisma.user.upsert(
+      { firebaseUid: uid },
+      {
         email,
         name: name || undefined,
       },
-      create: {
+      {
         firebaseUid: uid,
         email,
         name: name || email.split('@')[0],
-        passwordHash: '', // Not used with Firebase auth
+        passwordHash: '',
+        walletAddress: null,
         role: 'developer',
       },
-    });
+    );
 
     // Create a session cookie (5 days)
     const expiresIn = 5 * 24 * 60 * 60 * 1000;

@@ -14,9 +14,7 @@ export async function GET(request: Request) {
     if (sessionCookie) {
       try {
         const decoded = await adminAuth.verifySessionCookie(sessionCookie, true);
-        const user = await prisma.user.findUnique({
-          where: { firebaseUid: decoded.uid }
-        });
+        const user = await prisma.user.findUnique({ firebaseUid: decoded.uid });
 
         if (user) {
           return NextResponse.json({

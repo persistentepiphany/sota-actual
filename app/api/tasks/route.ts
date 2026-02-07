@@ -26,19 +26,19 @@ export async function GET() {
   try {
     // Fetch marketplace jobs from DB
     const jobs = await prisma.marketplaceJob.findMany({
-      orderBy: { createdAt: "desc" },
+      orderBy: { createdAt: 'desc' },
       include: {
         updates: {
-          orderBy: { createdAt: "desc" },
+          orderBy: { createdAt: 'desc' },
           take: 1,
         },
       },
-    });
+    }) as Awaited<ReturnType<typeof prisma.marketplaceJob.findMany>>;
 
     // Also fetch agent data requests to show pending communications
     const dataRequests = await prisma.agentDataRequest.findMany({
-      where: { status: "pending" },
-      orderBy: { createdAt: "desc" },
+      where: { status: 'pending' },
+      orderBy: { createdAt: 'desc' },
     });
 
     // Transform jobs to dashboard format
@@ -72,7 +72,7 @@ export async function GET() {
       }
 
       // Get latest update for more accurate progress
-      const latestUpdate = job.updates[0];
+      const latestUpdate = job.updates?.[0];
       if (latestUpdate) {
         if (latestUpdate.status === "in_progress") {
           status = "executing";
@@ -111,8 +111,7 @@ export async function GET() {
 
     // Get online agents count
     const agents = await prisma.agent.findMany({
-      where: { status: { in: ["active", "busy"] } },
-      select: { id: true, title: true, status: true, icon: true },
+      where: { status: { in: ['active', 'busy'] } },
     });
 
     return NextResponse.json({

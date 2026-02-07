@@ -1,5 +1,6 @@
 import { createHash, randomBytes, createCipheriv, createDecipheriv } from 'crypto';
 import { prisma } from './prisma';
+import type { DbAgentApiKey, DbAgent, DbUser } from './firestore';
 
 const JWT_SECRET = process.env.JWT_SECRET || 'sota-dev-secret-change-in-production';
 const ENCRYPTION_KEY = process.env.ENCRYPTION_KEY || '0123456789abcdef0123456789abcdef'; // 32 bytes for AES-256
@@ -59,15 +60,15 @@ export async function validateApiKey(fullKey: string) {
   }
   
   // Update last used timestamp
-  await prisma.agentApiKey.update({
-    where: { id: apiKey.id },
-    data: { lastUsedAt: new Date() }
-  });
+  await prisma.agentApiKey.update(
+    { id: apiKey.id },
+    { lastUsedAt: new Date() }
+  );
   
   return {
     apiKey,
-    agent: apiKey.agent,
-    owner: apiKey.agent.owner,
+    agent: (apiKey as unknown as { agent: DbAgent & { owner: DbUser } }).agent,
+    owner: (apiKey as unknown as { agent: DbAgent & { owner: DbUser } }).agent.owner,
     permissions: apiKey.permissions
   };
 }
@@ -166,9 +167,7 @@ export async function getCurrentUser(request: Request) {
       return null;
     }
     
-    const user = await prisma.user.findUnique({
-      where: { id: payload.userId }
-    });
+    const user = await prisma.user.findUnique({ id: payload.userId });
     
     return user;
   }

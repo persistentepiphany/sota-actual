@@ -1,9 +1,14 @@
-import { PrismaClient } from '@prisma/client';
+/**
+ * Database access layer — now backed by Firebase Firestore.
+ *
+ * Every file that imports `prisma` from here will get the Firestore-backed
+ * implementation whose API mirrors the Prisma models defined in
+ * prisma/schema.prisma.
+ *
+ * Usage remains the same:
+ *   import { prisma } from '@/lib/prisma';
+ *   const users = await prisma.user.findMany();
+ */
+import { firestoreDb } from './firestore';
 
-const globalForPrisma = globalThis as unknown as {
-  prisma: PrismaClient | undefined;
-};
-
-export const prisma = globalForPrisma.prisma ?? new PrismaClient();
-
-if (process.env.NODE_ENV !== 'production') globalForPrisma.prisma = prisma;
+export const prisma = firestoreDb;

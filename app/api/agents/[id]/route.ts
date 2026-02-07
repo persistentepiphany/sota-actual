@@ -15,43 +15,39 @@ export async function GET(
       return NextResponse.json({ error: 'Invalid agent ID' }, { status: 400 });
     }
 
-    const agent = await prisma.agent.findUnique({
-      where: { id: agentId },
-      select: {
-        id: true,
-        title: true,
-        description: true,
-        category: true,
-        priceUsd: true,
-        tags: true,
-        icon: true,
-        status: true,
-        isVerified: true,
-        reputation: true,
-        totalRequests: true,
-        successfulRequests: true,
-        capabilities: true,
-        minFeeUsdc: true,
-        maxConcurrent: true,
-        documentation: true,
-        onchainAddress: true,
-        walletAddress: true,
-        ownerId: true,
-        createdAt: true,
-        owner: {
-          select: {
-            id: true,
-            name: true,
-          }
-        }
-      }
-    });
+    const agent = await prisma.agent.findUnique({ id: agentId });
 
     if (!agent) {
       return NextResponse.json({ error: 'Agent not found' }, { status: 404 });
     }
 
-    return NextResponse.json({ agent });
+    const owner = await prisma.user.findUnique({ id: agent.ownerId });
+
+    return NextResponse.json({
+      agent: {
+        id: agent.id,
+        title: agent.title,
+        description: agent.description,
+        category: agent.category,
+        priceUsd: agent.priceUsd,
+        tags: agent.tags,
+        icon: agent.icon,
+        status: agent.status,
+        isVerified: agent.isVerified,
+        reputation: agent.reputation,
+        totalRequests: agent.totalRequests,
+        successfulRequests: agent.successfulRequests,
+        capabilities: agent.capabilities,
+        minFeeUsdc: agent.minFeeUsdc,
+        maxConcurrent: agent.maxConcurrent,
+        documentation: agent.documentation,
+        onchainAddress: agent.onchainAddress,
+        walletAddress: agent.walletAddress,
+        ownerId: agent.ownerId,
+        createdAt: agent.createdAt,
+        owner: owner ? { id: owner.id, name: owner.name } : null,
+      }
+    });
   } catch (error) {
     console.error('Error fetching agent:', error);
     return NextResponse.json({ error: 'Failed to fetch agent' }, { status: 500 });
@@ -77,10 +73,7 @@ export async function PATCH(
     }
 
     // Check ownership
-    const existingAgent = await prisma.agent.findUnique({
-      where: { id: agentId },
-      select: { ownerId: true }
-    });
+    const existingAgent = await prisma.agent.findUnique({ id: agentId });
 
     if (!existingAgent) {
       return NextResponse.json({ error: 'Agent not found' }, { status: 404 });
@@ -106,10 +99,7 @@ export async function PATCH(
       }
     }
 
-    const agent = await prisma.agent.update({
-      where: { id: agentId },
-      data: updateData,
-    });
+    const agent = await prisma.agent.update({ id: agentId }, updateData);
 
     return NextResponse.json({ 
       success: true, 
@@ -144,10 +134,7 @@ export async function DELETE(
     }
 
     // Check ownership
-    const existingAgent = await prisma.agent.findUnique({
-      where: { id: agentId },
-      select: { ownerId: true }
-    });
+    const existingAgent = await prisma.agent.findUnique({ id: agentId });
 
     if (!existingAgent) {
       return NextResponse.json({ error: 'Agent not found' }, { status: 404 });
@@ -157,9 +144,7 @@ export async function DELETE(
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
-    await prisma.agent.delete({
-      where: { id: agentId }
-    });
+    await prisma.agent.delete({ id: agentId });
 
     return NextResponse.json({ success: true, message: 'Agent deleted' });
   } catch (error) {
