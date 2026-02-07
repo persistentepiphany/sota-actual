@@ -20,17 +20,14 @@ from enum import Enum
 
 from pydantic import Field
 
-from spoon_ai.agents.toolcall import ToolCallAgent
-from spoon_ai.tools import ToolManager
-from spoon_ai.tools.base import BaseTool
-from spoon_ai.chat import ChatBot
+from .tool_base import BaseTool, ToolManager
+from .agent_runner import AgentRunner, LLMClient
 
 from .config import JobType, JOB_TYPE_LABELS, get_contract_addresses
 from .wallet import AgentWallet, create_wallet_from_env
 from .events import EventListener, JobPostedEvent, BidAcceptedEvent
 from .contracts import get_contracts, place_bid, get_job
 from .elevenlabs import ElevenLabsClient
-from .neofs import get_neofs_client
 import httpx
 
 logger = logging.getLogger(__name__)
@@ -38,8 +35,6 @@ logger = logging.getLogger(__name__)
 
 class AgentCapability(str, Enum):
     """Agent capabilities for job matching"""
-    TIKTOK_SCRAPE = "tiktok_scrape"
-    WEB_SCRAPE = "web_scrape"
     PHONE_CALL = "phone_call"
     DATA_ANALYSIS = "data_analysis"
     JOB_ORCHESTRATION = "job_orchestration"
@@ -95,7 +90,7 @@ class BaseArchiveAgent(ABC):
         self.wallet: Optional[AgentWallet] = None
         self.event_listener: Optional[EventListener] = None
         self.active_jobs: dict[int, ActiveJob] = {}
-        self.llm_agent: Optional[ToolCallAgent] = None
+        self.llm_agent: Optional[AgentRunner] = None
         
         self._running = False
         self._contracts = None
@@ -139,8 +134,8 @@ class BaseArchiveAgent(ABC):
         self._initialized = True
     
     @abstractmethod
-    async def _create_llm_agent(self) -> ToolCallAgent:
-        """Create the SpoonOS ToolCallAgent with appropriate tools"""
+    async def _create_llm_agent(self) -> AgentRunner:
+        """Create the agent runner with appropriate tools"""
         pass
     
     @abstractmethod
@@ -395,7 +390,7 @@ class BaseArchiveAgent(ABC):
 
     async def _fetch_job_metadata(self, metadata_uri: str) -> dict:
         """
-        Fetch job metadata from NeoFS (neofs://cid/oid) or HTTP(S).
+        Fetch job metadata from storage URI or HTTP(S).
         Returns parsed JSON dict or {} on failure.
         """
         if not metadata_uri:
@@ -407,6 +402,7 @@ class BaseArchiveAgent(ABC):
                 if len(parts) != 2:
                     return {}
                 container_id, object_id = parts
+                from .neofs import get_neofs_client
                 client = get_neofs_client()
                 try:
                     data = await client.download_object(object_id, container_id)

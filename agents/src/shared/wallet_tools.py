@@ -1,7 +1,7 @@
 """
 Wallet Tools for Archive Agents
 
-SpoonOS tools for wallet operations that all agents share.
+Tools for wallet operations that all agents share.
 """
 
 import json
@@ -9,7 +9,7 @@ from typing import Optional
 from decimal import Decimal
 
 from pydantic import Field
-from spoon_ai.tools.base import BaseTool
+from .tool_base import BaseTool
 
 from .wallet import AgentWallet
 

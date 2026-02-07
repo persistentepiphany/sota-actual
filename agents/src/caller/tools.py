@@ -1,8 +1,8 @@
 """
 Caller Agent Tools
 
-SpoonOS tools for phone-based verification using Twilio.
-These are EXECUTION tools - bidding is handled by shared bidding_tools.
+Tools for phone-based verification using Twilio.
+These are EXECUTION tools — bidding is handled by shared bidding_tools.
 """
 
 import os
@@ -13,9 +13,8 @@ from datetime import datetime
 from pydantic import Field
 from web3 import Web3
 
-from spoon_ai.tools.base import BaseTool
+from ..shared.tool_base import BaseTool
 
-from ..shared.neofs import get_neofs_client
 import httpx
 
 

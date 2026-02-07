@@ -41,7 +41,6 @@ class FlareContractAddresses:
 class AgentEndpoints:
     """A2A endpoint URLs for each agent"""
     manager: str = "http://localhost:3001"
-    scraper: str = "http://localhost:3002"
     caller: str = "http://localhost:3003"
 
 
@@ -126,7 +125,6 @@ def get_agent_endpoints() -> AgentEndpoints:
     """Get agent A2A endpoints from environment."""
     return AgentEndpoints(
         manager=os.getenv("MANAGER_ENDPOINT", "http://localhost:3001"),
-        scraper=os.getenv("SCRAPER_ENDPOINT", "http://localhost:3002"),
         caller=os.getenv("CALLER_ENDPOINT", "http://localhost:3003"),
     )
 
@@ -138,8 +136,6 @@ class JobType(IntEnum):
     HOTEL_BOOKING = 0
     RESTAURANT_BOOKING = 1
     HACKATHON_REGISTRATION = 2
-    TIKTOK_SCRAPE = 3
-    WEB_SCRAPE = 4
     CALL_VERIFICATION = 5
     GENERIC = 6
 
@@ -148,8 +144,6 @@ JOB_TYPE_LABELS = {
     JobType.HOTEL_BOOKING: "Hotel Booking",
     JobType.RESTAURANT_BOOKING: "Restaurant Booking",
     JobType.HACKATHON_REGISTRATION: "Hackathon Registration",
-    JobType.TIKTOK_SCRAPE: "TikTok Scrape",
-    JobType.WEB_SCRAPE: "Web Scrape",
     JobType.CALL_VERIFICATION: "Call Verification",
     JobType.GENERIC: "Generic Task",
 }
@@ -157,7 +151,6 @@ JOB_TYPE_LABELS = {
 
 AGENT_CAPABILITIES = {
     "BUTLER": ["job_planning", "agent_coordination", "user_interaction"],
-    "SCRAPER": ["tiktok_scrape", "web_scrape", "data_extraction"],
     "CALLER": ["phone_call", "voice_verification", "reservation_booking"],
 }
 
@@ -167,7 +160,6 @@ def get_private_key(agent_type: str = "butler") -> Optional[str]:
     key_map = {
         "butler": "FLARE_PRIVATE_KEY",
         "worker": "WORKER_PRIVATE_KEY",
-        "scraper": "SCRAPER_PRIVATE_KEY",
         "caller": "CALLER_PRIVATE_KEY",
     }
     env_var = key_map.get(agent_type.lower(), "FLARE_PRIVATE_KEY")

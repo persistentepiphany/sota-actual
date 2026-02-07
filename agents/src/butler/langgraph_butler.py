@@ -136,8 +136,6 @@ def intent_node(state: ButlerState) -> dict:
         "hotel": ("hotel_booking", JobType.HOTEL_BOOKING),
         "restaurant": ("restaurant_booking", JobType.RESTAURANT_BOOKING),
         "hackathon": ("hackathon_registration", JobType.HACKATHON_REGISTRATION),
-        "tiktok": ("tiktok_scrape", JobType.TIKTOK_SCRAPE),
-        "scrape": ("web_scrape", JobType.WEB_SCRAPE),
         "call": ("call_verification", JobType.CALL_VERIFICATION),
     }
 

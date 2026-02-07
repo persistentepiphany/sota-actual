@@ -1,0 +1,130 @@
+"""
+Auto-Bidder — Mixin that lets worker agents participate in the JobBoard.
+
+Drop this into any BaseArchiveAgent subclass to have it:
+1. Register itself with the JobBoard on startup
+2. Evaluate incoming jobs against its tags / capabilities
+3. Place a competitive bid automatically
+
+Usage inside a worker agent::
+
+    class MyWorkerAgent(AutoBidderMixin, BaseArchiveAgent):
+        ...
+
+    # During initialize():
+    self.register_on_board()
+"""
+
+from __future__ import annotations
+
+import logging
+import uuid
+from typing import List, Optional
+
+from .job_board import JobBoard, RegisteredWorker, JobListing, Bid
+from .config import JobType, JOB_TYPE_LABELS, AGENT_CAPABILITIES
+
+logger = logging.getLogger(__name__)
+
+
+# ── Tag Mapping ──────────────────────────────────────────────
+
+JOB_TYPE_TAGS: dict[JobType, str] = {
+    JobType.HOTEL_BOOKING:          "hotel_booking",
+    JobType.RESTAURANT_BOOKING:     "restaurant_booking",
+    JobType.HACKATHON_REGISTRATION: "hackathon_registration",
+    JobType.CALL_VERIFICATION:      "call_verification",
+    JobType.GENERIC:                "generic",
+}
+
+
+def job_types_to_tags(job_types: list[JobType]) -> List[str]:
+    """Convert a list of JobType enums into tag strings for the board."""
+    return [JOB_TYPE_TAGS.get(jt, jt.name.lower()) for jt in job_types]
+
+
+# ── Mixin ────────────────────────────────────────────────────
+
+class AutoBidderMixin:
+    """
+    Mixin for BaseArchiveAgent subclasses.
+
+    Expects the host class to have:
+      - ``agent_type: str``
+      - ``agent_name: str``
+      - ``supported_job_types: list[JobType]``
+      - ``max_concurrent_jobs: int``
+      - ``active_jobs: dict``
+      - ``wallet`` with ``.address``
+      - ``min_profit_margin: float``
+    """
+
+    # Configurable pricing strategy
+    bid_price_ratio: float = 0.80     # bid 80% of the budget by default
+    bid_eta_seconds: int = 1800       # default ETA: 30 min
+
+    def register_on_board(self):
+        """Register this agent on the global JobBoard."""
+        board = JobBoard.instance()
+
+        tags = job_types_to_tags(getattr(self, "supported_job_types", []))
+        address = getattr(self, "wallet", None)
+        address = address.address if address else "0x0"
+
+        worker = RegisteredWorker(
+            worker_id=getattr(self, "agent_type", "worker"),
+            address=address,
+            tags=tags,
+            evaluator=self._evaluate_job_for_board,
+            max_concurrent=getattr(self, "max_concurrent_jobs", 5),
+            active_jobs=len(getattr(self, "active_jobs", {})),
+        )
+        board.register_worker(worker)
+        logger.info(
+            "🏪 %s registered on JobBoard  tags=%s",
+            getattr(self, "agent_name", "Worker"), tags,
+        )
+
+    async def _evaluate_job_for_board(self, job: JobListing) -> Optional[Bid]:
+        """
+        Called by the JobBoard when a new job is broadcast.
+        Returns a Bid if this worker wants the job, else None.
+        """
+        my_tags = set(
+            t.lower()
+            for t in job_types_to_tags(getattr(self, "supported_job_types", []))
+        )
+        job_tags = set(t.lower() for t in job.tags)
+
+        overlap = my_tags & job_tags
+        if not overlap:
+            return None                                     # can't do this job
+
+        # Check capacity
+        active = len(getattr(self, "active_jobs", {}))
+        max_conc = getattr(self, "max_concurrent_jobs", 5)
+        if active >= max_conc:
+            logger.debug("%s at capacity (%d/%d), skipping job %s",
+                         getattr(self, "agent_type", "?"), active, max_conc, job.job_id)
+            return None
+
+        # Price: bid_price_ratio × budget (never below 0.5 USDC)
+        ratio = getattr(self, "bid_price_ratio", 0.80)
+        proposed = max(job.budget_usdc * ratio, 0.50)
+
+        bid = Bid(
+            bid_id=str(uuid.uuid4())[:8],
+            job_id=job.job_id,
+            bidder_id=getattr(self, "agent_type", "worker"),
+            bidder_address=getattr(self, "wallet", None) and self.wallet.address or "0x0",
+            amount_usdc=round(proposed, 2),
+            estimated_seconds=getattr(self, "bid_eta_seconds", self.bid_eta_seconds),
+            tags=list(overlap),
+        )
+
+        logger.info(
+            "🤖 %s bidding %.2f USDC on job %s  (tags matched: %s)",
+            getattr(self, "agent_name", "Worker"),
+            bid.amount_usdc, job.job_id, list(overlap),
+        )
+        return bid

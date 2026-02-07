@@ -1,11 +1,11 @@
 """
-Caller Agent - Archive Protocol
+Caller Agent — SOTA on Flare
 
 The Caller Agent:
 1. Listens for phone verification job events
 2. Evaluates jobs and decides whether to bid
 3. Executes accepted jobs using Twilio
-4. Uploads results to NeoFS and submits delivery proofs
+4. Uploads results and submits delivery proofs
 """
 
 import os
@@ -15,11 +15,11 @@ from typing import Optional
 
 from pydantic import Field
 
-from spoon_ai.agents.toolcall import ToolCallAgent
-from spoon_ai.tools import ToolManager
-from spoon_ai.chat import ChatBot
+from ..shared.agent_runner import AgentRunner, LLMClient
+from ..shared.tool_base import ToolManager
 
 from ..shared.base_agent import BaseArchiveAgent, AgentCapability, ActiveJob, BidDecision
+from ..shared.auto_bidder import AutoBidderMixin
 from ..shared.config import JobType, JOB_TYPE_LABELS
 from ..shared.events import JobPostedEvent
 from ..shared.wallet_tools import create_wallet_tools
@@ -30,61 +30,48 @@ from .tools import create_caller_tools
 logger = logging.getLogger(__name__)
 
 
-class CallerLLMAgent(ToolCallAgent):
-    """
-    SpoonOS ToolCallAgent for the Caller.
-    
-    This handles the LLM-driven tool calling.
-    """
-    
-    name: str = "caller_llm"
-    description: str = "LLM agent for executing phone verification tasks"
-    
-    system_prompt: str = """
-    You are the Caller Agent for Archive Protocol, specializing in phone verification.
-    
-    Your capabilities:
-    1. **Phone Calls**: Use make_phone_call to:
-       - Verify business information
-       - Make reservations
-       - Confirm details
-    
-    2. **SMS**: Use send_sms for follow-up confirmations.
-    
-    3. **Call Status**: Use get_call_status to check call outcomes.
-    
-    4. **Delivery**: After calls:
-       - Upload results to NeoFS using upload_call_result
-       - Compute proof hash using compute_proof_hash
-       - Submit delivery using submit_delivery
-    
-    5. **Wallet & Bidding**: Check balance and manage bids.
-    
-    IMPORTANT: Always be professional and polite on calls.
-    Generate appropriate scripts before making calls.
-    """
-    
-    next_step_prompt: str = """
-    Based on the current progress, decide the next action:
-    - To make a call: generate script, then use make_phone_call
-    - After call: get_call_status, then upload_call_result
-    - Finally: submit_delivery with proof hash
-    - To check wallet: use get_wallet_balance
-    - To bid on job: use place_bid
-    """
-    
-    max_steps: int = 15
+CALLER_SYSTEM_PROMPT = """
+You are the Caller Agent for SOTA, specializing in phone verification on Flare.
+
+Your capabilities:
+1. **Phone Calls**: Use make_phone_call to:
+   - Verify business information
+   - Make reservations
+   - Confirm details
+
+2. **SMS**: Use send_sms for follow-up confirmations.
+
+3. **Call Status**: Use get_call_status to check call outcomes.
+
+4. **Delivery**: After calls:
+   - Upload results using upload_call_result
+   - Compute proof hash using compute_proof_hash
+   - Submit delivery using submit_delivery
+
+5. **Wallet & Bidding**: Check balance and manage bids.
+
+IMPORTANT: Always be professional and polite on calls.
+Generate appropriate scripts before making calls.
+
+Based on the current progress, decide the next action:
+- To make a call: generate script, then use make_phone_call
+- After call: get_call_status, then upload_call_result
+- Finally: submit_delivery with proof hash
+- To check wallet: use get_wallet_balance
+- To bid on job: use place_bid
+"""
 
 
-class CallerAgent(BaseArchiveAgent):
+class CallerAgent(AutoBidderMixin, BaseArchiveAgent):
     """
-    Caller Agent for Archive Protocol.
+    Caller Agent for SOTA.
     
     Extends BaseArchiveAgent with phone verification-specific logic.
+    Mixes in AutoBidderMixin to participate in the JobBoard marketplace.
     """
     
     agent_type = "caller"
-    agent_name = "Archive Caller Agent"
+    agent_name = "SOTA Caller Agent"
     capabilities = [
         AgentCapability.PHONE_CALL,
     ]
@@ -95,21 +82,24 @@ class CallerAgent(BaseArchiveAgent):
     min_profit_margin = 0.20  # 20% margin (calls are more expensive)
     max_concurrent_jobs = 2   # Fewer concurrent calls
     auto_bid_enabled = True
+    bid_price_ratio = 0.90     # caller bids 90% of budget (more expensive service)
     
-    async def _create_llm_agent(self) -> ToolCallAgent:
-        """Minimal LLM agent for tooling (still available but bidding is auto)."""
+    async def _create_llm_agent(self) -> AgentRunner:
+        """Create agent runner for tooling (bidding is auto)."""
         all_tools = []
         all_tools.extend(create_caller_tools())
         all_tools.extend(create_wallet_tools(self.wallet))
         all_tools.extend(create_bidding_tools(self._contracts, self.agent_type))
 
-        # Default away from Anthropic to avoid missing-key failures; override via env.
-        llm_provider = os.getenv("LLM_PROVIDER", "openai")
         model_name = os.getenv("LLM_MODEL", "gpt-4o-mini")
 
-        return CallerLLMAgent(
-            llm=ChatBot(llm_provider=llm_provider, model_name=model_name),
-            available_tools=ToolManager(all_tools),
+        return AgentRunner(
+            name="caller",
+            description="Caller Agent for phone verification tasks",
+            system_prompt=CALLER_SYSTEM_PROMPT,
+            max_steps=15,
+            tools=ToolManager(all_tools),
+            llm=LLMClient(model=model_name),
         )
 
     def get_bidding_prompt(self, job: JobPostedEvent) -> str:
@@ -120,7 +110,7 @@ class CallerAgent(BaseArchiveAgent):
 
     async def _evaluate_and_bid(self, job: JobPostedEvent):
         """
-        Auto-bid 1 USDC on any job type (like the TikTok scraper behavior).
+        Auto-bid 1 USDC on any job type.
         """
         if len(self.active_jobs) >= self.max_concurrent_jobs:
             logger.warning("At capacity, skipping job %s", job.job_id)
@@ -168,6 +158,7 @@ async def create_caller_agent() -> CallerAgent:
     """Factory function to create and initialize a Caller Agent"""
     agent = CallerAgent()
     await agent.initialize()
+    agent.register_on_board()          # ← register on JobBoard marketplace
     return agent
 
 

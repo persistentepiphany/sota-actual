@@ -26,7 +26,7 @@ npx hardhat test
 
 Deploy (example):
 ```
-npx hardhat run scripts/deploy.ts --network neox-testnet
+npx hardhat run scripts/deploy-flare.ts --network flare-coston2
 ```
 
 Key contracts

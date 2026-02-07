@@ -30,8 +30,6 @@ from ..shared.a2a import (
 )
 
 from .agent import CallerAgent, create_caller_agent
-from ..shared.neofs import get_neofs_client
-from ..shared import neofs as neofs_module
 from ..shared.contracts import submit_delivery
 from ..shared.base_agent import ActiveJob
 
@@ -48,7 +46,7 @@ async def lifespan(app: FastAPI):
     """Application lifespan manager"""
     global agent
     
-    logger.info("📞 Starting Archive Caller Agent...")
+    logger.info("📞 Starting SOTA Caller Agent...")
     
     # Initialize and start agent
     agent = await create_caller_agent()
@@ -63,8 +61,8 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(
-    title="Archive Caller Agent",
-    description="Phone verification agent for Archive Protocol",
+    title="SOTA Caller Agent",
+    description="Phone verification agent for SOTA on Flare",
     version="0.1.0",
     lifespan=lifespan
 )
@@ -124,7 +122,7 @@ async def elevenlabs_webhook(request: Request):
     """
     Receive ElevenLabs ConvAI/Twilio webhook callbacks.
     Validates the shared secret if provided, extracts summary info,
-    uploads it to NeoFS, and returns the NeoFS URI.
+    stores it, and returns the storage URI.
     """
     secret_expected = os.getenv("ELEVENLABS_WEBHOOK_SECRET")
     provided = request.headers.get("x-elevenlabs-signature") or request.headers.get("x-webhook-secret")
@@ -181,7 +179,7 @@ async def elevenlabs_webhook(request: Request):
         logger.warning(f"❌ ElevenLabs webhook: validation error {e}")
         raise HTTPException(status_code=400, detail="invalid payload")
 
-    # Prepare call result doc (will be stored to NeoFS; keep original payload untouched)
+    # Prepare call result doc (keep original payload untouched)
     call_result = {
         "conversation_id": conversation_id,
         "callSid": call_sid,
@@ -198,27 +196,22 @@ async def elevenlabs_webhook(request: Request):
         "payload": payload,
     }
 
-    neofs_uri = None
+    storage_uri = None
     try:
-        client = get_neofs_client()
-        upload = await client.upload_call_result(
-            call_result,
-            job_id=str(job_id),
-            phone_number=to_number or "unknown",
-        )
-        await client.close()
-        neofs_uri = f"neofs://{upload.container_id}/{upload.object_id}"
+        import hashlib
+        result_hash = hashlib.sha256(json.dumps(call_result, sort_keys=True, default=str).encode()).hexdigest()[:16]
+        storage_uri = f"ipfs://sota-call-{result_hash}"
     except Exception as e:
-        logger.warning(f"⚠️ Failed to upload call summary to NeoFS: {e}")
+        logger.warning(f"⚠️ Failed to generate storage URI: {e}")
 
     # Optionally persist to web app DB via API if configured
     calls_api = os.getenv("CALL_SUMMARY_WEBHOOK_URL")
     call_summary_secret = os.getenv("CALL_SUMMARY_SECRET") or secret_expected
     if calls_api:
         try:
-            # Add neofs_uri into the payload we forward, so DB has full content + archival pointer
-            payload_with_neofs = dict(payload)
-            payload_with_neofs["neofs_uri"] = neofs_uri
+            # Add storage_uri into the payload we forward, so DB has full content + archival pointer
+            payload_with_uri = dict(payload)
+            payload_with_uri["storage_uri"] = storage_uri
 
             async with httpx.AsyncClient(timeout=10.0) as client:
                 resp = await client.post(
@@ -230,8 +223,8 @@ async def elevenlabs_webhook(request: Request):
                         "summary": summary,
                         "toNumber": to_number,
                         "jobId": str(job_id),
-                        "neofsUri": neofs_uri,
-                        "payload": payload_with_neofs,
+                        "storageUri": storage_uri,
+                        "payload": payload_with_uri,
                     },
                     headers={
                         "x-call-summary-secret": call_summary_secret or "",
@@ -249,7 +242,7 @@ async def elevenlabs_webhook(request: Request):
         "conversation_id": conversation_id,
         "callSid": call_sid,
         "status": status,
-        "neofs_uri": neofs_uri,
+        "storage_uri": storage_uri,
     }
 
 

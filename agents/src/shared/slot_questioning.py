@@ -1,9 +1,9 @@
 """
-Minimal slot/questioning helper for SpoonOS agents.
+Minimal slot/questioning helper for SOTA agents.
 
 Features:
 - Defines a simple InputSlot schema and SlotFiller that suggests missing slots and clarifying questions.
-- Uses SpoonMem0 long-term memory when available (per-user first, anonymized global fallback).
+- Uses mem0ai MemoryClient for long-term memory when available (per-user first, anonymized global fallback).
 - Ranks missing slots with similarity-weighted voting and tool-required parameter priority.
 - Provides a CLI-style demo at the bottom.
 """
@@ -19,9 +19,9 @@ from typing import Any, Dict, Iterable, List, Optional, Sequence, Tuple
 
 # Optional memory support
 try:
-    from spoon_ai.memory.mem0_client import SpoonMem0
+    from mem0 import MemoryClient as Mem0Client
 except ImportError:
-    SpoonMem0 = None
+    Mem0Client = None
 
 logger = logging.getLogger(__name__)
 
@@ -107,19 +107,18 @@ class TemplateMemory:
         global_collection: str = "global_templates",
     ) -> None:
         self.user_id = user_id
-        if SpoonMem0 is not None:
-            self.user_mem = SpoonMem0(
+        if Mem0Client is not None:
+            self.user_mem = Mem0Client(
                 {
                     "user_id": user_id,
                     "collection": per_user_collection,
                     "filters": {"user_id": user_id} if user_id else {},
                 }
             )
-            self.global_mem = SpoonMem0(
+            self.global_mem = Mem0Client(
                 {
                     "collection": global_collection,
                     "metadata": {"privacy": "anonymized"},
-                    # Mem0 requires at least one filter; use an agent_id marker plus anonymized user_id.
                     "user_id": "anon_global",
                     "filters": {"agent_id": "global_templates", "user_id": "anon_global"},
                 }

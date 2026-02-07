@@ -3,7 +3,7 @@ Manager Agent - Job Orchestrator
 
 The Manager Agent orchestrates job execution by:
 - Decomposing complex jobs into sub-tasks
-- Coordinating worker agents (Scraper, Caller)
+- Coordinating worker agents (Caller, etc.)
 - Managing bids and selecting workers
 - Approving deliveries and releasing payments
 """

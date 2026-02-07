@@ -34,7 +34,7 @@ async function main() {
       category: "Sales",
       priceUsd: 49,
       tags: "leadgen,outreach,crm",
-      network: "neox-testnet",
+      network: "flare-coston2",
       ownerId: user.id,
     },
   });
@@ -49,7 +49,7 @@ async function main() {
       category: "Support",
       priceUsd: 29,
       tags: "support,helpdesk",
-      network: "neox-testnet",
+      network: "flare-coston2",
       ownerId: user.id,
     },
   });

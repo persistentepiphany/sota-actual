@@ -42,13 +42,6 @@ def load_abi(contract_name: str) -> list:
             data = json.load(f)
             return data.get("abi", data)
 
-    # Try integrations/spoon/abi (legacy)
-    legacy_path = Path(__file__).parent.parent.parent.parent / "contracts" / "integrations" / "spoon" / "abi" / f"{contract_name}.json"
-    if legacy_path.exists():
-        with open(legacy_path) as f:
-            data = json.load(f)
-            return data if isinstance(data, list) else data.get("abi", [])
-
     raise FileNotFoundError(f"ABI not found for {contract_name}")
 
 

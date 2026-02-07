@@ -4,9 +4,8 @@ Butler Agent Tools
 Tools for the Butler to:
 - Query RAG (Qdrant + Mem0)
 - Fill slots with slot_questioning
-- Post jobs to OrderBook
+- Post jobs to FlareOrderBook
 - Monitor job status and deliveries
-- Retrieve results from NeoFS
 """
 
 import os
@@ -15,12 +14,10 @@ import time
 from typing import Any, Optional, Dict, List
 from pydantic import Field
 
-from spoon_ai.tools.base import BaseTool
-from spoon_ai.tools import ToolManager
+from ..shared.tool_base import BaseTool, ToolManager
 
 # Import shared tools
 from ..shared.contracts import get_contracts, post_job, get_bids_for_job, accept_bid, get_job_status
-from ..shared.neofs import get_neofs_client
 from ..shared.slot_questioning import SlotFiller
 
 
@@ -152,8 +149,8 @@ class SlotFillingTool(BaseTool):
         try:
             if candidate_tools is None:
                 candidate_tools = [
-                    {"name": "tiktok_scrape", "required_params": ["username", "count"]},
-                    {"name": "web_scrape", "required_params": ["url"]},
+                    {"name": "call_verification", "required_params": ["phone_number", "purpose"]},
+                    {"name": "hotel_booking", "required_params": ["location", "dates", "guests"]},
                     {"name": "data_analysis", "required_params": ["data_source", "analysis_type"]},
                 ]
             
@@ -197,18 +194,20 @@ class SlotFillingTool(BaseTool):
 
 class PostJobTool(BaseTool):
     """
-    Post a job to the OrderBook with NeoFS metadata.
+    Post a job to the marketplace and auto-select the best bid.
     """
     name: str = "post_job"
     description: str = """
-    Post a job to the blockchain OrderBook after collecting all required information.
-    
+    Post a job to the SOTA marketplace.
+
     This will:
-    1. Upload job metadata to NeoFS
-    2. Post job to OrderBook smart contract
-    3. Return job ID for tracking
-    
+    1. Broadcast the job to all registered worker agents
+    2. Collect bids for 60 seconds
+    3. Auto-select the best offer (lowest price under budget)
+    4. Optionally accept the winning bid on-chain
+
     Use after slots are filled and user confirms.
+    Returns the winning bid (or "no bids" if none arrived).
     """
     parameters: dict = {
         "type": "object",
@@ -219,11 +218,15 @@ class PostJobTool(BaseTool):
             },
             "tool": {
                 "type": "string",
-                "description": "Tool/job type (e.g., tiktok_scrape)"
+                "description": "Tool/job type (e.g., hotel_booking, call_verification)"
             },
             "parameters": {
                 "type": "object",
                 "description": "Job parameters as key-value pairs"
+            },
+            "budget_usdc": {
+                "type": "number",
+                "description": "Maximum budget in USDC (default 10)"
             },
             "deadline_hours": {
                 "type": "integer",
@@ -232,77 +235,95 @@ class PostJobTool(BaseTool):
         },
         "required": ["description", "tool", "parameters"]
     }
-    
+
     async def execute(
         self,
         description: str,
         tool: str,
         parameters: Dict[str, Any],
-        deadline_hours: int = 24
+        budget_usdc: float = 10.0,
+        deadline_hours: int = 24,
     ) -> str:
-        """Post job to OrderBook"""
+        """Post job to the JobBoard → collect bids → pick winner."""
+        from ..shared.job_board import JobBoard, JobListing, BidResult
+        import hashlib, uuid
+
         try:
-            contracts = get_contracts(os.getenv("NEOX_PRIVATE_KEY"))
-            neofs = get_neofs_client()
-            
-            # 1. Create job metadata
-            metadata = {
-                "tool": tool,
-                "parameters": parameters,
-                "poster": contracts.account.address,
-                "posted_at": time.time(),
-                "requirements": {
-                    "quality": "high",
-                    "format": "json",
-                    "delivery_time": f"{deadline_hours}h"
-                }
-            }
-            
-            # 2. Upload to NeoFS
-            print(f"📤 Uploading job metadata to NeoFS...")
-            metadata_json = json.dumps(metadata, indent=2)
-            
-            # Use NeoFS client to upload
-            from ..shared.neofs import upload_object
-            object_id = upload_object(
-                content=metadata_json,
-                attributes={
-                    "type": "job_metadata",
-                    "tool": tool,
-                    "poster": contracts.account.address
-                },
-                filename=f"job_{int(time.time())}.json"
-            )
-            
-            if not object_id:
-                return json.dumps({"error": "Failed to upload metadata to NeoFS"})
-            
-            metadata_uri = f"neofs://{os.getenv('NEOFS_CONTAINER_ID')}/{object_id}"
-            print(f"✅ Metadata uploaded: {metadata_uri}")
-            
-            # 3. Post to blockchain
-            tags = [tool]
+            # Poster address (best-effort)
+            poster = "0x0"
+            try:
+                contracts = get_contracts(os.getenv("FLARE_PRIVATE_KEY"))
+                poster = contracts.account.address
+            except Exception:
+                pass
+
+            # Build the listing
+            job_id = str(uuid.uuid4())[:8]
             deadline = int(time.time()) + (deadline_hours * 3600)
-            
-            job_id = post_job(
-                contracts,
+
+            listing = JobListing(
+                job_id=job_id,
                 description=description,
-                metadata_uri=metadata_uri,
-                tags=tags,
-                deadline=deadline
+                tags=[tool],
+                budget_usdc=budget_usdc,
+                deadline_ts=deadline,
+                poster=poster,
+                metadata={
+                    "tool": tool,
+                    "parameters": parameters,
+                    "posted_at": time.time(),
+                },
+                bid_window_seconds=60,
             )
-            
-            print(f"✅ Job posted! Job ID: {job_id}")
-            
-            return json.dumps({
-                "success": True,
-                "job_id": job_id,
-                "metadata_uri": metadata_uri,
-                "tags": tags,
-                "deadline": deadline,
-                "instruction": "Job posted successfully. Now call `get_bids` with the job_id to check for initial offers."
-            }, indent=2)
-            
+
+            print(f"📢 Job {job_id} posted — collecting bids for 60 s…")
+
+            # Optional on-chain accept callback
+            async def _accept_on_chain(winning_bid):
+                try:
+                    c = get_contracts(os.getenv("FLARE_PRIVATE_KEY"))
+                    from ..shared.contracts import accept_bid as chain_accept
+                    chain_accept(c, job_id=int(winning_bid.job_id),
+                                 bid_id=int(winning_bid.bid_id),
+                                 response_uri="")
+                except Exception as exc:
+                    print(f"⚠️ On-chain accept skipped: {exc}")
+
+            board = JobBoard.instance()
+            result: BidResult = await board.post_and_select(
+                listing,
+                on_chain_accept=_accept_on_chain,
+            )
+
+            # Format result for LLM / user
+            if result.winning_bid:
+                w = result.winning_bid
+                return json.dumps({
+                    "success": True,
+                    "job_id": job_id,
+                    "winning_bid": {
+                        "bidder": w.bidder_id,
+                        "address": w.bidder_address,
+                        "price_usdc": w.amount_usdc,
+                        "eta_seconds": w.estimated_seconds,
+                        "tags": w.tags,
+                    },
+                    "total_bids": len(result.all_bids),
+                    "reason": result.reason,
+                    "instruction": (
+                        f"Job assigned to {w.bidder_id} for {w.amount_usdc:.2f} USDC. "
+                        "The worker will start executing. Use `check_job_status` later to track progress."
+                    ),
+                }, indent=2)
+            else:
+                return json.dumps({
+                    "success": False,
+                    "job_id": job_id,
+                    "total_bids": len(result.all_bids),
+                    "reason": result.reason,
+                    "instruction": "No suitable bids received. Ask the user if they want to increase the budget or try again later.",
+                }, indent=2)
+
         except Exception as e:
             return json.dumps({"error": f"Failed to post job: {str(e)}"})
 
@@ -332,7 +353,7 @@ class GetBidsTool(BaseTool):
     async def execute(self, job_id: int) -> str:
         """Get bids for job"""
         try:
-            contracts = get_contracts(os.getenv("NEOX_PRIVATE_KEY"))
+            contracts = get_contracts(os.getenv("FLARE_PRIVATE_KEY"))
             bids = get_bids_for_job(contracts, job_id)
             
             formatted_bids = []
@@ -391,7 +412,7 @@ class AcceptBidTool(BaseTool):
     async def execute(self, job_id: int, bid_id: int) -> str:
         """Accept a bid"""
         try:
-            contracts = get_contracts(os.getenv("NEOX_PRIVATE_KEY"))
+            contracts = get_contracts(os.getenv("FLARE_PRIVATE_KEY"))
             
             tx_hash = accept_bid(
                 contracts,
@@ -436,7 +457,7 @@ class CheckJobStatusTool(BaseTool):
     async def execute(self, job_id: int) -> str:
         """Check job status"""
         try:
-            contracts = get_contracts(os.getenv("NEOX_PRIVATE_KEY"))
+            contracts = get_contracts(os.getenv("FLARE_PRIVATE_KEY"))
             
             job_state, bids = contracts.order_book.functions.getJob(job_id).call()
             
@@ -461,11 +482,11 @@ class CheckJobStatusTool(BaseTool):
 
 class GetDeliveryTool(BaseTool):
     """
-    Get delivery results from NeoFS.
+    Get delivery results.
     """
     name: str = "get_delivery"
     description: str = """
-    Download and retrieve job delivery results from NeoFS.
+    Download and retrieve job delivery results.
     
     Use when job is completed to get the actual results/data.
     """
@@ -481,9 +502,9 @@ class GetDeliveryTool(BaseTool):
     }
     
     async def execute(self, job_id: int) -> str:
-        """Get delivery from NeoFS"""
+        """Get delivery"""
         try:
-            contracts = get_contracts(os.getenv("NEOX_PRIVATE_KEY"))
+            contracts = get_contracts(os.getenv("FLARE_PRIVATE_KEY"))
             
             # Get job details
             job_state, bids = contracts.order_book.functions.getJob(job_id).call()

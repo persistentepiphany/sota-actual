@@ -79,8 +79,8 @@ async def lifespan(app: FastAPI):
 # ==============================================================================
 
 app = FastAPI(
-    title="Archive Manager Agent",
-    description="Job orchestration agent for Archive Protocol on NeoX",
+    title="SOTA Manager Agent",
+    description="Job orchestration agent for SOTA on Flare",
     version="0.1.0",
     lifespan=lifespan
 )
@@ -127,7 +127,7 @@ class BookingPlanRequest(BaseModel):
 
 
 class BookingExperienceRequest(BaseModel):
-    """Persist booking experience into beVec/NeoFS."""
+    """Persist booking experience into beVec."""
     summary: str
     metadata: Dict[str, str]
     raw_payload: Optional[dict] = None
@@ -195,11 +195,10 @@ async def handle_a2a_request(request: Request):
                 "delivery_approval"
             ],
             "supported_job_types": [
-                "TIKTOK_SCRAPE",
-                "WEB_SCRAPE",
+                "HOTEL_BOOKING",
+                "RESTAURANT_BOOKING",
                 "CALL_VERIFICATION",
-                "DATA_ANALYSIS",
-                "COMPOSITE"
+                "GENERIC"
             ]
         })
     
@@ -340,7 +339,7 @@ async def plan_booking(request: BookingPlanRequest):
 
 @app.post("/booking/experience")
 async def persist_booking_experience(request: BookingExperienceRequest):
-    """Persist a booking outcome into beVec and NeoFS."""
+    """Persist a booking outcome into beVec."""
     global agent
 
     if not agent:

@@ -20,18 +20,11 @@ Architecture
 
 <img width="1280" height="540" alt="System Architecture" src="https://github.com/user-attachments/assets/6e7f0608-5283-49fc-a75e-f5210c6774a0" />
 
-Deployments on NeoX Testnet
----------------------------
-Source: `contracts/deployments/neox-testnet-12227332.json`
+Deployments on Flare Coston2
+----------------------------
+Source: `contracts/deployments/flare-coston2-114.json`
 
-| Contract        | Address                                                                                                  |
-| --------------- | -------------------------------------------------------------------------------------------------------- |
-| OrderBook       | [0xF86e4A9608aF5A08c037925FEe3C65BCDa12e465](https://xt4scan.ngd.network/address/0xF86e4A9608aF5A08c037925FEe3C65BCDa12e465) |
-| Escrow          | [0x6C658B4077DD29303ec1bDafb43Db571d4F310c8](https://xt4scan.ngd.network/address/0x6C658B4077DD29303ec1bDafb43Db571d4F310c8) |
-| JobRegistry     | [0xd6aac3B6D997Be956f0d437732fea2e9a6927189](https://xt4scan.ngd.network/address/0xd6aac3B6D997Be956f0d437732fea2e9a6927189) |
-| AgentRegistry   | [0xbf76cEc97DDE6EC8b62e89e37C8B020a632ec4Df](https://xt4scan.ngd.network/address/0xbf76cEc97DDE6EC8b62e89e37C8B020a632ec4Df) |
-| ReputationToken | [0x540eBF386dd98EB575B63D1eaC243Db80c455066](https://xt4scan.ngd.network/address/0x540eBF386dd98EB575B63D1eaC243Db80c455066) |
-| USDC (mock)     | [0x9f1Af8576f52507354eaF2Dc438a5333Baf2D09D](https://xt4scan.ngd.network/address/0x9f1Af8576f52507354eaF2Dc438a5333Baf2D09D) |
+See `contracts/deployments/` for deployed contract addresses on Flare Coston2 (chain 114).
 
 Quick commands
 --------------
@@ -40,8 +33,8 @@ Quick commands
 - Contracts: `cd contracts && npx hardhat compile`
 - Prisma migrate: `npx prisma migrate deploy`
 
-Env pointers (NeoX testnet examples)
-------------------------------------
-- `NEOX_RPC_URL=https://testnet.rpc.banelabs.org`
+Env pointers (Flare Coston2)
+----------------------------
+- `FLARE_RPC_URL=https://coston2-api.flare.network/ext/C/rpc`
 - `ORDERBOOK_ADDRESS`, `ESCROW_ADDRESS`, `JOB_REGISTRY_ADDRESS`, `AGENT_REGISTRY_ADDRESS`, `REPUTATION_TOKEN_ADDRESS`, `USDC_ADDRESS`
 - ElevenLabs: `ELEVENLABS_API_KEY`, `ELEVENLABS_AGENT_ID`, webhook secrets

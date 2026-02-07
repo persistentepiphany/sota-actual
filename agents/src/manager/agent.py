@@ -18,9 +18,8 @@ from typing import Optional
 from dataclasses import dataclass, field
 from pydantic import Field
 
-from spoon_ai.agents.toolcall import ToolCallAgent
-from spoon_ai.tools import ToolManager
-from spoon_ai.chat import ChatBot
+from ..shared.agent_runner import AgentRunner, LLMClient
+from ..shared.tool_base import ToolManager
 
 from ..shared.config import JobType, JOB_TYPE_LABELS
 from ..shared.wallet import AgentWallet, create_wallet_from_env
@@ -42,17 +41,17 @@ logger = logging.getLogger(__name__)
 # ==============================================================================
 
 ORCHESTRATION_SYSTEM_PROMPT = """
-You are the Manager Agent for Archive Protocol, a decentralized multi-agent system on NeoX blockchain.
+You are the Manager Agent for SOTA, a decentralized multi-agent system on Flare blockchain.
 
 Your role is to ORCHESTRATE job execution - you create jobs and coordinate worker agents to complete them.
 
 ## Core Responsibilities
 
 1. **Job Decomposition**: When you receive a complex request, break it down into sub-tasks:
-   - TIKTOK_SCRAPE: For TikTok/social media data collection
-   - WEB_SCRAPE: For web search and data extraction
+   - HOTEL_BOOKING: For hotel reservation tasks
+   - RESTAURANT_BOOKING: For restaurant reservation tasks
    - CALL_VERIFICATION: For phone-based verification or booking
-   - DATA_ANALYSIS: For processing and analyzing data
+   - GENERIC: For other general tasks
 
 2. **Bid Management**: After posting jobs, worker agents will submit bids. You must:
    - Wait for bids to come in (check after 30-60 seconds)
@@ -81,7 +80,6 @@ When selecting bids, consider:
 
 ## Available Worker Agents
 
-- **Scraper Agent**: Handles TikTok scraping and web data collection
 - **Caller Agent**: Handles phone calls and voice verification
 
 Always explain your reasoning before taking actions. Be efficient with funds and time.
@@ -190,27 +188,27 @@ class ManagerAgent:
         
         logger.info(f"✅ {self.agent_name} ready")
     
-    async def _create_llm_agent(self) -> ToolCallAgent:
-        """Create the SpoonOS ToolCallAgent with manager tools"""
+    async def _create_llm_agent(self) -> AgentRunner:
+        """Create the AgentRunner with manager tools"""
         if not self.wallet:
             raise RuntimeError("Wallet must be initialized before creating LLM agent")
-        
+
+        import os
+
         # Combine manager tools with wallet tools
         tools = get_manager_tools(self.wallet, vector_client=self.vector_client) + get_wallet_tools(self.wallet)
-        
-        agent = ToolCallAgent(
+
+        model_name = os.getenv("LLM_MODEL", "gpt-4o-mini")
+
+        agent = AgentRunner(
             name=self.agent_name,
-            description="Archive Protocol job orchestrator",
+            description="SOTA job orchestrator on Flare",
             system_prompt=ORCHESTRATION_SYSTEM_PROMPT,
-            next_step_prompt=NEXT_STEP_PROMPT,
             max_steps=15,
-            available_tools=ToolManager(tools),
-            llm=ChatBot(
-                llm_provider="anthropic",
-                model_name="claude-sonnet-4-20250514"
-            )
+            tools=ToolManager(tools),
+            llm=LLMClient(model=model_name),
         )
-        
+
         return agent
     
     async def start(self):
@@ -465,20 +463,18 @@ class ManagerAgent:
         metadata: dict,
         raw_payload: dict | None = None,
     ) -> dict:
-        """Persist a completed booking experience to NeoFS and beVec."""
+        """Persist a completed booking experience to beVec."""
         if not self.vector_client:
             return {"success": False, "error": "beVec not configured"}
 
-        neofs_uri = None
+        storage_uri = None
         if raw_payload:
             try:
-                from ..shared.neofs import get_neofs_client
-
-                client = get_neofs_client()
-                result = await client.upload_json(raw_payload, filename="booking-result.json")
-                neofs_uri = f"neofs://{result.container_id}/{result.object_id}"
-            except Exception as e:
-                logger.warning(f"NeoFS upload failed: {e}")
+                import json as _json
+                payload_hash = hashlib.sha256(_json.dumps(raw_payload, sort_keys=True, default=str).encode()).hexdigest()[:16]
+                storage_uri = f"ipfs://sota-booking-{payload_hash}"
+            except Exception:
+                storage_uri = None
 
         try:
             vector = await embed_text(summary)
@@ -489,8 +485,8 @@ class ManagerAgent:
         record_id = hashlib.sha256(str(record_id_source).encode("utf-8")).hexdigest()
 
         enriched_metadata = {**metadata}
-        if neofs_uri:
-            enriched_metadata["source_uri"] = neofs_uri
+        if storage_uri:
+            enriched_metadata["source_uri"] = storage_uri
 
         try:
             await self.vector_client.upsert(
@@ -503,7 +499,7 @@ class ManagerAgent:
         return {
             "success": True,
             "record_id": record_id,
-            "source_uri": neofs_uri,
+            "source_uri": storage_uri,
         }
 
     async def post_booking_job(
@@ -543,7 +539,7 @@ class ManagerAgent:
         try:
             metadata_uri = await upload_job_metadata(metadata_payload, normalized_tags)
         except Exception as e:
-            return {"success": False, "error": f"NeoFS upload failed: {e}"}
+            return {"success": False, "error": f"Metadata upload failed: {e}"}
 
         try:
             job_id = post_job(self._contracts, description, metadata_uri, normalized_tags, deadline)
@@ -605,7 +601,7 @@ async def create_manager_agent() -> ManagerAgent:
 
 async def main():
     """Demo: Run the Manager Agent interactively"""
-    print("🚀 Archive Manager Agent - SpoonOS Demo")
+    print("🚀 SOTA Manager Agent")
     print("=" * 60)
     
     agent = await create_manager_agent()
@@ -613,7 +609,7 @@ async def main():
     
     # Example job
     demo_request = """
-    I need to find a trendy restaurant in Moscow via TikTok and book a table 
+    I need to find a trendy restaurant in Moscow and book a table 
     for 2 people this Saturday at 7pm. Verify the reservation by calling them.
     """
     

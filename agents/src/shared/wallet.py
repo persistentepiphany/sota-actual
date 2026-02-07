@@ -330,7 +330,7 @@ def create_wallet_from_env(agent_type: str) -> Optional[AgentWallet]:
     Create a wallet from environment variable.
     
     Args:
-        agent_type: One of 'manager', 'scraper', 'caller'
+        agent_type: One of 'manager', 'caller'
     
     Returns:
         AgentWallet or None if key not found

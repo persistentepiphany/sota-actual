@@ -1,14 +1,14 @@
 """
 Bidding Tools for Archive Agents
 
-SpoonOS tools for job bidding and contract interactions.
+Tools for job bidding and contract interactions.
 """
 
 import json
 from typing import Optional, Any
 
 from pydantic import Field
-from spoon_ai.tools.base import BaseTool
+from .tool_base import BaseTool
 
 from .contracts import ContractInstances, place_bid, get_job, get_bids_for_job, submit_delivery
 from .config import JobType, JOB_TYPE_LABELS
@@ -204,7 +204,7 @@ class SubmitDeliveryTool(BaseTool):
     description: str = """
     Submit proof of job completion to the OrderBook contract.
     
-    The proof hash should be a hash of the delivery content (e.g., NeoFS object ID).
+    The proof hash should be a hash of the delivery content (e.g., storage URI).
     After submission, the client can approve and release payment.
     """
     parameters: dict = {

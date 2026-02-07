@@ -15,7 +15,7 @@ import httpx
 from typing import Any, Optional
 from pydantic import Field
 
-from spoon_ai.tools.base import BaseTool
+from ..shared.tool_base import BaseTool
 
 from ..shared.config import JobType, JOB_TYPE_LABELS, get_agent_endpoints
 from ..shared.wallet import AgentWallet
@@ -24,7 +24,7 @@ from ..shared.contracts import get_contracts, post_job
 from ..shared.booking import analyze_slots
 from ..shared.bevec import BeVecClient, VectorRecord
 from ..shared.embedding import embed_text
-from ..shared.neofs import get_neofs_client, upload_job_metadata
+from ..shared.neofs import upload_job_metadata
 
 
 # ==============================================================================
@@ -41,10 +41,9 @@ class DecomposeJobTool(BaseTool):
     Use this when you receive a composite job that requires multiple steps.
     
     Analyze the job description and identify:
-    - TikTok/social media scraping tasks
-    - Web search and scraping tasks
     - Phone call verification tasks
     - Data analysis tasks
+    - Hotel/restaurant booking tasks
     
     Returns a structured list of sub-tasks with their types and parameters.
     """
@@ -57,7 +56,7 @@ class DecomposeJobTool(BaseTool):
             },
             "job_type": {
                 "type": "integer",
-                "description": "Job type enum (0=TIKTOK_SCRAPE, 1=WEB_SCRAPE, 2=CALL_VERIFICATION, 3=DATA_ANALYSIS, 4=COMPOSITE)"
+                "description": "Job type enum (0=HOTEL_BOOKING, 1=RESTAURANT_BOOKING, 2=HACKATHON_REGISTRATION, 5=CALL_VERIFICATION, 6=GENERIC)"
             },
             "budget": {
                 "type": "integer",
@@ -77,7 +76,6 @@ class DecomposeJobTool(BaseTool):
         sub_tasks = []
         
         # Keywords for different task types
-        tiktok_keywords = ["tiktok", "viral", "trending", "social media", "video", "reels"]
         web_keywords = ["website", "search", "google", "web", "online", "find"]
         call_keywords = ["call", "phone", "book", "reserve", "reservation", "verify", "confirm"]
         
@@ -85,17 +83,6 @@ class DecomposeJobTool(BaseTool):
         budget_per_task = 0
         
         # Detect required sub-tasks
-        if any(kw in job_lower for kw in tiktok_keywords):
-            sub_tasks.append({
-                "task_type": "TIKTOK_SCRAPE",
-                "job_type_id": JobType.TIKTOK_SCRAPE.value,
-                "description": f"Scrape TikTok for: {job_description}",
-                "parameters": {
-                    "search_query": self._extract_search_query(job_description),
-                    "max_results": 10
-                }
-            })
-        
         if any(kw in job_lower for kw in web_keywords):
             sub_tasks.append({
                 "task_type": "WEB_SCRAPE",
@@ -269,11 +256,11 @@ class BuildBookingContextTool(BaseTool):
 
 
 class PersistBookingExperienceTool(BaseTool):
-    """Store booking outcomes to NeoFS and beVec for future retrieval."""
+    """Store booking outcomes to beVec for future retrieval."""
 
     name: str = "persist_booking_experience"
     description: str = """
-    Persist a booking outcome summary. Uploads raw payload to NeoFS (if provided) and
+    Persist a booking outcome summary. Stores raw payload and
     upserts an embedding into the beVec `user_experiences` collection.
     """
     parameters: dict = {
@@ -294,15 +281,14 @@ class PersistBookingExperienceTool(BaseTool):
         if not self._vector_client:
             return json.dumps({"success": False, "error": "beVec not configured"})
 
-        neofs_uri = None
+        storage_uri = None
         if raw_payload:
             try:
-                client = get_neofs_client()
-                result = await client.upload_json(raw_payload, filename="booking-result.json")
-                neofs_uri = f"neofs://{result.container_id}/{result.object_id}"
-            except Exception as e:
-                neofs_uri = None
-                # Continue even if NeoFS write fails
+                import json as _json
+                payload_hash = hashlib.sha256(_json.dumps(raw_payload, sort_keys=True).encode()).hexdigest()[:16]
+                storage_uri = f"ipfs://sota-booking-{payload_hash}"
+            except Exception:
+                storage_uri = None
 
         try:
             vector = await embed_text(summary)
@@ -313,8 +299,8 @@ class PersistBookingExperienceTool(BaseTool):
         record_id = hashlib.sha256(str(record_id_source).encode("utf-8")).hexdigest()
 
         enriched_metadata = {**metadata}
-        if neofs_uri:
-            enriched_metadata["source_uri"] = neofs_uri
+        if storage_uri:
+            enriched_metadata["source_uri"] = storage_uri
 
         try:
             await self._vector_client.upsert(
@@ -328,7 +314,7 @@ class PersistBookingExperienceTool(BaseTool):
             {
                 "success": True,
                 "record_id": record_id,
-                "source_uri": neofs_uri,
+                "source_uri": storage_uri,
             },
             indent=2,
         )
@@ -411,7 +397,7 @@ class PostJobTool(BaseTool):
         try:
             metadata_uri = await upload_job_metadata(metadata_payload, normalized_tags)
         except Exception as e:
-            return json.dumps({"success": False, "error": f"NeoFS upload failed: {e}"})
+            return json.dumps({"success": False, "error": f"Metadata upload failed: {e}"})
 
         try:
             job_id = post_job(contracts, description, metadata_uri, normalized_tags, deadline)
@@ -651,7 +637,7 @@ class SendA2AMessageTool(BaseTool):
         "properties": {
             "agent_type": {
                 "type": "string",
-                "enum": ["scraper", "caller"],
+                "enum": ["caller"],
                 "description": "Type of worker agent to message"
             },
             "method": {
@@ -744,7 +730,7 @@ class RequestTaskExecutionTool(BaseTool):
         "properties": {
             "agent_type": {
                 "type": "string",
-                "enum": ["scraper", "caller"],
+                "enum": ["caller"],
                 "description": "Type of worker agent"
             },
             "job_id": {
@@ -753,7 +739,7 @@ class RequestTaskExecutionTool(BaseTool):
             },
             "task_type": {
                 "type": "string",
-                "description": "Task type (TIKTOK_SCRAPE, WEB_SCRAPE, CALL_VERIFICATION)"
+                "description": "Task type (CALL_VERIFICATION, HOTEL_BOOKING, GENERIC)"
             },
             "task_description": {
                 "type": "string",
@@ -956,7 +942,6 @@ class GetAgentEndpointsTool(BaseTool):
         """Get worker agent endpoints"""
         endpoints = get_agent_endpoints()
         return json.dumps({
-            "scraper": endpoints.scraper,
             "caller": endpoints.caller,
             "manager": endpoints.manager
         }, indent=2)
