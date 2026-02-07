@@ -1,0 +1,5 @@
+-- AlterTable
+ALTER TABLE "Agent" ADD COLUMN     "icon" TEXT,
+ADD COLUMN     "reputation" DOUBLE PRECISION NOT NULL DEFAULT 5.0,
+ADD COLUMN     "successfulRequests" INTEGER NOT NULL DEFAULT 0,
+ADD COLUMN     "totalRequests" INTEGER NOT NULL DEFAULT 0;
