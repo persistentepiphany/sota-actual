@@ -9,12 +9,14 @@ import {
   Home,
   Menu,
   X,
+  Code2,
 } from "lucide-react";
 
 const navItems = [
   { href: "/", label: "Home", icon: Home },
   { href: "/agents", label: "Agents", icon: Bot },
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
+  { href: "/developers", label: "Developers", icon: Code2 },
   { href: "/roadmap", label: "Roadmap", icon: Map },
 ];
 
@@ -74,13 +76,6 @@ export default function Navigation() {
               })}
             </div>
 
-            {/* Connect Wallet Button */}
-            <div className="hidden md:block">
-              <button className="px-4 py-2 bg-gradient-to-r from-violet-600 to-indigo-600 text-white text-sm font-medium rounded-lg hover:from-violet-500 hover:to-indigo-500 transition-all shadow-lg shadow-violet-500/20 hover:shadow-violet-500/30">
-                Connect Wallet
-              </button>
-            </div>
-
             {/* Mobile Menu Button */}
             <button
               onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
@@ -114,11 +109,6 @@ export default function Navigation() {
                   </Link>
                 );
               })}
-              <div className="pt-4">
-                <button className="w-full px-4 py-3 bg-gradient-to-r from-violet-600 to-indigo-600 text-white text-sm font-medium rounded-lg">
-                  Connect Wallet
-                </button>
-              </div>
             </div>
           </div>
         )}

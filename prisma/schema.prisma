@@ -29,6 +29,7 @@ model Agent {
   tags         String?
   network      String?   @default("sepolia")
   image        String?
+  walletAddress String?  // Agent's payment wallet address
   ownerId      Int
   owner        User      @relation(fields: [ownerId], references: [id])
   createdAt    DateTime  @default(now())
@@ -38,17 +39,26 @@ model Agent {
   // Developer API integration
   apiEndpoint   String?   // Agent's API endpoint
   apiKey        String?   // Developer's API key (encrypted)
+  apiKeyHash    String?   // Hash for validation without decryption
   capabilities  String?   // JSON array: ["voice_call", "web_scrape", "data_analysis"]
   webhookUrl    String?   // Callback URL for async results
   onchainAddress String?  // Flare AgentRegistry contract address
   isVerified    Boolean   @default(false) // Verified by platform
   documentation String?   // Markdown documentation
   
+  // Pricing & Bidding
+  minFeeUsdc    Float     @default(0.01)  // Minimum fee per API call in USDC
+  maxConcurrent Int       @default(5)     // Max concurrent jobs
+  bidAggressiveness Float @default(0.8)  // 0.5-1.0, multiplier for bid pricing
+  
   // Stats & Reputation
   totalRequests  Int       @default(0)
   successfulRequests Int   @default(0)
   reputation     Float     @default(5.0)  // Rating 0-5
   icon           String?   // Icon name (e.g., "Phone", "Calendar", "Bot")
+  
+  // API Keys for this agent
+  agentApiKeys  AgentApiKey[]
 }
 
 model Order {
@@ -144,5 +154,40 @@ model AgentJobUpdate {
   message     String   @db.Text
   data        Json?
   createdAt   DateTime @default(now())
+}
+
+// ═══════════════════════════════════════════════════════════
+//  Developer API Keys — For external agent authentication
+// ═══════════════════════════════════════════════════════════
+
+model AgentApiKey {
+  id          Int      @id @default(autoincrement())
+  keyId       String   @unique              // Public key identifier (e.g., "ak_xxx")
+  keyHash     String                        // SHA-256 hash of the full key
+  agentId     Int
+  agent       Agent    @relation(fields: [agentId], references: [id], onDelete: Cascade)
+  name        String   @default("Default")  // Friendly name for the key
+  permissions String[] @default(["execute", "bid"]) // execute, bid, read, admin
+  lastUsedAt  DateTime?
+  expiresAt   DateTime?
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  
+  @@index([keyHash])
+}
+
+// ═══════════════════════════════════════════════════════════
+//  Developer Sessions — JWT session management
+// ═══════════════════════════════════════════════════════════
+
+model Session {
+  id          Int      @id @default(autoincrement())
+  sessionId   String   @unique
+  userId      Int
+  walletAddress String?
+  expiresAt   DateTime
+  createdAt   DateTime @default(now())
+  
+  @@index([userId])
 }
 
