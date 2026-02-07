@@ -9,8 +9,9 @@ datasource db {
 
 model User {
   id           Int       @id @default(autoincrement())
+  firebaseUid  String?   @unique
   email        String    @unique
-  passwordHash String
+  passwordHash String    @default("")
   name         String?
   walletAddress String?
   role         String    @default("user")

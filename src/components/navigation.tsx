@@ -9,7 +9,10 @@ import {
   Menu,
   X,
   Code2,
+  LogIn,
+  LogOut,
 } from "lucide-react";
+import { useAuth } from "@/components/auth-provider";
 
 const navItems = [
   { href: "/", label: "Home", icon: Home },
@@ -20,6 +23,7 @@ const navItems = [
 
 export default function Navigation() {
   const pathname = usePathname();
+  const { user, loading, signOut } = useAuth();
   const [isScrolled, setIsScrolled] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
@@ -74,6 +78,34 @@ export default function Navigation() {
               })}
             </div>
 
+            {/* Auth Buttons (Desktop) */}
+            <div className="hidden md:flex items-center gap-3">
+              {loading ? (
+                <div className="w-20 h-8 bg-slate-800/50 rounded-lg animate-pulse" />
+              ) : user ? (
+                <div className="flex items-center gap-3">
+                  <span className="text-sm text-slate-400">
+                    {user.displayName || user.email}
+                  </span>
+                  <button
+                    onClick={() => signOut()}
+                    className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-medium text-slate-400 hover:text-white hover:bg-slate-800/50 transition-all"
+                  >
+                    <LogOut size={16} />
+                    <span>Sign Out</span>
+                  </button>
+                </div>
+              ) : (
+                <Link
+                  href="/login"
+                  className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-500 hover:to-indigo-500 text-white shadow-lg shadow-violet-500/20 transition-all"
+                >
+                  <LogIn size={16} />
+                  <span>Sign In</span>
+                </Link>
+              )}
+            </div>
+
             {/* Mobile Menu Button */}
             <button
               onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
@@ -107,6 +139,38 @@ export default function Navigation() {
                   </Link>
                 );
               })}
+
+              {/* Mobile Auth */}
+              <div className="pt-3 mt-3 border-t border-slate-800/50">
+                {loading ? (
+                  <div className="w-full h-10 bg-slate-800/50 rounded-lg animate-pulse" />
+                ) : user ? (
+                  <>
+                    <div className="px-4 py-2 text-sm text-slate-400">
+                      {user.displayName || user.email}
+                    </div>
+                    <button
+                      onClick={() => {
+                        signOut();
+                        setIsMobileMenuOpen(false);
+                      }}
+                      className="flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium text-slate-400 hover:text-white hover:bg-slate-800/50 transition-all w-full"
+                    >
+                      <LogOut size={18} />
+                      <span>Sign Out</span>
+                    </button>
+                  </>
+                ) : (
+                  <Link
+                    href="/login"
+                    onClick={() => setIsMobileMenuOpen(false)}
+                    className="flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium bg-gradient-to-r from-violet-600 to-indigo-600 text-white transition-all"
+                  >
+                    <LogIn size={18} />
+                    <span>Sign In</span>
+                  </Link>
+                )}
+              </div>
             </div>
           </div>
         )}
