@@ -129,7 +129,7 @@ class SearchHackathonsTool(BaseTool):
         topics: str | None = None,
         mode: str = "both",
     ) -> str:
-        """Search for upcoming hackathons using OpenAI web search + scraper fallback."""
+        """Search for hackathons using OpenAI web search + scraper fallback."""
         from openai import AsyncOpenAI
 
         api_key = os.getenv("OPENAI_API_KEY")
@@ -548,17 +548,24 @@ class FormatHackathonResultsTool(BaseTool):
             url = h.get("url", "")
             reg_url = h.get("registration_url", "")
             prizes = h.get("prizes", "")
-            virtual = " (Virtual)" if h.get("is_virtual") else ""
+            source = h.get("source", "")
+            virtual = h.get("is_virtual", False)
+            topics = h.get("topics", [])
 
-            date_str = f"{ds} - {de}" if de and de != ds else ds
-            lines.append(f"{i}. {name}{virtual}")
-            lines.append(f"   {date_str}  |  {loc}")
+            mode_tag = "[ONLINE]" if virtual else "[IN-PERSON]"
+            lines.append(f"{i}. {name}  {mode_tag}")
+            lines.append(f"   Dates: {ds} -> {de}")
+            lines.append(f"   Location: {loc}")
+            if topics:
+                lines.append(f"   Topics: {', '.join(topics)}")
             if prizes:
-                lines.append(f"   Prize: {prizes}")
+                lines.append(f"   Prizes: {prizes}")
             if url:
-                lines.append(f"   {url}")
-            elif reg_url:
-                lines.append(f"   {reg_url}")
+                lines.append(f"   Event: {url}")
+            if reg_url and reg_url != url:
+                lines.append(f"   Register: {reg_url}")
+            if source:
+                lines.append(f"   Source: {source}")
             lines.append("")
 
         lines.append("Want me to help you register for any of these?")

@@ -73,7 +73,10 @@ except ImportError:
     create_flare_predictor_agent = None
 
 # Load from project root .env (single source of truth)
-load_dotenv(Path(__file__).resolve().parent.parent / ".env")
+# Load .env from agents/ dir (where the file lives) or project root
+_here = Path(__file__).resolve().parent
+load_dotenv(_here / ".env")
+load_dotenv(_here.parent / ".env")
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
