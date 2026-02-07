@@ -61,6 +61,8 @@ class ButlerDataExchange:
         self._answers: dict[str, Any] = {}
         # job_id → list of status updates pushed by worker
         self._updates: dict[str, list[dict]] = {}
+        # Database instance (lazily connected)
+        self._db = None
 
     @classmethod
     def instance(cls) -> "ButlerDataExchange":
@@ -71,6 +73,16 @@ class ButlerDataExchange:
     @classmethod
     def reset(cls):
         cls._instance = None
+
+    async def _get_db(self):
+        """Lazily connect to the database."""
+        if self._db is None:
+            try:
+                from .database import Database
+                self._db = await Database.connect()
+            except Exception as e:
+                logger.debug("DB not available: %s", e)
+        return self._db
 
     # ── Worker side: post a request ─────────────────────────
 
@@ -83,6 +95,25 @@ class ButlerDataExchange:
         self._events[request_id] = asyncio.Event()
         logger.info("📩 Data request queued: req=%s job=%s type=%s",
                      request_id, job_id, request.get("data_type"))
+
+        # Persist to DB (fire-and-forget)
+        asyncio.ensure_future(self._persist_request(request_id, job_id, request))
+
+    async def _persist_request(self, request_id: str, job_id: str, request: dict):
+        try:
+            db = await self._get_db()
+            if db:
+                await db.create_data_request(
+                    request_id=request_id,
+                    job_id=job_id,
+                    agent=request.get("agent", "unknown"),
+                    data_type=request.get("data_type", "custom"),
+                    question=request.get("question", ""),
+                    fields=request.get("fields"),
+                    context=request.get("context", ""),
+                )
+        except Exception as e:
+            logger.debug("DB persist request failed: %s", e)
 
     async def wait_for_answer(self, request_id: str, timeout: float = 300) -> Optional[dict]:
         """Block until the Butler supplies an answer (or timeout)."""
@@ -128,11 +159,42 @@ class ButlerDataExchange:
         else:
             logger.warning("⚠️ No waiter for request %s", request_id)
 
+        # Persist to DB
+        asyncio.ensure_future(self._persist_answer(request_id, answer))
+
+    async def _persist_answer(self, request_id: str, answer: dict):
+        try:
+            db = await self._get_db()
+            if db:
+                await db.answer_data_request(
+                    request_id=request_id,
+                    answer_data=answer.get("data", answer),
+                    message=answer.get("message", ""),
+                )
+        except Exception as e:
+            logger.debug("DB persist answer failed: %s", e)
+
     # ── Worker → Butler status updates ──────────────────────
 
     def push_update(self, job_id: str, update: dict):
         """Worker pushes a status/progress update for the Butler."""
         self._updates.setdefault(job_id, []).append(update)
+        # Persist to DB
+        asyncio.ensure_future(self._persist_update(job_id, update))
+
+    async def _persist_update(self, job_id: str, update: dict):
+        try:
+            db = await self._get_db()
+            if db:
+                await db.create_update(
+                    job_id=job_id,
+                    agent=update.get("agent", "unknown"),
+                    status=update.get("status", "in_progress"),
+                    message=update.get("message", ""),
+                    data=update.get("data"),
+                )
+        except Exception as e:
+            logger.debug("DB persist update failed: %s", e)
 
     def get_updates(self, job_id: str) -> list[dict]:
         """Butler drains updates for a job."""

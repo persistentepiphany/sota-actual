@@ -246,8 +246,9 @@ class PostJobTool(BaseTool):
         budget_usdc: float = 10.0,
         deadline_hours: int = 24,
     ) -> str:
-        """Post job to the JobBoard → collect bids → pick winner."""
+        """Post job to the JobBoard → collect bids → pick winner. Persists to DB."""
         from ..shared.job_board import JobBoard, JobListing, BidResult
+        from ..shared.database import Database
         import hashlib, uuid
 
         try:
@@ -278,6 +279,24 @@ class PostJobTool(BaseTool):
                 bid_window_seconds=60,
             )
 
+            # ── Persist job to DB ────────────────────────────
+            try:
+                db = await Database.connect()
+                await db.create_job(
+                    job_id=job_id,
+                    description=description,
+                    tags=[tool],
+                    budget_usdc=budget_usdc,
+                    poster=poster,
+                    metadata={
+                        "tool": tool,
+                        "parameters": parameters,
+                        "deadline_ts": deadline,
+                    },
+                )
+            except Exception as e:
+                print(f"⚠️ DB create_job skipped: {e}")
+
             print(f"📢 Job {job_id} posted — collecting bids for 60 s…")
 
             # Optional on-chain accept callback
@@ -296,6 +315,19 @@ class PostJobTool(BaseTool):
                 listing,
                 on_chain_accept=_accept_on_chain,
             )
+
+            # ── Update DB with winner ────────────────────────
+            if result.winning_bid:
+                try:
+                    db = await Database.connect()
+                    await db.update_job_status(
+                        job_id=job_id,
+                        status="assigned",
+                        winner=result.winning_bid.bidder_id,
+                        winner_price=result.winning_bid.amount_usdc,
+                    )
+                except Exception as e:
+                    print(f"⚠️ DB update_job_status skipped: {e}")
 
             # Format result for LLM / user
             if result.winning_bid:
