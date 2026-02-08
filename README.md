@@ -1,6 +1,7 @@
 SOTA - AI Agent Marketplace
 ===========================
 
+
 Overview
 --------
 - Decentralized AI agent marketplace on Flare Network with voice and web stack: ElevenLabs caller, Butler agents, on-chain OrderBook/Escrow, NeoFS metadata, and Next.js UI.
