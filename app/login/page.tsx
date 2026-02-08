@@ -69,17 +69,17 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-[calc(100vh-4rem)] flex items-center justify-center bg-gradient-to-br from-slate-950 via-black to-slate-900 px-4">
+    <div className="min-h-[calc(100vh-4rem)] home-shell flex items-center justify-center px-4 text-[color:var(--foreground)]">
       <div className="w-full max-w-md">
         {/* Logo */}
         <div className="flex flex-col items-center mb-8">
           <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-violet-500 to-indigo-600 flex items-center justify-center shadow-lg shadow-violet-500/30 mb-4">
             <Bot size={28} className="text-white" />
           </div>
-          <h1 className="text-2xl font-bold text-white">
+          <h1 className="text-2xl font-bold text-[color:var(--foreground)]">
             {isSignUp ? "Create an account" : "Welcome back"}
           </h1>
-          <p className="text-slate-400 mt-1 text-sm">
+          <p className="text-[color:var(--text-muted)] mt-1 text-sm">
             {isSignUp
               ? "Sign up to access the dashboard"
               : "Sign in to your SOTA account"}
@@ -87,25 +87,25 @@ export default function LoginPage() {
         </div>
 
         {/* Form Card */}
-        <div className="bg-slate-900/60 backdrop-blur-xl border border-slate-800/50 rounded-2xl p-8">
+        <div className="bg-[color:var(--surface-1)] backdrop-blur-xl border border-[color:var(--border-subtle)] rounded-2xl p-8">
           <form onSubmit={handleSubmit} className="space-y-5">
             {/* Name field (sign up only) */}
             {isSignUp && (
               <div>
-                <label className="block text-sm font-medium text-slate-300 mb-1.5">
+                <label className="block text-sm font-medium text-[color:var(--foreground)] mb-1.5">
                   Name
                 </label>
                 <div className="relative">
                   <User
                     size={18}
-                    className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500"
+                    className="absolute left-3 top-1/2 -translate-y-1/2 text-[color:var(--text-muted)]"
                   />
                   <input
                     type="text"
                     value={name}
                     onChange={(e) => setName(e.target.value)}
                     placeholder="Your name"
-                    className="w-full bg-slate-800/50 border border-slate-700/50 rounded-xl pl-10 pr-4 py-2.5 text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-violet-500/50 focus:border-violet-500/50 transition-all"
+                    className="w-full bg-[color:var(--surface-1)] border border-[color:var(--border-subtle)] rounded-xl pl-10 pr-4 py-2.5 text-[color:var(--foreground)] placeholder:text-[color:var(--text-muted)] focus:outline-none focus:ring-2 focus:ring-violet-500/50 focus:border-violet-500/50 transition-all"
                   />
                 </div>
               </div>
@@ -113,13 +113,13 @@ export default function LoginPage() {
 
             {/* Email */}
             <div>
-              <label className="block text-sm font-medium text-slate-300 mb-1.5">
+              <label className="block text-sm font-medium text-[color:var(--foreground)] mb-1.5">
                 Email
               </label>
               <div className="relative">
                 <Mail
                   size={18}
-                  className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500"
+                  className="absolute left-3 top-1/2 -translate-y-1/2 text-[color:var(--text-muted)]"
                 />
                 <input
                   type="email"
@@ -127,20 +127,20 @@ export default function LoginPage() {
                   onChange={(e) => setEmail(e.target.value)}
                   placeholder="you@example.com"
                   required
-                  className="w-full bg-slate-800/50 border border-slate-700/50 rounded-xl pl-10 pr-4 py-2.5 text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-violet-500/50 focus:border-violet-500/50 transition-all"
+                  className="w-full bg-[color:var(--surface-1)] border border-[color:var(--border-subtle)] rounded-xl pl-10 pr-4 py-2.5 text-[color:var(--foreground)] placeholder:text-[color:var(--text-muted)] focus:outline-none focus:ring-2 focus:ring-violet-500/50 focus:border-violet-500/50 transition-all"
                 />
               </div>
             </div>
 
             {/* Password */}
             <div>
-              <label className="block text-sm font-medium text-slate-300 mb-1.5">
+              <label className="block text-sm font-medium text-[color:var(--foreground)] mb-1.5">
                 Password
               </label>
               <div className="relative">
                 <Lock
                   size={18}
-                  className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500"
+                  className="absolute left-3 top-1/2 -translate-y-1/2 text-[color:var(--text-muted)]"
                 />
                 <input
                   type="password"
@@ -149,7 +149,7 @@ export default function LoginPage() {
                   placeholder="••••••••"
                   required
                   minLength={6}
-                  className="w-full bg-slate-800/50 border border-slate-700/50 rounded-xl pl-10 pr-4 py-2.5 text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-violet-500/50 focus:border-violet-500/50 transition-all"
+                  className="w-full bg-[color:var(--surface-1)] border border-[color:var(--border-subtle)] rounded-xl pl-10 pr-4 py-2.5 text-[color:var(--foreground)] placeholder:text-[color:var(--text-muted)] focus:outline-none focus:ring-2 focus:ring-violet-500/50 focus:border-violet-500/50 transition-all"
                 />
               </div>
             </div>
@@ -186,8 +186,8 @@ export default function LoginPage() {
           </form>
 
           {/* Toggle sign in / sign up */}
-          <div className="mt-6 pt-6 border-t border-slate-800/50 text-center">
-            <p className="text-slate-400 text-sm">
+          <div className="mt-6 pt-6 border-t border-[color:var(--border-subtle)] text-center">
+            <p className="text-[color:var(--text-muted)] text-sm">
               {isSignUp ? "Already have an account?" : "Don't have an account?"}{" "}
               <button
                 onClick={() => {
@@ -207,7 +207,7 @@ export default function LoginPage() {
         <div className="text-center mt-6">
           <Link
             href="/"
-            className="text-slate-500 hover:text-slate-300 text-sm transition-colors"
+            className="text-[color:var(--text-muted)] hover:text-[color:var(--foreground)] text-sm transition-colors"
           >
             ← Back to home
           </Link>

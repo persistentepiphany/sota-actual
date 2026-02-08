@@ -142,24 +142,24 @@ export default function DeveloperPortal() {
   };
 
   return (
-    <div className="min-h-[calc(100vh-4rem)] bg-gradient-to-br from-slate-950 via-black to-slate-900 text-slate-100 overflow-hidden relative">
+    <div className="min-h-[calc(100vh-4rem)] home-shell text-[color:var(--foreground)] overflow-hidden relative">
       {/* Auth Guard Overlay — blurs page content but nav remains accessible */}
       {!authLoading && !user && (
         <div className="absolute inset-0 z-40 flex items-center justify-center">
           {/* Blur backdrop */}
-          <div className="absolute inset-0 backdrop-blur-md bg-slate-950/60" />
+          <div className="absolute inset-0 backdrop-blur-md bg-[color:var(--overlay-strong)]" />
           {/* Locked card */}
           <motion.div
             initial={{ opacity: 0, scale: 0.9 }}
             animate={{ opacity: 1, scale: 1 }}
-            className="relative z-50 flex flex-col items-center gap-6 bg-slate-900/80 backdrop-blur-xl border border-slate-700/50 rounded-3xl px-10 py-12 shadow-2xl shadow-violet-500/10 max-w-md mx-4"
+            className="relative z-50 flex flex-col items-center gap-6 bg-[color:var(--surface-2)] backdrop-blur-xl border border-[color:var(--border-subtle)] rounded-3xl px-10 py-12 shadow-2xl shadow-violet-500/10 max-w-md mx-4"
           >
             <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-violet-500/20 to-indigo-600/20 border border-violet-500/30 flex items-center justify-center">
               <Lock size={36} className="text-violet-400" />
             </div>
             <div className="text-center">
-              <h2 className="text-2xl font-bold text-white mb-2">Developer Portal Locked</h2>
-              <p className="text-slate-400 text-sm leading-relaxed">
+              <h2 className="text-2xl font-bold text-[color:var(--foreground)] mb-2">Developer Portal Locked</h2>
+              <p className="text-[color:var(--text-muted)] text-sm leading-relaxed">
                 Sign in to your SOTA account to access the Developer Portal,
                 register agents, and manage your marketplace presence.
               </p>
@@ -183,7 +183,7 @@ export default function DeveloperPortal() {
       <svg className="absolute inset-0 w-full h-full pointer-events-none opacity-30" xmlns="http://www.w3.org/2000/svg">
         <defs>
           <pattern id="devGrid" width="60" height="60" patternUnits="userSpaceOnUse">
-            <path d="M 60 0 L 0 0 0 60" fill="none" stroke="rgba(99, 102, 241, 0.06)" strokeWidth="0.5" />
+            <path d="M 60 0 L 0 0 0 60" fill="none" stroke="var(--home-grid-stroke)" strokeWidth="0.5" />
           </pattern>
         </defs>
         <rect width="100%" height="100%" fill="url(#devGrid)" />
@@ -198,8 +198,8 @@ export default function DeveloperPortal() {
         >
           <div className="flex items-center justify-between">
             <div>
-              <h1 className="text-3xl font-bold text-white mb-2">Developer Portal</h1>
-              <p className="text-slate-400">Register and manage your AI agents on the SOTA marketplace</p>
+              <h1 className="text-3xl font-bold text-[color:var(--foreground)] mb-2">Developer Portal</h1>
+              <p className="text-[color:var(--text-muted)]">Register and manage your AI agents on the SOTA marketplace</p>
             </div>
             <button
               onClick={() => setShowNewAgentModal(true)}
@@ -232,9 +232,9 @@ export default function DeveloperPortal() {
             >
                 {agents.length === 0 ? (
                   <div className="text-center py-20">
-                    <Bot size={48} className="text-slate-600 mx-auto mb-4" />
-                    <h3 className="text-xl font-semibold text-white mb-2">No agents registered yet</h3>
-                    <p className="text-slate-400 mb-6">Register your first AI agent to get started on the SOTA marketplace</p>
+                    <Bot size={48} className="text-[color:var(--text-muted)] mx-auto mb-4" />
+                    <h3 className="text-xl font-semibold text-[color:var(--foreground)] mb-2">No agents registered yet</h3>
+                    <p className="text-[color:var(--text-muted)] mb-6">Register your first AI agent to get started on the SOTA marketplace</p>
                     <button
                       onClick={() => setShowNewAgentModal(true)}
                       className="inline-flex items-center gap-2 px-6 py-3 bg-violet-600 hover:bg-violet-500 text-white font-semibold rounded-xl transition-all"
@@ -250,7 +250,7 @@ export default function DeveloperPortal() {
                         key={agent.id}
                         initial={{ opacity: 0, y: 20 }}
                         animate={{ opacity: 1, y: 0 }}
-                        className="p-6 rounded-xl bg-slate-900/50 border border-slate-700/30 backdrop-blur-sm"
+                        className="p-6 rounded-xl bg-[color:var(--surface-1)] border border-[color:var(--border-subtle)] backdrop-blur-sm"
                       >
                         <div className="flex items-start justify-between">
                           <div className="flex items-start gap-4">
@@ -259,7 +259,7 @@ export default function DeveloperPortal() {
                             </div>
                             <div>
                               <div className="flex items-center gap-3 mb-1">
-                                <h3 className="text-lg font-semibold text-white">{agent.title}</h3>
+                                <h3 className="text-lg font-semibold text-[color:var(--foreground)]">{agent.title}</h3>
                                 {agent.isVerified && (
                                   <span className="flex items-center gap-1 px-2 py-0.5 text-xs font-medium rounded-full bg-emerald-500/20 text-emerald-400">
                                     <Shield size={12} />
@@ -274,17 +274,17 @@ export default function DeveloperPortal() {
                                   {agent.status}
                                 </span>
                               </div>
-                              <p className="text-sm text-slate-400 mb-3">{agent.description}</p>
+                              <p className="text-sm text-[color:var(--text-muted)] mb-3">{agent.description}</p>
                               <div className="flex items-center gap-4 text-sm">
-                                <div className="flex items-center gap-1 text-slate-400">
+                                <div className="flex items-center gap-1 text-[color:var(--text-muted)]">
                                   <Activity size={14} />
                                   <span>{agent.totalRequests} requests</span>
                                 </div>
-                                <div className="flex items-center gap-1 text-slate-400">
+                                <div className="flex items-center gap-1 text-[color:var(--text-muted)]">
                                   <TrendingUp size={14} />
                                   <span>{successRate(agent)}% success</span>
                                 </div>
-                                <div className="flex items-center gap-1 text-slate-400">
+                                <div className="flex items-center gap-1 text-[color:var(--text-muted)]">
                                   <DollarSign size={14} />
                                   <span>${agent.minFeeUsdc} min fee</span>
                                 </div>
@@ -297,20 +297,20 @@ export default function DeveloperPortal() {
                                 setSelectedAgent(agent);
                                 setShowViewModal(true);
                               }}
-                              className="p-2 hover:bg-slate-700/50 rounded-lg transition-colors"
+                              className="p-2 hover:bg-[color:var(--surface-hover)] rounded-lg transition-colors"
                               title="View Details"
                             >
-                              <Eye size={18} className="text-slate-400" />
+                              <Eye size={18} className="text-[color:var(--text-muted)]" />
                             </button>
                             <button
                               onClick={() => {
                                 setSelectedAgent(agent);
                                 setShowEditModal(true);
                               }}
-                              className="p-2 hover:bg-slate-700/50 rounded-lg transition-colors"
+                              className="p-2 hover:bg-[color:var(--surface-hover)] rounded-lg transition-colors"
                               title="Edit Agent"
                             >
-                              <Pencil size={18} className="text-slate-400" />
+                              <Pencil size={18} className="text-[color:var(--text-muted)]" />
                             </button>
                             <button
                               onClick={() => {
@@ -327,21 +327,21 @@ export default function DeveloperPortal() {
 
                         {/* Stats Bar */}
                         <div className="mt-6 grid grid-cols-4 gap-4">
-                          <div className="p-3 rounded-lg bg-slate-800/50">
-                            <div className="text-2xl font-bold text-white">{agent.reputation.toFixed(1)}</div>
-                            <div className="text-xs text-slate-500">Reputation</div>
+                          <div className="p-3 rounded-lg bg-[color:var(--surface-1)]">
+                            <div className="text-2xl font-bold text-[color:var(--foreground)]">{agent.reputation.toFixed(1)}</div>
+                            <div className="text-xs text-[color:var(--text-muted)]">Reputation</div>
                           </div>
-                          <div className="p-3 rounded-lg bg-slate-800/50">
-                            <div className="text-2xl font-bold text-white">{agent.totalRequests}</div>
-                            <div className="text-xs text-slate-500">Total Jobs</div>
+                          <div className="p-3 rounded-lg bg-[color:var(--surface-1)]">
+                            <div className="text-2xl font-bold text-[color:var(--foreground)]">{agent.totalRequests}</div>
+                            <div className="text-xs text-[color:var(--text-muted)]">Total Jobs</div>
                           </div>
-                          <div className="p-3 rounded-lg bg-slate-800/50">
+                          <div className="p-3 rounded-lg bg-[color:var(--surface-1)]">
                             <div className="text-2xl font-bold text-emerald-400">{successRate(agent)}%</div>
-                            <div className="text-xs text-slate-500">Success Rate</div>
+                            <div className="text-xs text-[color:var(--text-muted)]">Success Rate</div>
                           </div>
-                          <div className="p-3 rounded-lg bg-slate-800/50">
+                          <div className="p-3 rounded-lg bg-[color:var(--surface-1)]">
                             <div className="text-2xl font-bold text-violet-400">${agent.minFeeUsdc}</div>
-                            <div className="text-xs text-slate-500">Min Fee</div>
+                            <div className="text-xs text-[color:var(--text-muted)]">Min Fee</div>
                           </div>
                         </div>
                       </motion.div>
@@ -390,29 +390,29 @@ export default function DeveloperPortal() {
       {/* Delete Confirmation Modal */}
       {showDeleteConfirm && selectedAgent && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-          <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setShowDeleteConfirm(false)} />
+          <div className="absolute inset-0 bg-[color:var(--overlay-strong)] backdrop-blur-sm" onClick={() => setShowDeleteConfirm(false)} />
           <motion.div
             initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
-            className="relative w-full max-w-md bg-slate-900 border border-slate-700 rounded-2xl p-6 shadow-2xl"
+            className="relative w-full max-w-md bg-[color:var(--surface-2)] border border-[color:var(--border-subtle)] rounded-2xl p-6 shadow-2xl"
           >
             <div className="flex items-center gap-4 mb-4">
               <div className="w-12 h-12 rounded-full bg-red-500/20 flex items-center justify-center">
                 <Trash2 size={24} className="text-red-400" />
               </div>
               <div>
-                <h3 className="text-lg font-semibold text-white">Delete Agent</h3>
-                <p className="text-sm text-slate-400">This action cannot be undone</p>
+                <h3 className="text-lg font-semibold text-[color:var(--foreground)]">Delete Agent</h3>
+                <p className="text-sm text-[color:var(--text-muted)]">This action cannot be undone</p>
               </div>
             </div>
-            <p className="text-slate-300 mb-6">
-              Are you sure you want to delete <span className="font-semibold text-white">{selectedAgent.title}</span>? 
+            <p className="text-[color:var(--foreground)] mb-6">
+              Are you sure you want to delete <span className="font-semibold text-[color:var(--foreground)]">{selectedAgent.title}</span>? 
               All associated data will be permanently removed.
             </p>
             <div className="flex gap-3">
               <button
                 onClick={() => setShowDeleteConfirm(false)}
-                className="flex-1 px-4 py-2 bg-slate-800 hover:bg-slate-700 text-white rounded-lg transition-colors"
+                className="flex-1 px-4 py-2 bg-[color:var(--surface-1)] hover:bg-[color:var(--surface-hover)] text-[color:var(--foreground)] rounded-lg transition-colors"
               >
                 Cancel
               </button>
@@ -499,29 +499,29 @@ function NewAgentModal({ onClose, onSuccess, getAuthHeaders }: { onClose: () => 
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose} />
+      <div className="absolute inset-0 bg-[color:var(--overlay-strong)] backdrop-blur-sm" onClick={onClose} />
       <motion.div
         initial={{ opacity: 0, scale: 0.95 }}
         animate={{ opacity: 1, scale: 1 }}
-        className="relative w-full max-w-2xl bg-slate-900 border border-slate-700 rounded-2xl shadow-2xl overflow-hidden"
+        className="relative w-full max-w-2xl bg-[color:var(--surface-2)] border border-[color:var(--border-subtle)] rounded-2xl shadow-2xl overflow-hidden"
       >
         {/* Header */}
-        <div className="flex items-center justify-between p-6 border-b border-slate-700">
+        <div className="flex items-center justify-between p-6 border-b border-[color:var(--border-subtle)]">
           <div>
-            <h2 className="text-xl font-bold text-white">Register New Agent</h2>
-            <p className="text-sm text-slate-400">Step {step} of 3</p>
+            <h2 className="text-xl font-bold text-[color:var(--foreground)]">Register New Agent</h2>
+            <p className="text-sm text-[color:var(--text-muted)]">Step {step} of 3</p>
           </div>
-          <button onClick={onClose} className="p-2 hover:bg-slate-800 rounded-lg">
-            <X size={20} className="text-slate-400" />
+          <button onClick={onClose} className="p-2 hover:bg-[color:var(--surface-1)] rounded-lg">
+            <X size={20} className="text-[color:var(--text-muted)]" />
           </button>
         </div>
 
         {/* Progress */}
-        <div className="flex gap-2 px-6 py-4 bg-slate-800/50">
+        <div className="flex gap-2 px-6 py-4 bg-[color:var(--surface-1)]">
           {[1, 2, 3].map((s) => (
             <div
               key={s}
-              className={`flex-1 h-1 rounded-full ${s <= step ? "bg-violet-500" : "bg-slate-700"}`}
+              className={`flex-1 h-1 rounded-full ${s <= step ? "bg-violet-500" : "bg-[color:var(--surface-hover)]"}`}
             />
           ))}
         </div>
@@ -530,29 +530,29 @@ function NewAgentModal({ onClose, onSuccess, getAuthHeaders }: { onClose: () => 
         <div className="p-6 max-h-[60vh] overflow-y-auto">
           {step === 1 && (
             <div className="space-y-4">
-              <h3 className="text-lg font-semibold text-white mb-4">Basic Information</h3>
+              <h3 className="text-lg font-semibold text-[color:var(--foreground)] mb-4">Basic Information</h3>
               <div>
-                <label className="block text-sm font-medium text-slate-400 mb-2">Agent Name</label>
+                <label className="block text-sm font-medium text-[color:var(--text-muted)] mb-2">Agent Name</label>
                 <input
                   type="text"
                   value={formData.title}
                   onChange={(e) => setFormData({ ...formData, title: e.target.value })}
                   placeholder="My Awesome Agent"
-                  className="w-full px-4 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:border-violet-500"
+                  className="w-full px-4 py-2 bg-[color:var(--surface-1)] border border-[color:var(--border-subtle)] rounded-lg text-[color:var(--foreground)] placeholder:text-[color:var(--text-muted)] focus:outline-none focus:border-violet-500"
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-slate-400 mb-2">Description</label>
+                <label className="block text-sm font-medium text-[color:var(--text-muted)] mb-2">Description</label>
                 <textarea
                   value={formData.description}
                   onChange={(e) => setFormData({ ...formData, description: e.target.value })}
                   placeholder="Describe what your agent does..."
                   rows={3}
-                  className="w-full px-4 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:border-violet-500 resize-none"
+                  className="w-full px-4 py-2 bg-[color:var(--surface-1)] border border-[color:var(--border-subtle)] rounded-lg text-[color:var(--foreground)] placeholder:text-[color:var(--text-muted)] focus:outline-none focus:border-violet-500 resize-none"
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-slate-400 mb-2">
+                <label className="block text-sm font-medium text-[color:var(--text-muted)] mb-2">
                   <span className="flex items-center gap-2">
                     <Wallet size={16} />
                     Wallet Address
@@ -563,16 +563,16 @@ function NewAgentModal({ onClose, onSuccess, getAuthHeaders }: { onClose: () => 
                   value={formData.walletAddress}
                   onChange={(e) => setFormData({ ...formData, walletAddress: e.target.value })}
                   placeholder="0x..."
-                  className="w-full px-4 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:border-violet-500 font-mono"
+                  className="w-full px-4 py-2 bg-[color:var(--surface-1)] border border-[color:var(--border-subtle)] rounded-lg text-[color:var(--foreground)] placeholder:text-[color:var(--text-muted)] focus:outline-none focus:border-violet-500 font-mono"
                 />
-                <p className="text-xs text-slate-500 mt-1">The wallet address for receiving payments</p>
+                <p className="text-xs text-[color:var(--text-muted)] mt-1">The wallet address for receiving payments</p>
               </div>
               <div>
-                <label className="block text-sm font-medium text-slate-400 mb-2">Category</label>
+                <label className="block text-sm font-medium text-[color:var(--text-muted)] mb-2">Category</label>
                 <select
                   value={formData.category}
                   onChange={(e) => setFormData({ ...formData, category: e.target.value })}
-                  className="w-full px-4 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white focus:outline-none focus:border-violet-500"
+                  className="w-full px-4 py-2 bg-[color:var(--surface-1)] border border-[color:var(--border-subtle)] rounded-lg text-[color:var(--foreground)] focus:outline-none focus:border-violet-500"
                 >
                   <option value="">Select category</option>
                   <option value="automation">Automation</option>
@@ -587,20 +587,20 @@ function NewAgentModal({ onClose, onSuccess, getAuthHeaders }: { onClose: () => 
 
           {step === 2 && (
             <div className="space-y-4">
-              <h3 className="text-lg font-semibold text-white mb-4">API Configuration</h3>
+              <h3 className="text-lg font-semibold text-[color:var(--foreground)] mb-4">API Configuration</h3>
               <div>
-                <label className="block text-sm font-medium text-slate-400 mb-2">API Endpoint</label>
+                <label className="block text-sm font-medium text-[color:var(--text-muted)] mb-2">API Endpoint</label>
                 <input
                   type="url"
                   value={formData.apiEndpoint}
                   onChange={(e) => setFormData({ ...formData, apiEndpoint: e.target.value })}
                   placeholder="https://your-agent.com/api/execute"
-                  className="w-full px-4 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:border-violet-500"
+                  className="w-full px-4 py-2 bg-[color:var(--surface-1)] border border-[color:var(--border-subtle)] rounded-lg text-[color:var(--foreground)] placeholder:text-[color:var(--text-muted)] focus:outline-none focus:border-violet-500"
                 />
-                <p className="text-xs text-slate-500 mt-1">The endpoint SOTA will call to execute jobs</p>
+                <p className="text-xs text-[color:var(--text-muted)] mt-1">The endpoint SOTA will call to execute jobs</p>
               </div>
               <div>
-                <label className="block text-sm font-medium text-slate-400 mb-2">Capabilities</label>
+                <label className="block text-sm font-medium text-[color:var(--text-muted)] mb-2">Capabilities</label>
                 <div className="flex flex-wrap gap-2">
                   {capabilities.map((cap) => (
                     <button
@@ -615,7 +615,7 @@ function NewAgentModal({ onClose, onSuccess, getAuthHeaders }: { onClose: () => 
                       className={`px-3 py-1.5 text-sm rounded-lg border transition-colors ${
                         formData.capabilities.includes(cap)
                           ? "bg-violet-500/20 border-violet-500 text-violet-300"
-                          : "bg-slate-800 border-slate-700 text-slate-400 hover:border-slate-600"
+                          : "bg-[color:var(--surface-1)] border-[color:var(--border-subtle)] text-[color:var(--text-muted)] hover:border-[color:var(--border-subtle)]"
                       }`}
                     >
                       {cap.replace("_", " ")}
@@ -624,13 +624,13 @@ function NewAgentModal({ onClose, onSuccess, getAuthHeaders }: { onClose: () => 
                 </div>
               </div>
               <div>
-                <label className="block text-sm font-medium text-slate-400 mb-2">Minimum Fee (USDC)</label>
+                <label className="block text-sm font-medium text-[color:var(--text-muted)] mb-2">Minimum Fee (USDC)</label>
                 <input
                   type="number"
                   step="0.01"
                   value={formData.minFeeUsdc}
                   onChange={(e) => setFormData({ ...formData, minFeeUsdc: parseFloat(e.target.value) })}
-                  className="w-full px-4 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white focus:outline-none focus:border-violet-500"
+                  className="w-full px-4 py-2 bg-[color:var(--surface-1)] border border-[color:var(--border-subtle)] rounded-lg text-[color:var(--foreground)] focus:outline-none focus:border-violet-500"
                 />
               </div>
             </div>
@@ -638,9 +638,9 @@ function NewAgentModal({ onClose, onSuccess, getAuthHeaders }: { onClose: () => 
 
           {step === 3 && (
             <div className="space-y-4">
-              <h3 className="text-lg font-semibold text-white mb-4">Documentation</h3>
+              <h3 className="text-lg font-semibold text-[color:var(--foreground)] mb-4">Documentation</h3>
               <div>
-                <label className="block text-sm font-medium text-slate-400 mb-2">
+                <label className="block text-sm font-medium text-[color:var(--text-muted)] mb-2">
                   Agent Documentation (Markdown)
                 </label>
                 <textarea
@@ -648,7 +648,7 @@ function NewAgentModal({ onClose, onSuccess, getAuthHeaders }: { onClose: () => 
                   onChange={(e) => setFormData({ ...formData, documentation: e.target.value })}
                   placeholder="# My Agent\n\nDescribe how to use your agent..."
                   rows={10}
-                  className="w-full px-4 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:border-violet-500 resize-none font-mono text-sm"
+                  className="w-full px-4 py-2 bg-[color:var(--surface-1)] border border-[color:var(--border-subtle)] rounded-lg text-[color:var(--foreground)] placeholder:text-[color:var(--text-muted)] focus:outline-none focus:border-violet-500 resize-none font-mono text-sm"
                 />
               </div>
               <div className="p-4 rounded-lg bg-amber-500/10 border border-amber-500/30">
@@ -656,7 +656,7 @@ function NewAgentModal({ onClose, onSuccess, getAuthHeaders }: { onClose: () => 
                   <AlertCircle size={20} className="text-amber-400 mt-0.5" />
                   <div>
                     <h4 className="font-medium text-amber-400">Before submitting</h4>
-                    <ul className="text-sm text-slate-400 mt-1 space-y-1">
+                    <ul className="text-sm text-[color:var(--text-muted)] mt-1 space-y-1">
                       <li>• Your agent will be in &quot;pending&quot; status until verified</li>
                       <li>• SOTA will test your API endpoint for connectivity</li>
                       <li>• An API key will be generated for marketplace authentication</li>
@@ -675,10 +675,10 @@ function NewAgentModal({ onClose, onSuccess, getAuthHeaders }: { onClose: () => 
         </div>
 
         {/* Footer */}
-        <div className="flex items-center justify-between p-6 border-t border-slate-700 bg-slate-800/50">
+        <div className="flex items-center justify-between p-6 border-t border-[color:var(--border-subtle)] bg-[color:var(--surface-1)]">
           <button
             onClick={() => (step > 1 ? setStep(step - 1) : onClose())}
-            className="px-4 py-2 text-slate-400 hover:text-white transition-colors"
+            className="px-4 py-2 text-[color:var(--text-muted)] hover:text-[color:var(--foreground)] transition-colors"
             disabled={submitting}
           >
             {step > 1 ? "Back" : "Cancel"}
@@ -809,21 +809,21 @@ function ViewAgentModal({ agent, onClose, getAuthHeaders }: { agent: Agent; onCl
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose} />
+      <div className="absolute inset-0 bg-[color:var(--overlay-strong)] backdrop-blur-sm" onClick={onClose} />
       <motion.div
         initial={{ opacity: 0, scale: 0.95 }}
         animate={{ opacity: 1, scale: 1 }}
-        className="relative w-full max-w-2xl bg-slate-900 border border-slate-700 rounded-2xl shadow-2xl overflow-hidden"
+        className="relative w-full max-w-2xl bg-[color:var(--surface-2)] border border-[color:var(--border-subtle)] rounded-2xl shadow-2xl overflow-hidden"
       >
         {/* Header */}
-        <div className="flex items-center justify-between p-6 border-b border-slate-700">
+        <div className="flex items-center justify-between p-6 border-b border-[color:var(--border-subtle)]">
           <div className="flex items-center gap-4">
             <div className="w-12 h-12 rounded-xl bg-violet-500/20 flex items-center justify-center">
               <Bot size={24} className="text-violet-400" />
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <h2 className="text-xl font-bold text-white">{agent.title}</h2>
+                <h2 className="text-xl font-bold text-[color:var(--foreground)]">{agent.title}</h2>
                 {agent.isVerified && (
                   <Shield size={16} className="text-emerald-400" />
                 )}
@@ -837,19 +837,19 @@ function ViewAgentModal({ agent, onClose, getAuthHeaders }: { agent: Agent; onCl
               </span>
             </div>
           </div>
-          <button onClick={onClose} className="p-2 hover:bg-slate-800 rounded-lg">
-            <X size={20} className="text-slate-400" />
+          <button onClick={onClose} className="p-2 hover:bg-[color:var(--surface-1)] rounded-lg">
+            <X size={20} className="text-[color:var(--text-muted)]" />
           </button>
         </div>
 
         {/* Tabs */}
-        <div className="flex border-b border-slate-700">
+        <div className="flex border-b border-[color:var(--border-subtle)]">
           <button
             onClick={() => setActiveTab('details')}
             className={`flex-1 px-6 py-3 text-sm font-medium transition-colors ${
               activeTab === 'details'
                 ? 'text-violet-400 border-b-2 border-violet-400'
-                : 'text-slate-400 hover:text-white'
+                : 'text-[color:var(--text-muted)] hover:text-[color:var(--foreground)]'
             }`}
           >
             Details
@@ -859,7 +859,7 @@ function ViewAgentModal({ agent, onClose, getAuthHeaders }: { agent: Agent; onCl
             className={`flex-1 px-6 py-3 text-sm font-medium transition-colors flex items-center justify-center gap-2 ${
               activeTab === 'api-keys'
                 ? 'text-violet-400 border-b-2 border-violet-400'
-                : 'text-slate-400 hover:text-white'
+                : 'text-[color:var(--text-muted)] hover:text-[color:var(--foreground)]'
             }`}
           >
             <Key size={16} />
@@ -872,39 +872,39 @@ function ViewAgentModal({ agent, onClose, getAuthHeaders }: { agent: Agent; onCl
           {activeTab === 'details' ? (
             <>
               <div>
-                <h4 className="text-sm font-medium text-slate-400 mb-2">Description</h4>
-                <p className="text-white">{agent.description}</p>
+                <h4 className="text-sm font-medium text-[color:var(--text-muted)] mb-2">Description</h4>
+                <p className="text-[color:var(--foreground)]">{agent.description}</p>
               </div>
 
               <div>
-                <h4 className="text-sm font-medium text-slate-400 mb-2">Wallet Address</h4>
-                <code className="block px-3 py-2 bg-slate-800 rounded-lg text-sm text-violet-400 font-mono">
+                <h4 className="text-sm font-medium text-[color:var(--text-muted)] mb-2">Wallet Address</h4>
+                <code className="block px-3 py-2 bg-[color:var(--surface-1)] rounded-lg text-sm text-violet-400 font-mono">
                   {agent.walletAddress}
                 </code>
               </div>
 
               <div className="grid grid-cols-4 gap-4">
-                <div className="p-3 rounded-lg bg-slate-800/50">
-                  <div className="text-2xl font-bold text-white">{agent.reputation.toFixed(1)}</div>
-                  <div className="text-xs text-slate-500">Reputation</div>
+                <div className="p-3 rounded-lg bg-[color:var(--surface-1)]">
+                  <div className="text-2xl font-bold text-[color:var(--foreground)]">{agent.reputation.toFixed(1)}</div>
+                  <div className="text-xs text-[color:var(--text-muted)]">Reputation</div>
                 </div>
-                <div className="p-3 rounded-lg bg-slate-800/50">
-                  <div className="text-2xl font-bold text-white">{agent.totalRequests}</div>
-                  <div className="text-xs text-slate-500">Total Jobs</div>
+                <div className="p-3 rounded-lg bg-[color:var(--surface-1)]">
+                  <div className="text-2xl font-bold text-[color:var(--foreground)]">{agent.totalRequests}</div>
+                  <div className="text-xs text-[color:var(--text-muted)]">Total Jobs</div>
                 </div>
-                <div className="p-3 rounded-lg bg-slate-800/50">
+                <div className="p-3 rounded-lg bg-[color:var(--surface-1)]">
                   <div className="text-2xl font-bold text-emerald-400">{successRate}%</div>
-                  <div className="text-xs text-slate-500">Success Rate</div>
+                  <div className="text-xs text-[color:var(--text-muted)]">Success Rate</div>
                 </div>
-                <div className="p-3 rounded-lg bg-slate-800/50">
+                <div className="p-3 rounded-lg bg-[color:var(--surface-1)]">
                   <div className="text-2xl font-bold text-violet-400">${agent.minFeeUsdc}</div>
-                  <div className="text-xs text-slate-500">Min Fee</div>
+                  <div className="text-xs text-[color:var(--text-muted)]">Min Fee</div>
                 </div>
               </div>
 
               {capabilities.length > 0 && (
                 <div>
-                  <h4 className="text-sm font-medium text-slate-400 mb-2">Capabilities</h4>
+                  <h4 className="text-sm font-medium text-[color:var(--text-muted)] mb-2">Capabilities</h4>
                   <div className="flex flex-wrap gap-2">
                     {capabilities.map((cap: string) => (
                       <span key={cap} className="px-3 py-1 text-sm bg-violet-500/20 text-violet-300 rounded-lg">
@@ -930,28 +930,28 @@ function ViewAgentModal({ agent, onClose, getAuthHeaders }: { agent: Agent; onCl
                       <Key size={20} className="text-emerald-400 mt-0.5" />
                       <div className="flex-1">
                         <h4 className="font-medium text-emerald-400 mb-1">API Key Generated!</h4>
-                        <p className="text-sm text-slate-400 mb-3">
+                        <p className="text-sm text-[color:var(--text-muted)] mb-3">
                           Save this key now - it will not be shown again.
                         </p>
                         <div className="flex items-center gap-2">
-                          <code className="flex-1 px-3 py-2 bg-slate-800 rounded-lg text-xs text-emerald-300 font-mono break-all">
+                          <code className="flex-1 px-3 py-2 bg-[color:var(--surface-1)] rounded-lg text-xs text-emerald-300 font-mono break-all">
                             {generatedKey}
                           </code>
                           <button
                             onClick={() => handleCopyKey(generatedKey)}
-                            className="p-2 bg-slate-700 hover:bg-slate-600 rounded-lg transition-colors"
+                            className="p-2 bg-[color:var(--surface-hover)] hover:bg-[color:var(--surface-hover)] rounded-lg transition-colors"
                           >
                             {copiedKey ? (
                               <Check size={16} className="text-emerald-400" />
                             ) : (
-                              <Copy size={16} className="text-slate-400" />
+                              <Copy size={16} className="text-[color:var(--text-muted)]" />
                             )}
                           </button>
                         </div>
                       </div>
                       <button
                         onClick={() => setGeneratedKey(null)}
-                        className="text-slate-400 hover:text-white"
+                        className="text-[color:var(--text-muted)] hover:text-[color:var(--foreground)]"
                       >
                         <X size={16} />
                       </button>
@@ -963,8 +963,8 @@ function ViewAgentModal({ agent, onClose, getAuthHeaders }: { agent: Agent; onCl
               {/* Generate New Key */}
               <div className="flex items-center justify-between">
                 <div>
-                  <h4 className="text-sm font-medium text-white">API Keys</h4>
-                  <p className="text-xs text-slate-500">Use API keys to authenticate marketplace requests</p>
+                  <h4 className="text-sm font-medium text-[color:var(--foreground)]">API Keys</h4>
+                  <p className="text-xs text-[color:var(--text-muted)]">Use API keys to authenticate marketplace requests</p>
                 </div>
                 <button
                   onClick={() => setShowNewKeyModal(true)}
@@ -982,15 +982,15 @@ function ViewAgentModal({ agent, onClose, getAuthHeaders }: { agent: Agent; onCl
                 </div>
               ) : apiKeys.length === 0 ? (
                 <div className="text-center py-8">
-                  <Key size={32} className="text-slate-600 mx-auto mb-3" />
-                  <p className="text-sm text-slate-500">No API keys generated yet</p>
+                  <Key size={32} className="text-[color:var(--text-muted)] mx-auto mb-3" />
+                  <p className="text-sm text-[color:var(--text-muted)]">No API keys generated yet</p>
                 </div>
               ) : (
                 <div className="space-y-3">
                   {apiKeys.filter(k => k.isActive).map((key) => (
                     <div
                       key={key.id}
-                      className="flex items-center justify-between p-4 rounded-lg bg-slate-800/50 border border-slate-700/50"
+                      className="flex items-center justify-between p-4 rounded-lg bg-[color:var(--surface-1)] border border-[color:var(--border-subtle)]"
                     >
                       <div className="flex items-center gap-3">
                         <div className="w-8 h-8 rounded-lg bg-violet-500/20 flex items-center justify-center">
@@ -998,12 +998,12 @@ function ViewAgentModal({ agent, onClose, getAuthHeaders }: { agent: Agent; onCl
                         </div>
                         <div>
                           <div className="flex items-center gap-2">
-                            <span className="text-sm font-medium text-white">{key.name}</span>
-                            <code className="px-2 py-0.5 bg-slate-700 rounded text-xs text-slate-400 font-mono">
+                            <span className="text-sm font-medium text-[color:var(--foreground)]">{key.name}</span>
+                            <code className="px-2 py-0.5 bg-[color:var(--surface-hover)] rounded text-xs text-[color:var(--text-muted)] font-mono">
                               {key.keyId}
                             </code>
                           </div>
-                          <div className="flex items-center gap-3 text-xs text-slate-500 mt-1">
+                          <div className="flex items-center gap-3 text-xs text-[color:var(--text-muted)] mt-1">
                             <span>Created {new Date(key.createdAt).toLocaleDateString()}</span>
                             {key.lastUsedAt && (
                               <span>Last used {new Date(key.lastUsedAt).toLocaleDateString()}</span>
@@ -1036,28 +1036,28 @@ function ViewAgentModal({ agent, onClose, getAuthHeaders }: { agent: Agent; onCl
                     exit={{ opacity: 0 }}
                     className="fixed inset-0 z-[60] flex items-center justify-center p-4"
                   >
-                    <div className="absolute inset-0 bg-black/40" onClick={() => setShowNewKeyModal(false)} />
+                    <div className="absolute inset-0 bg-[color:var(--overlay-soft)]" onClick={() => setShowNewKeyModal(false)} />
                     <motion.div
                       initial={{ scale: 0.95 }}
                       animate={{ scale: 1 }}
                       exit={{ scale: 0.95 }}
-                      className="relative w-full max-w-md bg-slate-800 border border-slate-600 rounded-xl p-6 shadow-xl"
+                      className="relative w-full max-w-md bg-[color:var(--surface-1)] border border-[color:var(--border-subtle)] rounded-xl p-6 shadow-xl"
                     >
-                      <h3 className="text-lg font-semibold text-white mb-4">Generate API Key</h3>
+                      <h3 className="text-lg font-semibold text-[color:var(--foreground)] mb-4">Generate API Key</h3>
                       <div className="mb-4">
-                        <label className="block text-sm font-medium text-slate-400 mb-2">Key Name</label>
+                        <label className="block text-sm font-medium text-[color:var(--text-muted)] mb-2">Key Name</label>
                         <input
                           type="text"
                           value={newKeyName}
                           onChange={(e) => setNewKeyName(e.target.value)}
                           placeholder="e.g., Production, Development"
-                          className="w-full px-4 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:border-violet-500"
+                          className="w-full px-4 py-2 bg-[color:var(--surface-hover)] border border-[color:var(--border-subtle)] rounded-lg text-[color:var(--foreground)] placeholder:text-[color:var(--text-muted)] focus:outline-none focus:border-violet-500"
                         />
                       </div>
                       <div className="flex gap-3">
                         <button
                           onClick={() => setShowNewKeyModal(false)}
-                          className="flex-1 px-4 py-2 bg-slate-700 hover:bg-slate-600 text-white rounded-lg transition-colors"
+                          className="flex-1 px-4 py-2 bg-[color:var(--surface-hover)] hover:bg-[color:var(--surface-hover)] text-[color:var(--foreground)] rounded-lg transition-colors"
                         >
                           Cancel
                         </button>
@@ -1088,10 +1088,10 @@ function ViewAgentModal({ agent, onClose, getAuthHeaders }: { agent: Agent; onCl
         </div>
 
         {/* Footer */}
-        <div className="flex justify-end p-6 border-t border-slate-700 bg-slate-800/50">
+        <div className="flex justify-end p-6 border-t border-[color:var(--border-subtle)] bg-[color:var(--surface-1)]">
           <button
             onClick={onClose}
-            className="px-6 py-2 bg-slate-700 hover:bg-slate-600 text-white rounded-lg transition-colors"
+            className="px-6 py-2 bg-[color:var(--surface-hover)] hover:bg-[color:var(--surface-hover)] text-[color:var(--foreground)] rounded-lg transition-colors"
           >
             Close
           </button>
@@ -1175,47 +1175,47 @@ function EditAgentModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose} />
+      <div className="absolute inset-0 bg-[color:var(--overlay-strong)] backdrop-blur-sm" onClick={onClose} />
       <motion.div
         initial={{ opacity: 0, scale: 0.95 }}
         animate={{ opacity: 1, scale: 1 }}
-        className="relative w-full max-w-2xl bg-slate-900 border border-slate-700 rounded-2xl shadow-2xl overflow-hidden"
+        className="relative w-full max-w-2xl bg-[color:var(--surface-2)] border border-[color:var(--border-subtle)] rounded-2xl shadow-2xl overflow-hidden"
       >
         {/* Header */}
-        <div className="flex items-center justify-between p-6 border-b border-slate-700">
+        <div className="flex items-center justify-between p-6 border-b border-[color:var(--border-subtle)]">
           <div>
-            <h2 className="text-xl font-bold text-white">Edit Agent</h2>
-            <p className="text-sm text-slate-400">Update your agent configuration</p>
+            <h2 className="text-xl font-bold text-[color:var(--foreground)]">Edit Agent</h2>
+            <p className="text-sm text-[color:var(--text-muted)]">Update your agent configuration</p>
           </div>
-          <button onClick={onClose} className="p-2 hover:bg-slate-800 rounded-lg">
-            <X size={20} className="text-slate-400" />
+          <button onClick={onClose} className="p-2 hover:bg-[color:var(--surface-1)] rounded-lg">
+            <X size={20} className="text-[color:var(--text-muted)]" />
           </button>
         </div>
 
         {/* Content */}
         <div className="p-6 space-y-4 max-h-[60vh] overflow-y-auto">
           <div>
-            <label className="block text-sm font-medium text-slate-400 mb-2">Agent Name</label>
+            <label className="block text-sm font-medium text-[color:var(--text-muted)] mb-2">Agent Name</label>
             <input
               type="text"
               value={formData.title}
               onChange={(e) => setFormData({ ...formData, title: e.target.value })}
-              className="w-full px-4 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white focus:outline-none focus:border-violet-500"
+              className="w-full px-4 py-2 bg-[color:var(--surface-1)] border border-[color:var(--border-subtle)] rounded-lg text-[color:var(--foreground)] focus:outline-none focus:border-violet-500"
             />
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-slate-400 mb-2">Description</label>
+            <label className="block text-sm font-medium text-[color:var(--text-muted)] mb-2">Description</label>
             <textarea
               value={formData.description}
               onChange={(e) => setFormData({ ...formData, description: e.target.value })}
               rows={3}
-              className="w-full px-4 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white focus:outline-none focus:border-violet-500 resize-none"
+              className="w-full px-4 py-2 bg-[color:var(--surface-1)] border border-[color:var(--border-subtle)] rounded-lg text-[color:var(--foreground)] focus:outline-none focus:border-violet-500 resize-none"
             />
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-slate-400 mb-2">
+            <label className="block text-sm font-medium text-[color:var(--text-muted)] mb-2">
               <span className="flex items-center gap-2">
                 <Wallet size={16} />
                 Wallet Address
@@ -1225,23 +1225,23 @@ function EditAgentModal({
               type="text"
               value={formData.walletAddress}
               onChange={(e) => setFormData({ ...formData, walletAddress: e.target.value })}
-              className="w-full px-4 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white font-mono focus:outline-none focus:border-violet-500"
+              className="w-full px-4 py-2 bg-[color:var(--surface-1)] border border-[color:var(--border-subtle)] rounded-lg text-[color:var(--foreground)] font-mono focus:outline-none focus:border-violet-500"
             />
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-slate-400 mb-2">Minimum Fee (USDC)</label>
+            <label className="block text-sm font-medium text-[color:var(--text-muted)] mb-2">Minimum Fee (USDC)</label>
             <input
               type="number"
               step="0.01"
               value={formData.minFeeUsdc}
               onChange={(e) => setFormData({ ...formData, minFeeUsdc: parseFloat(e.target.value) })}
-              className="w-full px-4 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white focus:outline-none focus:border-violet-500"
+              className="w-full px-4 py-2 bg-[color:var(--surface-1)] border border-[color:var(--border-subtle)] rounded-lg text-[color:var(--foreground)] focus:outline-none focus:border-violet-500"
             />
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-slate-400 mb-2">Capabilities</label>
+            <label className="block text-sm font-medium text-[color:var(--text-muted)] mb-2">Capabilities</label>
             <div className="flex flex-wrap gap-2">
               {capabilities.map((cap) => (
                 <button
@@ -1256,7 +1256,7 @@ function EditAgentModal({
                   className={`px-3 py-1.5 text-sm rounded-lg border transition-colors ${
                     formData.capabilities.includes(cap)
                       ? "bg-violet-500/20 border-violet-500 text-violet-300"
-                      : "bg-slate-800 border-slate-700 text-slate-400 hover:border-slate-600"
+                      : "bg-[color:var(--surface-1)] border-[color:var(--border-subtle)] text-[color:var(--text-muted)] hover:border-[color:var(--border-subtle)]"
                   }`}
                 >
                   {cap.replace("_", " ")}
@@ -1273,11 +1273,11 @@ function EditAgentModal({
         </div>
 
         {/* Footer */}
-        <div className="flex items-center justify-between p-6 border-t border-slate-700 bg-slate-800/50">
+        <div className="flex items-center justify-between p-6 border-t border-[color:var(--border-subtle)] bg-[color:var(--surface-1)]">
           <button
             onClick={onClose}
             disabled={saving}
-            className="px-4 py-2 text-slate-400 hover:text-white transition-colors"
+            className="px-4 py-2 text-[color:var(--text-muted)] hover:text-[color:var(--foreground)] transition-colors"
           >
             Cancel
           </button>
