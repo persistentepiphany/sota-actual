@@ -56,6 +56,8 @@ export interface AgentStakingInterface extends Interface {
       | "escrow"
       | "getPoolSize"
       | "getStakeInfo"
+      | "houseFeeBps"
+      | "houseWallet"
       | "isStaked"
       | "lossPool"
       | "maxRandomAge"
@@ -64,13 +66,17 @@ export interface AgentStakingInterface extends Interface {
       | "previewCashout"
       | "randomNumberV2"
       | "renounceOwnership"
+      | "seedPool"
       | "setEscrow"
+      | "setHouseFeeBps"
+      | "setHouseWallet"
       | "setMaxRandomAge"
       | "setMinimumStake"
       | "stake"
       | "stakes"
       | "transferOwnership"
       | "unstake"
+      | "withdrawPool"
   ): FunctionFragment;
 
   getEvent(
@@ -79,8 +85,13 @@ export interface AgentStakingInterface extends Interface {
       | "CashoutWin"
       | "EarningsCredited"
       | "EscrowUpdated"
+      | "HouseFeePaid"
+      | "HouseFeeUpdated"
+      | "HouseWalletUpdated"
       | "MinimumStakeUpdated"
       | "OwnershipTransferred"
+      | "PoolSeeded"
+      | "PoolWithdrawn"
       | "Staked"
       | "Unstaked"
   ): EventFragment;
@@ -89,7 +100,10 @@ export interface AgentStakingInterface extends Interface {
     functionFragment: "agentRegistry",
     values?: undefined
   ): string;
-  encodeFunctionData(functionFragment: "cashout", values?: undefined): string;
+  encodeFunctionData(
+    functionFragment: "cashout",
+    values: [AddressLike]
+  ): string;
   encodeFunctionData(
     functionFragment: "creditEarnings",
     values: [AddressLike, BigNumberish]
@@ -102,6 +116,14 @@ export interface AgentStakingInterface extends Interface {
   encodeFunctionData(
     functionFragment: "getStakeInfo",
     values: [AddressLike]
+  ): string;
+  encodeFunctionData(
+    functionFragment: "houseFeeBps",
+    values?: undefined
+  ): string;
+  encodeFunctionData(
+    functionFragment: "houseWallet",
+    values?: undefined
   ): string;
   encodeFunctionData(
     functionFragment: "isStaked",
@@ -129,8 +151,17 @@ export interface AgentStakingInterface extends Interface {
     functionFragment: "renounceOwnership",
     values?: undefined
   ): string;
+  encodeFunctionData(functionFragment: "seedPool", values?: undefined): string;
   encodeFunctionData(
     functionFragment: "setEscrow",
+    values: [AddressLike]
+  ): string;
+  encodeFunctionData(
+    functionFragment: "setHouseFeeBps",
+    values: [BigNumberish]
+  ): string;
+  encodeFunctionData(
+    functionFragment: "setHouseWallet",
     values: [AddressLike]
   ): string;
   encodeFunctionData(
@@ -141,13 +172,20 @@ export interface AgentStakingInterface extends Interface {
     functionFragment: "setMinimumStake",
     values: [BigNumberish]
   ): string;
-  encodeFunctionData(functionFragment: "stake", values?: undefined): string;
+  encodeFunctionData(functionFragment: "stake", values: [AddressLike]): string;
   encodeFunctionData(functionFragment: "stakes", values: [AddressLike]): string;
   encodeFunctionData(
     functionFragment: "transferOwnership",
     values: [AddressLike]
   ): string;
-  encodeFunctionData(functionFragment: "unstake", values?: undefined): string;
+  encodeFunctionData(
+    functionFragment: "unstake",
+    values: [AddressLike]
+  ): string;
+  encodeFunctionData(
+    functionFragment: "withdrawPool",
+    values: [BigNumberish]
+  ): string;
 
   decodeFunctionResult(
     functionFragment: "agentRegistry",
@@ -165,6 +203,14 @@ export interface AgentStakingInterface extends Interface {
   ): Result;
   decodeFunctionResult(
     functionFragment: "getStakeInfo",
+    data: BytesLike
+  ): Result;
+  decodeFunctionResult(
+    functionFragment: "houseFeeBps",
+    data: BytesLike
+  ): Result;
+  decodeFunctionResult(
+    functionFragment: "houseWallet",
     data: BytesLike
   ): Result;
   decodeFunctionResult(functionFragment: "isStaked", data: BytesLike): Result;
@@ -190,7 +236,16 @@ export interface AgentStakingInterface extends Interface {
     functionFragment: "renounceOwnership",
     data: BytesLike
   ): Result;
+  decodeFunctionResult(functionFragment: "seedPool", data: BytesLike): Result;
   decodeFunctionResult(functionFragment: "setEscrow", data: BytesLike): Result;
+  decodeFunctionResult(
+    functionFragment: "setHouseFeeBps",
+    data: BytesLike
+  ): Result;
+  decodeFunctionResult(
+    functionFragment: "setHouseWallet",
+    data: BytesLike
+  ): Result;
   decodeFunctionResult(
     functionFragment: "setMaxRandomAge",
     data: BytesLike
@@ -206,6 +261,10 @@ export interface AgentStakingInterface extends Interface {
     data: BytesLike
   ): Result;
   decodeFunctionResult(functionFragment: "unstake", data: BytesLike): Result;
+  decodeFunctionResult(
+    functionFragment: "withdrawPool",
+    data: BytesLike
+  ): Result;
 }
 
 export namespace CashoutLossEvent {
@@ -259,6 +318,43 @@ export namespace EscrowUpdatedEvent {
   export type LogDescription = TypedLogDescription<Event>;
 }
 
+export namespace HouseFeePaidEvent {
+  export type InputTuple = [agent: AddressLike, amount: BigNumberish];
+  export type OutputTuple = [agent: string, amount: bigint];
+  export interface OutputObject {
+    agent: string;
+    amount: bigint;
+  }
+  export type Event = TypedContractEvent<InputTuple, OutputTuple, OutputObject>;
+  export type Filter = TypedDeferredTopicFilter<Event>;
+  export type Log = TypedEventLog<Event>;
+  export type LogDescription = TypedLogDescription<Event>;
+}
+
+export namespace HouseFeeUpdatedEvent {
+  export type InputTuple = [newFeeBps: BigNumberish];
+  export type OutputTuple = [newFeeBps: bigint];
+  export interface OutputObject {
+    newFeeBps: bigint;
+  }
+  export type Event = TypedContractEvent<InputTuple, OutputTuple, OutputObject>;
+  export type Filter = TypedDeferredTopicFilter<Event>;
+  export type Log = TypedEventLog<Event>;
+  export type LogDescription = TypedLogDescription<Event>;
+}
+
+export namespace HouseWalletUpdatedEvent {
+  export type InputTuple = [wallet: AddressLike];
+  export type OutputTuple = [wallet: string];
+  export interface OutputObject {
+    wallet: string;
+  }
+  export type Event = TypedContractEvent<InputTuple, OutputTuple, OutputObject>;
+  export type Filter = TypedDeferredTopicFilter<Event>;
+  export type Log = TypedEventLog<Event>;
+  export type LogDescription = TypedLogDescription<Event>;
+}
+
 export namespace MinimumStakeUpdatedEvent {
   export type InputTuple = [newMinimum: BigNumberish];
   export type OutputTuple = [newMinimum: bigint];
@@ -277,6 +373,32 @@ export namespace OwnershipTransferredEvent {
   export interface OutputObject {
     previousOwner: string;
     newOwner: string;
+  }
+  export type Event = TypedContractEvent<InputTuple, OutputTuple, OutputObject>;
+  export type Filter = TypedDeferredTopicFilter<Event>;
+  export type Log = TypedEventLog<Event>;
+  export type LogDescription = TypedLogDescription<Event>;
+}
+
+export namespace PoolSeededEvent {
+  export type InputTuple = [from: AddressLike, amount: BigNumberish];
+  export type OutputTuple = [from: string, amount: bigint];
+  export interface OutputObject {
+    from: string;
+    amount: bigint;
+  }
+  export type Event = TypedContractEvent<InputTuple, OutputTuple, OutputObject>;
+  export type Filter = TypedDeferredTopicFilter<Event>;
+  export type Log = TypedEventLog<Event>;
+  export type LogDescription = TypedLogDescription<Event>;
+}
+
+export namespace PoolWithdrawnEvent {
+  export type InputTuple = [to: AddressLike, amount: BigNumberish];
+  export type OutputTuple = [to: string, amount: bigint];
+  export interface OutputObject {
+    to: string;
+    amount: bigint;
   }
   export type Event = TypedContractEvent<InputTuple, OutputTuple, OutputObject>;
   export type Filter = TypedDeferredTopicFilter<Event>;
@@ -364,7 +486,7 @@ export interface AgentStaking extends BaseContract {
 
   agentRegistry: TypedContractMethod<[], [string], "view">;
 
-  cashout: TypedContractMethod<[], [void], "nonpayable">;
+  cashout: TypedContractMethod<[agent: AddressLike], [void], "nonpayable">;
 
   creditEarnings: TypedContractMethod<
     [agent: AddressLike, amount: BigNumberish],
@@ -382,6 +504,10 @@ export interface AgentStaking extends BaseContract {
     "view"
   >;
 
+  houseFeeBps: TypedContractMethod<[], [bigint], "view">;
+
+  houseWallet: TypedContractMethod<[], [string], "view">;
+
   isStaked: TypedContractMethod<[agent: AddressLike], [boolean], "view">;
 
   lossPool: TypedContractMethod<[], [bigint], "view">;
@@ -394,7 +520,13 @@ export interface AgentStaking extends BaseContract {
 
   previewCashout: TypedContractMethod<
     [agent: AddressLike],
-    [[bigint, bigint] & { earnings: bigint; maxPayout: bigint }],
+    [
+      [bigint, bigint, bigint] & {
+        earnings: bigint;
+        houseFee: bigint;
+        maxPayout: bigint;
+      }
+    ],
     "view"
   >;
 
@@ -402,7 +534,21 @@ export interface AgentStaking extends BaseContract {
 
   renounceOwnership: TypedContractMethod<[], [void], "nonpayable">;
 
+  seedPool: TypedContractMethod<[], [void], "payable">;
+
   setEscrow: TypedContractMethod<[escrow_: AddressLike], [void], "nonpayable">;
+
+  setHouseFeeBps: TypedContractMethod<
+    [feeBps: BigNumberish],
+    [void],
+    "nonpayable"
+  >;
+
+  setHouseWallet: TypedContractMethod<
+    [wallet: AddressLike],
+    [void],
+    "nonpayable"
+  >;
 
   setMaxRandomAge: TypedContractMethod<
     [maxAge: BigNumberish],
@@ -416,7 +562,7 @@ export interface AgentStaking extends BaseContract {
     "nonpayable"
   >;
 
-  stake: TypedContractMethod<[], [void], "payable">;
+  stake: TypedContractMethod<[agent: AddressLike], [void], "payable">;
 
   stakes: TypedContractMethod<
     [arg0: AddressLike],
@@ -438,7 +584,13 @@ export interface AgentStaking extends BaseContract {
     "nonpayable"
   >;
 
-  unstake: TypedContractMethod<[], [void], "nonpayable">;
+  unstake: TypedContractMethod<[agent: AddressLike], [void], "nonpayable">;
+
+  withdrawPool: TypedContractMethod<
+    [amount: BigNumberish],
+    [void],
+    "nonpayable"
+  >;
 
   getFunction<T extends ContractMethod = ContractMethod>(
     key: string | FunctionFragment
@@ -449,7 +601,7 @@ export interface AgentStaking extends BaseContract {
   ): TypedContractMethod<[], [string], "view">;
   getFunction(
     nameOrSignature: "cashout"
-  ): TypedContractMethod<[], [void], "nonpayable">;
+  ): TypedContractMethod<[agent: AddressLike], [void], "nonpayable">;
   getFunction(
     nameOrSignature: "creditEarnings"
   ): TypedContractMethod<
@@ -471,6 +623,12 @@ export interface AgentStaking extends BaseContract {
     "view"
   >;
   getFunction(
+    nameOrSignature: "houseFeeBps"
+  ): TypedContractMethod<[], [bigint], "view">;
+  getFunction(
+    nameOrSignature: "houseWallet"
+  ): TypedContractMethod<[], [string], "view">;
+  getFunction(
     nameOrSignature: "isStaked"
   ): TypedContractMethod<[agent: AddressLike], [boolean], "view">;
   getFunction(
@@ -489,7 +647,13 @@ export interface AgentStaking extends BaseContract {
     nameOrSignature: "previewCashout"
   ): TypedContractMethod<
     [agent: AddressLike],
-    [[bigint, bigint] & { earnings: bigint; maxPayout: bigint }],
+    [
+      [bigint, bigint, bigint] & {
+        earnings: bigint;
+        houseFee: bigint;
+        maxPayout: bigint;
+      }
+    ],
     "view"
   >;
   getFunction(
@@ -499,8 +663,17 @@ export interface AgentStaking extends BaseContract {
     nameOrSignature: "renounceOwnership"
   ): TypedContractMethod<[], [void], "nonpayable">;
   getFunction(
+    nameOrSignature: "seedPool"
+  ): TypedContractMethod<[], [void], "payable">;
+  getFunction(
     nameOrSignature: "setEscrow"
   ): TypedContractMethod<[escrow_: AddressLike], [void], "nonpayable">;
+  getFunction(
+    nameOrSignature: "setHouseFeeBps"
+  ): TypedContractMethod<[feeBps: BigNumberish], [void], "nonpayable">;
+  getFunction(
+    nameOrSignature: "setHouseWallet"
+  ): TypedContractMethod<[wallet: AddressLike], [void], "nonpayable">;
   getFunction(
     nameOrSignature: "setMaxRandomAge"
   ): TypedContractMethod<[maxAge: BigNumberish], [void], "nonpayable">;
@@ -509,7 +682,7 @@ export interface AgentStaking extends BaseContract {
   ): TypedContractMethod<[minimumStake_: BigNumberish], [void], "nonpayable">;
   getFunction(
     nameOrSignature: "stake"
-  ): TypedContractMethod<[], [void], "payable">;
+  ): TypedContractMethod<[agent: AddressLike], [void], "payable">;
   getFunction(
     nameOrSignature: "stakes"
   ): TypedContractMethod<
@@ -530,7 +703,10 @@ export interface AgentStaking extends BaseContract {
   ): TypedContractMethod<[newOwner: AddressLike], [void], "nonpayable">;
   getFunction(
     nameOrSignature: "unstake"
-  ): TypedContractMethod<[], [void], "nonpayable">;
+  ): TypedContractMethod<[agent: AddressLike], [void], "nonpayable">;
+  getFunction(
+    nameOrSignature: "withdrawPool"
+  ): TypedContractMethod<[amount: BigNumberish], [void], "nonpayable">;
 
   getEvent(
     key: "CashoutLoss"
@@ -561,6 +737,27 @@ export interface AgentStaking extends BaseContract {
     EscrowUpdatedEvent.OutputObject
   >;
   getEvent(
+    key: "HouseFeePaid"
+  ): TypedContractEvent<
+    HouseFeePaidEvent.InputTuple,
+    HouseFeePaidEvent.OutputTuple,
+    HouseFeePaidEvent.OutputObject
+  >;
+  getEvent(
+    key: "HouseFeeUpdated"
+  ): TypedContractEvent<
+    HouseFeeUpdatedEvent.InputTuple,
+    HouseFeeUpdatedEvent.OutputTuple,
+    HouseFeeUpdatedEvent.OutputObject
+  >;
+  getEvent(
+    key: "HouseWalletUpdated"
+  ): TypedContractEvent<
+    HouseWalletUpdatedEvent.InputTuple,
+    HouseWalletUpdatedEvent.OutputTuple,
+    HouseWalletUpdatedEvent.OutputObject
+  >;
+  getEvent(
     key: "MinimumStakeUpdated"
   ): TypedContractEvent<
     MinimumStakeUpdatedEvent.InputTuple,
@@ -573,6 +770,20 @@ export interface AgentStaking extends BaseContract {
     OwnershipTransferredEvent.InputTuple,
     OwnershipTransferredEvent.OutputTuple,
     OwnershipTransferredEvent.OutputObject
+  >;
+  getEvent(
+    key: "PoolSeeded"
+  ): TypedContractEvent<
+    PoolSeededEvent.InputTuple,
+    PoolSeededEvent.OutputTuple,
+    PoolSeededEvent.OutputObject
+  >;
+  getEvent(
+    key: "PoolWithdrawn"
+  ): TypedContractEvent<
+    PoolWithdrawnEvent.InputTuple,
+    PoolWithdrawnEvent.OutputTuple,
+    PoolWithdrawnEvent.OutputObject
   >;
   getEvent(
     key: "Staked"
@@ -634,6 +845,39 @@ export interface AgentStaking extends BaseContract {
       EscrowUpdatedEvent.OutputObject
     >;
 
+    "HouseFeePaid(address,uint256)": TypedContractEvent<
+      HouseFeePaidEvent.InputTuple,
+      HouseFeePaidEvent.OutputTuple,
+      HouseFeePaidEvent.OutputObject
+    >;
+    HouseFeePaid: TypedContractEvent<
+      HouseFeePaidEvent.InputTuple,
+      HouseFeePaidEvent.OutputTuple,
+      HouseFeePaidEvent.OutputObject
+    >;
+
+    "HouseFeeUpdated(uint256)": TypedContractEvent<
+      HouseFeeUpdatedEvent.InputTuple,
+      HouseFeeUpdatedEvent.OutputTuple,
+      HouseFeeUpdatedEvent.OutputObject
+    >;
+    HouseFeeUpdated: TypedContractEvent<
+      HouseFeeUpdatedEvent.InputTuple,
+      HouseFeeUpdatedEvent.OutputTuple,
+      HouseFeeUpdatedEvent.OutputObject
+    >;
+
+    "HouseWalletUpdated(address)": TypedContractEvent<
+      HouseWalletUpdatedEvent.InputTuple,
+      HouseWalletUpdatedEvent.OutputTuple,
+      HouseWalletUpdatedEvent.OutputObject
+    >;
+    HouseWalletUpdated: TypedContractEvent<
+      HouseWalletUpdatedEvent.InputTuple,
+      HouseWalletUpdatedEvent.OutputTuple,
+      HouseWalletUpdatedEvent.OutputObject
+    >;
+
     "MinimumStakeUpdated(uint256)": TypedContractEvent<
       MinimumStakeUpdatedEvent.InputTuple,
       MinimumStakeUpdatedEvent.OutputTuple,
@@ -654,6 +898,28 @@ export interface AgentStaking extends BaseContract {
       OwnershipTransferredEvent.InputTuple,
       OwnershipTransferredEvent.OutputTuple,
       OwnershipTransferredEvent.OutputObject
+    >;
+
+    "PoolSeeded(address,uint256)": TypedContractEvent<
+      PoolSeededEvent.InputTuple,
+      PoolSeededEvent.OutputTuple,
+      PoolSeededEvent.OutputObject
+    >;
+    PoolSeeded: TypedContractEvent<
+      PoolSeededEvent.InputTuple,
+      PoolSeededEvent.OutputTuple,
+      PoolSeededEvent.OutputObject
+    >;
+
+    "PoolWithdrawn(address,uint256)": TypedContractEvent<
+      PoolWithdrawnEvent.InputTuple,
+      PoolWithdrawnEvent.OutputTuple,
+      PoolWithdrawnEvent.OutputObject
+    >;
+    PoolWithdrawn: TypedContractEvent<
+      PoolWithdrawnEvent.InputTuple,
+      PoolWithdrawnEvent.OutputTuple,
+      PoolWithdrawnEvent.OutputObject
     >;
 
     "Staked(address,uint256)": TypedContractEvent<

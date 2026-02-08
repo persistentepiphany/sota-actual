@@ -25,6 +25,7 @@ import type {
 
 export declare namespace AgentRegistry {
   export type AgentStruct = {
+    developer: AddressLike;
     name: string;
     metadataURI: string;
     capabilities: string[];
@@ -35,6 +36,7 @@ export declare namespace AgentRegistry {
   };
 
   export type AgentStructOutput = [
+    developer: string,
     name: string,
     metadataURI: string,
     capabilities: string[],
@@ -43,6 +45,7 @@ export declare namespace AgentRegistry {
     createdAt: bigint,
     updatedAt: bigint
   ] & {
+    developer: string;
     name: string;
     metadataURI: string;
     capabilities: string[];
@@ -61,6 +64,7 @@ export interface AgentRegistryInterface extends Interface {
       | "getAgent"
       | "getAgents"
       | "getAllAgents"
+      | "getDeveloper"
       | "isAgentActive"
       | "owner"
       | "registerAgent"
@@ -102,13 +106,17 @@ export interface AgentRegistryInterface extends Interface {
     values?: undefined
   ): string;
   encodeFunctionData(
+    functionFragment: "getDeveloper",
+    values: [AddressLike]
+  ): string;
+  encodeFunctionData(
     functionFragment: "isAgentActive",
     values: [AddressLike]
   ): string;
   encodeFunctionData(functionFragment: "owner", values?: undefined): string;
   encodeFunctionData(
     functionFragment: "registerAgent",
-    values: [string, string, string[]]
+    values: [AddressLike, string, string, string[]]
   ): string;
   encodeFunctionData(
     functionFragment: "renounceOwnership",
@@ -132,7 +140,7 @@ export interface AgentRegistryInterface extends Interface {
   ): string;
   encodeFunctionData(
     functionFragment: "updateAgent",
-    values: [string, string, string[], BigNumberish]
+    values: [AddressLike, string, string, string[], BigNumberish]
   ): string;
 
   decodeFunctionResult(
@@ -144,6 +152,10 @@ export interface AgentRegistryInterface extends Interface {
   decodeFunctionResult(functionFragment: "getAgents", data: BytesLike): Result;
   decodeFunctionResult(
     functionFragment: "getAllAgents",
+    data: BytesLike
+  ): Result;
+  decodeFunctionResult(
+    functionFragment: "getDeveloper",
     data: BytesLike
   ): Result;
   decodeFunctionResult(
@@ -183,13 +195,20 @@ export interface AgentRegistryInterface extends Interface {
 
 export namespace AgentRegisteredEvent {
   export type InputTuple = [
-    wallet: AddressLike,
+    agent: AddressLike,
+    developer: AddressLike,
     name: string,
     metadataURI: string
   ];
-  export type OutputTuple = [wallet: string, name: string, metadataURI: string];
+  export type OutputTuple = [
+    agent: string,
+    developer: string,
+    name: string,
+    metadataURI: string
+  ];
   export interface OutputObject {
-    wallet: string;
+    agent: string;
+    developer: string;
     name: string;
     metadataURI: string;
   }
@@ -200,10 +219,10 @@ export namespace AgentRegisteredEvent {
 }
 
 export namespace AgentUpdatedEvent {
-  export type InputTuple = [wallet: AddressLike, status: BigNumberish];
-  export type OutputTuple = [wallet: string, status: bigint];
+  export type InputTuple = [agent: AddressLike, status: BigNumberish];
+  export type OutputTuple = [agent: string, status: bigint];
   export interface OutputObject {
-    wallet: string;
+    agent: string;
     status: bigint;
   }
   export type Event = TypedContractEvent<InputTuple, OutputTuple, OutputObject>;
@@ -324,12 +343,19 @@ export interface AgentRegistry extends BaseContract {
     "view"
   >;
 
+  getDeveloper: TypedContractMethod<[agent: AddressLike], [string], "view">;
+
   isAgentActive: TypedContractMethod<[wallet: AddressLike], [boolean], "view">;
 
   owner: TypedContractMethod<[], [string], "view">;
 
   registerAgent: TypedContractMethod<
-    [name: string, metadataURI: string, capabilities: string[]],
+    [
+      agentAddress: AddressLike,
+      name: string,
+      metadataURI: string,
+      capabilities: string[]
+    ],
     [void],
     "nonpayable"
   >;
@@ -358,6 +384,7 @@ export interface AgentRegistry extends BaseContract {
 
   updateAgent: TypedContractMethod<
     [
+      agentAddress: AddressLike,
       name: string,
       metadataURI: string,
       capabilities: string[],
@@ -404,6 +431,9 @@ export interface AgentRegistry extends BaseContract {
     nameOrSignature: "getAllAgents"
   ): TypedContractMethod<[], [AgentRegistry.AgentStructOutput[]], "view">;
   getFunction(
+    nameOrSignature: "getDeveloper"
+  ): TypedContractMethod<[agent: AddressLike], [string], "view">;
+  getFunction(
     nameOrSignature: "isAgentActive"
   ): TypedContractMethod<[wallet: AddressLike], [boolean], "view">;
   getFunction(
@@ -412,7 +442,12 @@ export interface AgentRegistry extends BaseContract {
   getFunction(
     nameOrSignature: "registerAgent"
   ): TypedContractMethod<
-    [name: string, metadataURI: string, capabilities: string[]],
+    [
+      agentAddress: AddressLike,
+      name: string,
+      metadataURI: string,
+      capabilities: string[]
+    ],
     [void],
     "nonpayable"
   >;
@@ -439,6 +474,7 @@ export interface AgentRegistry extends BaseContract {
     nameOrSignature: "updateAgent"
   ): TypedContractMethod<
     [
+      agentAddress: AddressLike,
       name: string,
       metadataURI: string,
       capabilities: string[],
@@ -485,7 +521,7 @@ export interface AgentRegistry extends BaseContract {
   >;
 
   filters: {
-    "AgentRegistered(address,string,string)": TypedContractEvent<
+    "AgentRegistered(address,address,string,string)": TypedContractEvent<
       AgentRegisteredEvent.InputTuple,
       AgentRegisteredEvent.OutputTuple,
       AgentRegisteredEvent.OutputObject

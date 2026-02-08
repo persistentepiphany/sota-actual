@@ -5,10 +5,18 @@ import { getCurrentUser } from "@/lib/auth";
 
 export async function GET() {
   const agents = await prisma.agent.findMany({
-    orderBy: { createdAt: "desc" },
-    include: { owner: { select: { id: true, email: true, name: true } } },
+    orderBy: { createdAt: 'desc' },
   });
-  return NextResponse.json({ agents });
+
+  // Hydrate owner relation
+  const agentsWithOwner = await Promise.all(
+    agents.map(async (agent) => {
+      const owner = await prisma.user.findUnique({ id: agent.ownerId });
+      return { ...agent, owner: owner ? { id: owner.id, email: owner.email, name: owner.name } : null };
+    })
+  );
+
+  return NextResponse.json({ agents: agentsWithOwner });
 }
 
 export async function POST(req: Request) {
@@ -34,7 +42,6 @@ export async function POST(req: Request) {
   if (parsed.data.apiEndpoint) {
     try {
       const testUrl = new URL(parsed.data.apiEndpoint);
-      // Basic check that it's http/https
       if (!["http:", "https:"].includes(testUrl.protocol)) {
         return NextResponse.json(
           { error: "API endpoint must use HTTP or HTTPS protocol" },
@@ -50,10 +57,9 @@ export async function POST(req: Request) {
   }
 
   const agent = await prisma.agent.create({
-    title: parsed.data.title,
-    description: parsed.data.description,
+    ...parsed.data,
     ownerId: user.id,
-    tags: parsed.data.tags || "",
+    tags: parsed.data.tags ?? null,
     isVerified: false,
   });
 

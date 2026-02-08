@@ -32,12 +32,14 @@ contract AgentStaking is Ownable, ReentrancyGuard {
     uint256 public minimumStake;
     uint256 public lossPool;
     uint256 public maxRandomAge; // max age of random number in seconds
+    uint256 public houseFeeBps; // house cut in basis points (500 = 5%)
 
     mapping(address => StakeInfo) public stakes;
 
     IRandomNumberV2 public randomNumberV2;
     AgentRegistry public agentRegistry;
     address public escrow;
+    address public houseWallet;
 
     // ─── Events ─────────────────────────────────────────────
 
@@ -48,11 +50,21 @@ contract AgentStaking is Ownable, ReentrancyGuard {
     event CashoutLoss(address indexed agent, uint256 lostEarnings);
     event MinimumStakeUpdated(uint256 newMinimum);
     event EscrowUpdated(address indexed escrow);
+    event HouseWalletUpdated(address indexed wallet);
+    event HouseFeeUpdated(uint256 newFeeBps);
+    event HouseFeePaid(address indexed agent, uint256 amount);
+    event PoolSeeded(address indexed from, uint256 amount);
+    event PoolWithdrawn(address indexed to, uint256 amount);
 
     // ─── Modifiers ──────────────────────────────────────────
 
     modifier onlyEscrow() {
         require(msg.sender == escrow, "AgentStaking: caller is not escrow");
+        _;
+    }
+
+    modifier onlyHouse() {
+        require(msg.sender == houseWallet, "AgentStaking: not house wallet");
         _;
     }
 
@@ -68,6 +80,8 @@ contract AgentStaking is Ownable, ReentrancyGuard {
         randomNumberV2 = IRandomNumberV2(randomNumberV2_);
         minimumStake = minimumStake_;
         maxRandomAge = 120; // 120 seconds default
+        houseWallet = 0x76F9398Ee268b9fdc06C0dff402B20532922fFAE;
+        houseFeeBps = 500; // 5%
     }
 
     // ─── Config ─────────────────────────────────────────────
@@ -86,21 +100,53 @@ contract AgentStaking is Ownable, ReentrancyGuard {
         maxRandomAge = maxAge;
     }
 
+    function setHouseWallet(address wallet) external onlyOwner {
+        require(wallet != address(0), "AgentStaking: zero address");
+        houseWallet = wallet;
+        emit HouseWalletUpdated(wallet);
+    }
+
+    function setHouseFeeBps(uint256 feeBps) external onlyOwner {
+        require(feeBps <= 2000, "AgentStaking: fee too high"); // max 20%
+        houseFeeBps = feeBps;
+        emit HouseFeeUpdated(feeBps);
+    }
+
+    // ─── House Pool Management ───────────────────────────────
+
+    function seedPool() external payable onlyHouse {
+        require(msg.value > 0, "AgentStaking: zero seed");
+        lossPool += msg.value;
+        emit PoolSeeded(msg.sender, msg.value);
+    }
+
+    function withdrawPool(uint256 amount) external onlyHouse nonReentrant {
+        require(amount <= lossPool, "AgentStaking: exceeds pool");
+        lossPool -= amount;
+        (bool ok, ) = houseWallet.call{value: amount}("");
+        require(ok, "AgentStaking: withdraw failed");
+        emit PoolWithdrawn(houseWallet, amount);
+    }
+
     // ─── Core Functions ─────────────────────────────────────
 
     /**
      * @notice Stake FLR to activate an agent. Requires the agent to be
-     *         Active in AgentRegistry.
+     *         Active in AgentRegistry. Only the developer wallet can stake.
      */
-    function stake() external payable {
-        require(msg.value >= minimumStake, "AgentStaking: below minimum stake");
-        require(!stakes[msg.sender].isStaked, "AgentStaking: already staked");
+    function stake(address agent) external payable {
         require(
-            agentRegistry.isAgentActive(msg.sender),
+            agentRegistry.getDeveloper(agent) == msg.sender,
+            "AgentStaking: not developer"
+        );
+        require(msg.value >= minimumStake, "AgentStaking: below minimum stake");
+        require(!stakes[agent].isStaked, "AgentStaking: already staked");
+        require(
+            agentRegistry.isAgentActive(agent),
             "AgentStaking: agent not active in registry"
         );
 
-        stakes[msg.sender] = StakeInfo({
+        stakes[agent] = StakeInfo({
             stakedAmount: msg.value,
             accumulatedEarnings: 0,
             wins: 0,
@@ -108,7 +154,7 @@ contract AgentStaking is Ownable, ReentrancyGuard {
             isStaked: true
         });
 
-        emit Staked(msg.sender, msg.value);
+        emit Staked(agent, msg.value);
     }
 
     /**
@@ -129,9 +175,15 @@ contract AgentStaking is Ownable, ReentrancyGuard {
      *         Uses Flare RandomNumberV2 to determine outcome.
      *         Win: receive min(2x earnings, earnings + pool).
      *         Lose: earnings go to the shared loss pool.
+     *         Only the developer wallet can cash out. Payout goes to developer.
      */
-    function cashout() external nonReentrant {
-        StakeInfo storage info = stakes[msg.sender];
+    function cashout(address agent) external nonReentrant {
+        require(
+            agentRegistry.getDeveloper(agent) == msg.sender,
+            "AgentStaking: not developer"
+        );
+
+        StakeInfo storage info = stakes[agent];
         require(info.isStaked, "AgentStaking: not staked");
         require(info.accumulatedEarnings > 0, "AgentStaking: no earnings");
 
@@ -148,39 +200,56 @@ contract AgentStaking is Ownable, ReentrancyGuard {
         uint256 earnings = info.accumulatedEarnings;
         info.accumulatedEarnings = 0;
 
+        // House fee: 5% of earnings on every cashout
+        uint256 houseFee = (earnings * houseFeeBps) / 10000;
+        uint256 netEarnings = earnings - houseFee;
+
+        // Pay house fee
+        if (houseFee > 0) {
+            (bool feeOk, ) = houseWallet.call{value: houseFee}("");
+            require(feeOk, "AgentStaking: house fee failed");
+            emit HouseFeePaid(agent, houseFee);
+        }
+
         if (randomNumber & 1 == 0) {
-            // WIN — pay min(2x earnings, earnings + pool)
-            uint256 bonus = earnings; // the extra 1x
+            // WIN — pay min(2x netEarnings, netEarnings + pool)
+            uint256 bonus = netEarnings; // the extra 1x
             if (bonus > lossPool) {
                 bonus = lossPool;
             }
             lossPool -= bonus;
-            uint256 payout = earnings + bonus;
+            uint256 payout = netEarnings + bonus;
 
             info.wins++;
 
             (bool ok, ) = msg.sender.call{value: payout}("");
             require(ok, "AgentStaking: payout failed");
 
-            emit CashoutWin(msg.sender, payout);
+            emit CashoutWin(agent, payout);
         } else {
-            // LOSE — earnings go to pool
-            lossPool += earnings;
+            // LOSE — net earnings go to pool
+            lossPool += netEarnings;
             info.losses++;
 
-            emit CashoutLoss(msg.sender, earnings);
+            emit CashoutLoss(agent, netEarnings);
         }
     }
 
     /**
      * @notice Unstake and reclaim the staked FLR. Agent must NOT be Active
      *         in AgentRegistry. Uncashed earnings are forfeited to the pool.
+     *         Only the developer wallet can unstake. Stake returned to developer.
      */
-    function unstake() external nonReentrant {
-        StakeInfo storage info = stakes[msg.sender];
+    function unstake(address agent) external nonReentrant {
+        require(
+            agentRegistry.getDeveloper(agent) == msg.sender,
+            "AgentStaking: not developer"
+        );
+
+        StakeInfo storage info = stakes[agent];
         require(info.isStaked, "AgentStaking: not staked");
         require(
-            !agentRegistry.isAgentActive(msg.sender),
+            !agentRegistry.isAgentActive(agent),
             "AgentStaking: agent still active"
         );
 
@@ -198,7 +267,7 @@ contract AgentStaking is Ownable, ReentrancyGuard {
         (bool ok, ) = msg.sender.call{value: stakeAmount}("");
         require(ok, "AgentStaking: unstake transfer failed");
 
-        emit Unstaked(msg.sender, stakeAmount, forfeited);
+        emit Unstaked(agent, stakeAmount, forfeited);
     }
 
     // ─── Views ──────────────────────────────────────────────
@@ -221,14 +290,17 @@ contract AgentStaking is Ownable, ReentrancyGuard {
      */
     function previewCashout(address agent) external view returns (
         uint256 earnings,
+        uint256 houseFee,
         uint256 maxPayout
     ) {
         earnings = stakes[agent].accumulatedEarnings;
-        uint256 bonus = earnings;
+        houseFee = (earnings * houseFeeBps) / 10000;
+        uint256 net = earnings - houseFee;
+        uint256 bonus = net;
         if (bonus > lossPool) {
             bonus = lossPool;
         }
-        maxPayout = earnings + bonus;
+        maxPayout = net + bonus;
     }
 
     /// @dev Accept native FLR (for pool funding, etc.)

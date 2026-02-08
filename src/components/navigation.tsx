@@ -1,7 +1,7 @@
 "use client";
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import {
   Bot,
   Store,
@@ -13,8 +13,9 @@ import {
   LogOut,
 } from "lucide-react";
 import { useAuth } from "@/components/auth-provider";
+import { InteractiveNavMenu, type NavMenuItem } from "@/components/ui/interactive-nav-menu";
 
-const navItems = [
+const navItems: NavMenuItem[] = [
   { href: "/", label: "Home", icon: Home },
   { href: "/agents", label: "Agents", icon: Bot },
   { href: "/marketplace", label: "Marketplace", icon: Store },
@@ -23,9 +24,15 @@ const navItems = [
 
 export default function Navigation() {
   const pathname = usePathname();
+  const router = useRouter();
   const { user, loading, signOut } = useAuth();
   const [isScrolled, setIsScrolled] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+
+  const activeIndex = useMemo(() => {
+    const idx = navItems.findIndex((item) => item.href === pathname);
+    return idx >= 0 ? idx : -1;
+  }, [pathname]);
 
   useEffect(() => {
     const handleScroll = () => {
@@ -35,12 +42,16 @@ export default function Navigation() {
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
 
+  const handleNavClick = (index: number) => {
+    router.push(navItems[index].href);
+  };
+
   return (
     <>
       <nav
-        className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${
+        className={`fixed top-0 left-0 right-0 z-50 transition-all duration-500 ease-in-out ${
           isScrolled
-            ? "bg-slate-950/80 backdrop-blur-xl border-b border-slate-800/50"
+            ? "bg-slate-950/40 backdrop-blur-md border-b border-slate-800/30 shadow-lg shadow-black/10"
             : "bg-transparent"
         }`}
       >
@@ -48,34 +59,21 @@ export default function Navigation() {
           <div className="flex items-center justify-between h-16">
             {/* Logo */}
             <Link href="/" className="flex items-center gap-3 group">
-              <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-violet-500 to-indigo-600 flex items-center justify-center shadow-lg shadow-violet-500/20 group-hover:shadow-violet-500/40 transition-shadow">
-                <Bot size={20} className="text-white" />
+              <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-violet-500 to-indigo-600 flex items-center justify-center shadow-lg shadow-violet-500/20 group-hover:shadow-violet-500/40 group-hover:scale-110 transition-all duration-300 ease-out">
+                <Bot size={20} className="text-white transition-transform duration-300 group-hover:rotate-12" />
               </div>
-              <span className="text-lg font-bold text-white tracking-tight">
+              <span className="text-lg font-bold text-white tracking-tight transition-colors duration-300 group-hover:text-violet-300">
                 SOTA
               </span>
             </Link>
 
-            {/* Desktop Navigation */}
-            <div className="hidden md:flex items-center gap-1">
-              {navItems.map((item) => {
-                const isActive = pathname === item.href;
-                const Icon = item.icon;
-                return (
-                  <Link
-                    key={item.href}
-                    href={item.href}
-                    className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all ${
-                      isActive
-                        ? "bg-violet-500/20 text-violet-400"
-                        : "text-slate-400 hover:text-white hover:bg-slate-800/50"
-                    }`}
-                  >
-                    <Icon size={16} />
-                    <span>{item.label}</span>
-                  </Link>
-                );
-              })}
+            {/* Desktop Navigation — Interactive Menu */}
+            <div className="hidden md:flex items-center">
+              <InteractiveNavMenu
+                items={navItems}
+                activeIndex={activeIndex}
+                onItemClick={handleNavClick}
+              />
             </div>
 
             {/* Auth Buttons (Desktop) */}
@@ -98,7 +96,7 @@ export default function Navigation() {
               ) : (
                 <Link
                   href="/login"
-                  className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-500 hover:to-indigo-500 text-white shadow-lg shadow-violet-500/20 transition-all"
+                  className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-500 hover:to-indigo-500 text-white shadow-lg shadow-violet-500/20 hover:shadow-violet-500/40 hover:scale-105 active:scale-95 transition-all duration-300 ease-out"
                 >
                   <LogIn size={16} />
                   <span>Sign In</span>

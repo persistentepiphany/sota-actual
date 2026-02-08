@@ -53,7 +53,7 @@ export async function GET() {
           orderBy: { createdAt: 'desc' },
         },
       },
-    });
+    }) as Awaited<ReturnType<typeof prisma.marketplaceJob.findMany>>;
 
     // Fetch all agents and build lookup maps
     const allAgents = await prisma.agent.findMany();

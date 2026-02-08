@@ -14,11 +14,13 @@ export default function LoginPage() {
   const [password, setPassword] = useState("");
   const [name, setName] = useState("");
   const [error, setError] = useState("");
+  const [successMessage, setSuccessMessage] = useState("");
   const [loading, setLoading] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
+    setSuccessMessage("");
     setLoading(true);
 
     try {
@@ -29,10 +31,18 @@ export default function LoginPage() {
           return;
         }
         await signUp(email, password, name || undefined);
+        // After sign-up, switch to sign-in mode
+        setSuccessMessage("Account created successfully! Please sign in.");
+        setIsSignUp(false);
+        setPassword("");
+        setName("");
+        setLoading(false);
+        return;
       } else {
         await signIn(email, password);
       }
-      router.push("/dashboard");
+      // After successful sign-in, redirect to home page
+      router.push("/");
     } catch (err: unknown) {
       const firebaseError = err as { code?: string; message?: string };
       switch (firebaseError.code) {
@@ -144,6 +154,13 @@ export default function LoginPage() {
               </div>
             </div>
 
+            {/* Success message */}
+            {successMessage && (
+              <div className="bg-emerald-500/10 border border-emerald-500/30 rounded-xl px-4 py-3 text-emerald-400 text-sm">
+                {successMessage}
+              </div>
+            )}
+
             {/* Error message */}
             {error && (
               <div className="bg-red-500/10 border border-red-500/30 rounded-xl px-4 py-3 text-red-400 text-sm">
@@ -176,6 +193,7 @@ export default function LoginPage() {
                 onClick={() => {
                   setIsSignUp(!isSignUp);
                   setError("");
+                  setSuccessMessage("");
                 }}
                 className="text-violet-400 hover:text-violet-300 font-medium transition-colors"
               >

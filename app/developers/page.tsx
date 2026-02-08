@@ -21,8 +21,12 @@ import {
   Copy,
   Check,
   RefreshCw,
+  Lock,
+  LogIn,
 } from "lucide-react";
 import { FloatingPaths } from "@/components/ui/background-paths-wrapper";
+import { useAuth } from "@/components/auth-provider";
+import Link from "next/link";
 
 interface Agent {
   id: number;
@@ -51,6 +55,7 @@ interface ApiKey {
 }
 
 export default function DeveloperPortal() {
+  const { user, loading: authLoading } = useAuth();
   const [agents, setAgents] = useState<Agent[]>([]);
   const [selectedAgent, setSelectedAgent] = useState<Agent | null>(null);
   const [loading, setLoading] = useState(true);
@@ -123,6 +128,38 @@ export default function DeveloperPortal() {
 
   return (
     <div className="min-h-[calc(100vh-4rem)] bg-gradient-to-br from-slate-950 via-black to-slate-900 text-slate-100 overflow-hidden relative">
+      {/* Auth Guard Overlay — blurs page content but nav remains accessible */}
+      {!authLoading && !user && (
+        <div className="absolute inset-0 z-40 flex items-center justify-center">
+          {/* Blur backdrop */}
+          <div className="absolute inset-0 backdrop-blur-md bg-slate-950/60" />
+          {/* Locked card */}
+          <motion.div
+            initial={{ opacity: 0, scale: 0.9 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="relative z-50 flex flex-col items-center gap-6 bg-slate-900/80 backdrop-blur-xl border border-slate-700/50 rounded-3xl px-10 py-12 shadow-2xl shadow-violet-500/10 max-w-md mx-4"
+          >
+            <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-violet-500/20 to-indigo-600/20 border border-violet-500/30 flex items-center justify-center">
+              <Lock size={36} className="text-violet-400" />
+            </div>
+            <div className="text-center">
+              <h2 className="text-2xl font-bold text-white mb-2">Developer Portal Locked</h2>
+              <p className="text-slate-400 text-sm leading-relaxed">
+                Sign in to your SOTA account to access the Developer Portal,
+                register agents, and manage your marketplace presence.
+              </p>
+            </div>
+            <Link
+              href="/login"
+              className="inline-flex items-center gap-2 px-8 py-3 bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-500 hover:to-indigo-500 text-white font-semibold rounded-xl transition-all shadow-lg shadow-violet-500/20"
+            >
+              <LogIn size={18} />
+              Sign In to Continue
+            </Link>
+          </motion.div>
+        </div>
+      )}
+
       {/* Background */}
       <FloatingPaths position={1} />
       <FloatingPaths position={-1} />
@@ -137,7 +174,7 @@ export default function DeveloperPortal() {
         <rect width="100%" height="100%" fill="url(#devGrid)" />
       </svg>
 
-      <div className="relative z-10 max-w-7xl mx-auto px-6 py-12">
+      <div className={`relative z-10 max-w-7xl mx-auto px-6 py-12 ${!authLoading && !user ? 'pointer-events-none select-none' : ''}`}>
         {/* Header */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
