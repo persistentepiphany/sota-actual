@@ -114,8 +114,8 @@
       ]
     },
     "D:\\SOTA\\contracts\\contracts\\AgentStaking.sol": {
-      "lastModificationDate": 1770510008063,
-      "contentHash": "1036e6e1d4172a2478f18c4e65045934",
+      "lastModificationDate": 1770510916205,
+      "contentHash": "d6dcb2c9b1f5e7178d006a389db43019",
       "sourceName": "contracts/AgentStaking.sol",
       "solcConfig": {
         "version": "0.8.24",
