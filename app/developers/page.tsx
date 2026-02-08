@@ -55,7 +55,7 @@ interface ApiKey {
 }
 
 export default function DeveloperPortal() {
-  const { user, loading: authLoading } = useAuth();
+  const { user, loading: authLoading, getIdToken } = useAuth();
   const [agents, setAgents] = useState<Agent[]>([]);
   const [selectedAgent, setSelectedAgent] = useState<Agent | null>(null);
   const [loading, setLoading] = useState(true);
@@ -65,11 +65,23 @@ export default function DeveloperPortal() {
   const [showEditModal, setShowEditModal] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
-  // Fetch agents from API
+  // Auth headers helper
+  const authHeaders = async (): Promise<HeadersInit> => {
+    const token = await getIdToken();
+    return token ? { Authorization: `Bearer ${token}` } : {};
+  };
+
+  // Fetch only the current user's agents
   const fetchAgents = async () => {
     try {
       setLoading(true);
-      const res = await fetch('/api/agents');
+      const headers = await authHeaders();
+      const res = await fetch('/api/agents?mine=true', { headers });
+      if (res.status === 401) {
+        setAgents([]);
+        setError(null);
+        return;
+      }
       const data = await res.json();
       if (data.agents) {
         setAgents(data.agents.map((a: Record<string, unknown>) => ({
@@ -87,13 +99,16 @@ export default function DeveloperPortal() {
   };
 
   useEffect(() => {
-    fetchAgents();
-  }, []);
+    if (user) fetchAgents();
+    else setLoading(false);
+  }, [user]);
 
   const handleDeleteAgent = async (agent: Agent) => {
     try {
+      const headers = await authHeaders();
       const res = await fetch(`/api/agents/${agent.id}`, {
         method: 'DELETE',
+        headers,
       });
       
       if (res.ok) {
@@ -340,32 +355,35 @@ export default function DeveloperPortal() {
 
       {/* New Agent Modal */}
       {showNewAgentModal && (
-        <NewAgentModal 
-          onClose={() => setShowNewAgentModal(false)} 
+        <NewAgentModal
+          onClose={() => setShowNewAgentModal(false)}
           onSuccess={handleAgentCreated}
+          getAuthHeaders={authHeaders}
         />
       )}
 
       {/* View Agent Modal */}
       {showViewModal && selectedAgent && (
-        <ViewAgentModal 
-          agent={selectedAgent} 
+        <ViewAgentModal
+          agent={selectedAgent}
           onClose={() => {
             setShowViewModal(false);
             setSelectedAgent(null);
-          }} 
+          }}
+          getAuthHeaders={authHeaders}
         />
       )}
 
       {/* Edit Agent Modal */}
       {showEditModal && selectedAgent && (
-        <EditAgentModal 
-          agent={selectedAgent} 
+        <EditAgentModal
+          agent={selectedAgent}
           onClose={() => {
             setShowEditModal(false);
             setSelectedAgent(null);
           }}
           onSave={handleAgentUpdated}
+          getAuthHeaders={authHeaders}
         />
       )}
 
@@ -413,7 +431,7 @@ export default function DeveloperPortal() {
 }
 
 // New Agent Registration Modal
-function NewAgentModal({ onClose, onSuccess }: { onClose: () => void; onSuccess: () => void }) {
+function NewAgentModal({ onClose, onSuccess, getAuthHeaders }: { onClose: () => void; onSuccess: () => void; getAuthHeaders: () => Promise<HeadersInit> }) {
   const [step, setStep] = useState(1);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -438,9 +456,10 @@ function NewAgentModal({ onClose, onSuccess }: { onClose: () => void; onSuccess:
     setError(null);
 
     try {
+      const headers = await getAuthHeaders();
       const res = await fetch('/api/agents', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { ...headers, 'Content-Type': 'application/json' },
         body: JSON.stringify({
           title: formData.title,
           description: formData.description,
@@ -690,7 +709,7 @@ function NewAgentModal({ onClose, onSuccess }: { onClose: () => void; onSuccess:
 }
 
 // View Agent Modal with API Keys
-function ViewAgentModal({ agent, onClose }: { agent: Agent; onClose: () => void }) {
+function ViewAgentModal({ agent, onClose, getAuthHeaders }: { agent: Agent; onClose: () => void; getAuthHeaders: () => Promise<HeadersInit> }) {
   const [activeTab, setActiveTab] = useState<'details' | 'api-keys'>('details');
   const [apiKeys, setApiKeys] = useState<ApiKey[]>([]);
   const [loadingKeys, setLoadingKeys] = useState(false);
@@ -708,7 +727,8 @@ function ViewAgentModal({ agent, onClose }: { agent: Agent; onClose: () => void 
   const fetchApiKeys = async () => {
     setLoadingKeys(true);
     try {
-      const res = await fetch(`/api/agents/${agent.id}/keys`);
+      const headers = await getAuthHeaders();
+      const res = await fetch(`/api/agents/${agent.id}/keys`, { headers });
       if (res.ok) {
         const data = await res.json();
         setApiKeys(data.keys || []);
@@ -730,9 +750,10 @@ function ViewAgentModal({ agent, onClose }: { agent: Agent; onClose: () => void 
   const handleGenerateKey = async () => {
     setGeneratingKey(true);
     try {
+      const headers = await getAuthHeaders();
       const res = await fetch(`/api/agents/${agent.id}/keys`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { ...headers, 'Content-Type': 'application/json' },
         body: JSON.stringify({ name: newKeyName || 'Default' }),
       });
       
@@ -758,9 +779,10 @@ function ViewAgentModal({ agent, onClose }: { agent: Agent; onClose: () => void 
   const handleRevokeKey = async (keyId: string) => {
     setRevokingKeyId(keyId);
     try {
+      const headers = await getAuthHeaders();
       const res = await fetch(`/api/agents/${agent.id}/keys`, {
         method: 'DELETE',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { ...headers, 'Content-Type': 'application/json' },
         body: JSON.stringify({ keyId }),
       });
       
@@ -1080,14 +1102,16 @@ function ViewAgentModal({ agent, onClose }: { agent: Agent; onClose: () => void 
 }
 
 // Edit Agent Modal
-function EditAgentModal({ 
-  agent, 
-  onClose, 
-  onSave 
-}: { 
-  agent: Agent; 
+function EditAgentModal({
+  agent,
+  onClose,
+  onSave,
+  getAuthHeaders,
+}: {
+  agent: Agent;
   onClose: () => void;
   onSave: (updated: Agent) => void;
+  getAuthHeaders: () => Promise<HeadersInit>;
 }) {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -1115,9 +1139,10 @@ function EditAgentModal({
     setError(null);
 
     try {
+      const headers = await getAuthHeaders();
       const res = await fetch(`/api/agents/${agent.id}`, {
         method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { ...headers, 'Content-Type': 'application/json' },
         body: JSON.stringify({
           title: formData.title,
           description: formData.description,

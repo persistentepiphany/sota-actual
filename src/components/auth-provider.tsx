@@ -1,6 +1,6 @@
 "use client";
 
-import React, { createContext, useContext, useState } from "react";
+import React, { createContext, useContext, useState, useEffect, useCallback } from "react";
 
 interface AuthUser {
   uid: string;
@@ -19,37 +19,80 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
+const TOKEN_KEY = "sota_session_token";
+
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<AuthUser | null>(null);
-  const [loading] = useState(false);
+  const [loading, setLoading] = useState(true);
+
+  // Restore session on mount
+  useEffect(() => {
+    const token = localStorage.getItem(TOKEN_KEY);
+    if (!token) {
+      setLoading(false);
+      return;
+    }
+    fetch("/api/auth/me", {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (data?.user) {
+          setUser({
+            uid: String(data.user.id),
+            email: data.user.email,
+            displayName: data.user.name || data.user.email?.split("@")[0] || null,
+          });
+        } else {
+          localStorage.removeItem(TOKEN_KEY);
+        }
+      })
+      .catch(() => localStorage.removeItem(TOKEN_KEY))
+      .finally(() => setLoading(false));
+  }, []);
 
   const signIn = async (email: string, password: string) => {
-    // TODO: Implement wallet-based auth for SOTA
-    console.log("Sign in:", email);
+    const res = await fetch("/api/auth/login", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email, password }),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || "Login failed");
+
+    localStorage.setItem(TOKEN_KEY, data.token);
     setUser({
-      uid: "demo-user",
-      email,
-      displayName: email.split("@")[0],
+      uid: String(data.user.id),
+      email: data.user.email,
+      displayName: data.user.name || email.split("@")[0],
     });
   };
 
   const signUp = async (email: string, password: string, name?: string) => {
-    // TODO: Implement wallet-based auth for SOTA
-    console.log("Sign up:", email, name);
+    const res = await fetch("/api/auth/register", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email, password, name }),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || "Registration failed");
+
+    localStorage.setItem(TOKEN_KEY, data.token);
     setUser({
-      uid: "demo-user",
-      email,
-      displayName: name || email.split("@")[0],
+      uid: String(data.user.id),
+      email: data.user.email,
+      displayName: data.user.name || name || email.split("@")[0],
     });
   };
 
   const signOut = async () => {
+    localStorage.removeItem(TOKEN_KEY);
     setUser(null);
   };
 
-  const getIdToken = async () => {
-    return user ? "demo-token" : null;
-  };
+  const getIdToken = useCallback(async () => {
+    return localStorage.getItem(TOKEN_KEY);
+  }, []);
 
   return (
     <AuthContext.Provider

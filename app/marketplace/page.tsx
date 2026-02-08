@@ -246,26 +246,26 @@ export default function Marketplace() {
             : "hover:bg-slate-800/30 border-l-2 border-l-transparent"
         }`}
       >
-        <div className="grid grid-cols-12 gap-4 px-4 py-3 items-center">
+        <div className="grid grid-cols-12 gap-4 px-4 py-4 items-center">
           {/* Order ID & Type */}
           <div className="col-span-2">
             <div className="flex items-center gap-2">
-              <div className={`w-2 h-2 rounded-full ${config.bg} ${config.color}`} />
-              <span className="text-xs font-mono text-slate-500">{task.jobId.slice(0, 8)}...</span>
+              <div className={`w-2.5 h-2.5 rounded-full ${config.bg} ${config.color}`} />
+              <span className="text-sm font-mono text-slate-500">{task.jobId.slice(0, 8)}...</span>
             </div>
-            <span className={`text-[10px] font-medium ${config.color} mt-0.5 inline-block`}>
+            <span className={`text-xs font-medium ${config.color} mt-0.5 inline-block`}>
               {config.label}
             </span>
           </div>
 
           {/* Task Title */}
           <div className="col-span-3">
-            <h4 className="text-sm font-medium text-slate-200 truncate group-hover:text-white transition-colors">
+            <h4 className="text-base font-medium text-slate-200 truncate group-hover:text-white transition-colors">
               {task.title}
             </h4>
             <div className="flex gap-1 mt-1">
               {task.tags.slice(0, 2).map((tag) => (
-                <span key={tag} className="text-[10px] px-1.5 py-0.5 bg-slate-800 text-slate-400 rounded">
+                <span key={tag} className="text-xs px-1.5 py-0.5 bg-slate-800 text-slate-400 rounded">
                   {tag}
                 </span>
               ))}
@@ -280,21 +280,21 @@ export default function Marketplace() {
                   {bids.slice(0, 3).map((bid) => (
                     <div
                       key={bid.id}
-                      className="w-6 h-6 rounded-full bg-slate-700 border-2 border-slate-900 flex items-center justify-center"
+                      className="w-7 h-7 rounded-full bg-slate-700 border-2 border-slate-900 flex items-center justify-center"
                       title={bid.agent}
                     >
-                      {(() => { const I = getIcon(bid.agentIcon); return <I size={10} className="text-slate-400" />; })()}
+                      {(() => { const I = getIcon(bid.agentIcon); return <I size={12} className="text-slate-400" />; })()}
                     </div>
                   ))}
                 </div>
-                <span className="text-xs text-slate-500 ml-1">
+                <span className="text-sm text-slate-500 ml-1">
                   {bids.length} bid{bids.length !== 1 ? "s" : ""}
                 </span>
               </div>
             ) : (
               <div className="flex items-center gap-2">
-                <div className="w-6 h-6 rounded-lg bg-violet-500/20 flex items-center justify-center">
-                  <AgentIcon size={12} className="text-violet-400" />
+                <div className="w-7 h-7 rounded-lg bg-violet-500/20 flex items-center justify-center">
+                  <AgentIcon size={14} className="text-violet-400" />
                 </div>
                 <span className="text-sm text-slate-300">{task.agent}</span>
               </div>
@@ -305,11 +305,11 @@ export default function Marketplace() {
           <div className="col-span-2">
             {task.status === "executing" ? (
               <div>
-                <div className="flex items-center justify-between text-xs mb-1">
+                <div className="flex items-center justify-between text-sm mb-1">
                   <span className="text-slate-500">Progress</span>
                   <span className="text-amber-400 font-medium">{task.progress}%</span>
                 </div>
-                <div className="h-1.5 bg-slate-800 rounded-full overflow-hidden">
+                <div className="h-2 bg-slate-800 rounded-full overflow-hidden">
                   <motion.div
                     initial={{ width: 0 }}
                     animate={{ width: `${task.progress}%` }}
@@ -319,23 +319,23 @@ export default function Marketplace() {
               </div>
             ) : task.status === "queued" ? (
               <div className="flex items-center gap-1">
-                <DollarSign size={12} className="text-cyan-400" />
-                <span className="text-sm font-medium text-cyan-400">
+                <DollarSign size={14} className="text-cyan-400" />
+                <span className="text-base font-medium text-cyan-400">
                   {bids.length > 0 ? bids[0].price : "No bids"}
                 </span>
-                {bids.length > 0 && <span className="text-[10px] text-slate-500">best</span>}
+                {bids.length > 0 && <span className="text-xs text-slate-500">best</span>}
               </div>
             ) : (
-              <div className="flex items-center gap-1">
+              <div className="flex items-center gap-1.5">
                 {task.status === "completed" ? (
                   <>
-                    <CheckCircle size={14} className="text-emerald-400" />
-                    <span className="text-sm font-medium text-emerald-400">Settled</span>
+                    <CheckCircle size={16} className="text-emerald-400" />
+                    <span className="text-base font-medium text-emerald-400">Settled</span>
                   </>
                 ) : (
                   <>
-                    <TrendingDown size={14} className="text-red-400" />
-                    <span className="text-sm font-medium text-red-400">Failed</span>
+                    <TrendingDown size={16} className="text-red-400" />
+                    <span className="text-base font-medium text-red-400">Failed</span>
                   </>
                 )}
               </div>
@@ -344,8 +344,8 @@ export default function Marketplace() {
 
           {/* ETA / Time */}
           <div className="col-span-2">
-            <div className="flex items-center gap-1.5 text-xs text-slate-400">
-              <Timer size={12} />
+            <div className="flex items-center gap-1.5 text-sm text-slate-400">
+              <Timer size={14} />
               <span>
                 {task.status === "executing"
                   ? `~${Math.ceil((100 - task.progress) / 10)}s left`
@@ -445,10 +445,6 @@ export default function Marketplace() {
       0%, 100% { opacity: 0.1; transform: scale(1); }
       50% { opacity: 0.3; transform: scale(1.1); }
     }
-    @keyframes ticker {
-      0% { transform: translateX(0); }
-      100% { transform: translateX(-50%); }
-    }
     .grid-line {
       stroke: #6366f1;
       stroke-width: 0.5;
@@ -461,9 +457,6 @@ export default function Marketplace() {
       fill: #a78bfa;
       opacity: 0;
       animation: pulse-glow 3s ease-in-out infinite;
-    }
-    .ticker-scroll {
-      animation: ticker 30s linear infinite;
     }
   `;
 
@@ -522,32 +515,6 @@ export default function Marketplace() {
           </defs>
           <rect width="100%" height="100%" fill="url(#gridMarket)" />
         </svg>
-
-        {/* Live Ticker Bar */}
-        <div className="relative z-10 bg-slate-900/80 border-b border-slate-800/50 overflow-hidden">
-          <div className="flex items-center h-8">
-            <div className="flex-shrink-0 px-4 bg-violet-500/20 h-full flex items-center border-r border-slate-800/50">
-              <Activity size={12} className="text-violet-400 mr-2 animate-pulse" />
-              <span className="text-xs font-medium text-violet-300">LIVE</span>
-            </div>
-            <div className="flex-1 overflow-hidden">
-              <div className="ticker-scroll flex items-center gap-8 px-4 whitespace-nowrap">
-                {[...recentExecutions, ...recentExecutions].map((task, i) => (
-                  <span key={`${task.id}-${i}`} className="text-xs text-slate-400 flex items-center gap-2">
-                    <span className={`w-1.5 h-1.5 rounded-full ${
-                      task.status === "completed" ? "bg-emerald-400" : "bg-red-400"
-                    }`} />
-                    <span className="text-slate-500">{task.jobId.slice(0, 6)}</span>
-                    <span>{task.title.slice(0, 30)}</span>
-                    <span className={task.status === "completed" ? "text-emerald-400" : "text-red-400"}>
-                      {task.status === "completed" ? "Settled" : "Failed"}
-                    </span>
-                  </span>
-                ))}
-              </div>
-            </div>
-          </div>
-        </div>
 
         {/* Header */}
         <div className="relative z-10 max-w-7xl mx-auto px-6 pt-6">

@@ -608,11 +608,26 @@ const AgentOrbitalLanding = () => {
               <span className="word-animate" data-delay="3200">Automate.</span>
               <span className="word-animate" data-delay="3400">Simplify.</span>
             </h2>
+
+            {/* Scroll down indicator */}
+            <button
+              onClick={() => {
+                document.getElementById('all-agents-section')?.scrollIntoView({ behavior: 'smooth' });
+              }}
+              className="mt-8 flex flex-col items-center gap-2 mx-auto group cursor-pointer"
+            >
+              <span className="text-sm text-slate-500 group-hover:text-violet-400 transition-colors tracking-wide">
+                Scroll down to view all agents
+              </span>
+              <div className="w-5 h-8 rounded-full border border-slate-600 group-hover:border-violet-500/50 flex items-start justify-center pt-1.5 transition-colors">
+                <div className="w-1 h-2 rounded-full bg-slate-500 group-hover:bg-violet-400 animate-bounce transition-colors" />
+              </div>
+            </button>
           </div>
         </div>
 
         {/* All Agents List Section */}
-        <div className="relative z-10 px-6 pb-16 sm:px-8 md:px-16">
+        <div id="all-agents-section" className="relative z-10 px-6 pb-16 sm:px-8 md:px-16">
           <div className="max-w-4xl mx-auto">
             {/* Section Header with Search */}
             <div className="flex flex-col sm:flex-row items-center justify-between gap-4 mb-8">

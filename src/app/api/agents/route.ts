@@ -3,12 +3,35 @@ import { prisma } from "@/lib/prisma";
 import { agentSchema } from "@/lib/validators";
 import { getCurrentUser } from "@/lib/auth";
 
-export async function GET() {
+export async function GET(req: Request) {
+  const { searchParams } = new URL(req.url);
+  const mine = searchParams.get("mine") === "true";
+
+  // If ?mine=true, require auth and filter by ownerId
+  if (mine) {
+    const user = await getCurrentUser(req);
+    if (!user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const agents = await prisma.agent.findMany({
+      where: { ownerId: user.id },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    const agentsWithOwner = agents.map((agent) => ({
+      ...agent,
+      owner: { id: user.id, email: user.email, name: user.name },
+    }));
+
+    return NextResponse.json({ agents: agentsWithOwner });
+  }
+
+  // Public listing — all agents
   const agents = await prisma.agent.findMany({
     orderBy: { createdAt: 'desc' },
   });
 
-  // Hydrate owner relation
   const agentsWithOwner = await Promise.all(
     agents.map(async (agent) => {
       const owner = await prisma.user.findUnique({ id: agent.ownerId });
@@ -65,4 +88,3 @@ export async function POST(req: Request) {
 
   return NextResponse.json({ agent });
 }
-
