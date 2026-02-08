@@ -21,7 +21,7 @@ dotenvConfig({ path: path.resolve(__dirname, "..", "..", ".env") });
 
 const ADDRESSES = {
   AgentRegistry: "0x46aDDBd334de452746443798d32C7C7C5fC8Dd16",
-  AgentStaking: "0xD381Bf340de5E4b9b16e382913121B6E2fA1E6Af",
+  AgentStaking: "0x862f9E936632923C9A2B48780e1aa1B0e0c61957",
   FlareEscrow: "0xA961AA0d21C2F24a20B6bdAD683f1DaFA45CFc73",
   RandomNumberV2: "0x5CdF9eAF3EB8b44fB696984a1420B56A7575D250",
 };
@@ -64,8 +64,8 @@ async function main() {
   await delay(3000);
 
   // ─── Step 2: Stake ────────────────────────────────────
-  console.log("\n--- Step 2: Stake 50 FLR ---");
-  const stakeAmount = ethers.parseEther("50");
+  console.log("\n--- Step 2: Stake 10 FLR ---");
+  const stakeAmount = ethers.parseEther("10");
   const stakeTx = await staking.stake(testAgent, { value: stakeAmount });
   const stakeReceipt = await stakeTx.wait();
   console.log(`  Tx: ${stakeReceipt!.hash}`);
@@ -77,7 +77,7 @@ async function main() {
   await delay(3000);
 
   // ─── Step 3: Credit earnings ──────────────────────────
-  console.log("\n--- Step 3: Credit 10 FLR earnings ---");
+  console.log("\n--- Step 3: Credit 5 FLR earnings ---");
   // Temporarily set escrow to deployer so we can call creditEarnings
   const realEscrow = await staking.escrow();
   console.log(`  Current escrow: ${realEscrow}`);
@@ -87,12 +87,12 @@ async function main() {
   console.log("  Escrow temporarily set to deployer");
   await delay(3000);
 
-  const earningsAmount = ethers.parseEther("10");
+  const earningsAmount = ethers.parseEther("5");
   const creditTx = await staking.creditEarnings(testAgent, earningsAmount, {
     value: earningsAmount,
   });
   await creditTx.wait();
-  console.log("  Earnings credited: 10 FLR");
+  console.log("  Earnings credited: 5 FLR");
 
   // Restore real escrow
   const setEscrowTx2 = await staking.setEscrow(realEscrow);

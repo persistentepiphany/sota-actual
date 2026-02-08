@@ -13,8 +13,8 @@ dotenvConfig({ path: path.resolve(__dirname, "..", "..", ".env") });
 
 // Existing deployed addresses on Coston2
 const EXISTING = {
-  AgentRegistry: "0xc62a1e98543c42c475cd37e63188a29f098b35D4",
-  FlareEscrow: "0x3b87ef622951c827F0730906A6F07ad6AB16A5C9",
+  AgentRegistry: "0x46aDDBd334de452746443798d32C7C7C5fC8Dd16",
+  FlareEscrow: "0xA961AA0d21C2F24a20B6bdAD683f1DaFA45CFc73",
   RandomNumberV2: "0x5CdF9eAF3EB8b44fB696984a1420B56A7575D250",
 };
 

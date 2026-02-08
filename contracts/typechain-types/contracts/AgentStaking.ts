@@ -64,14 +64,18 @@ export interface AgentStakingInterface extends Interface {
       | "minimumStake"
       | "owner"
       | "previewCashout"
+      | "previewSafeWithdraw"
       | "randomNumberV2"
       | "renounceOwnership"
+      | "safeWithdraw"
+      | "safeWithdrawFeeBps"
       | "seedPool"
       | "setEscrow"
       | "setHouseFeeBps"
       | "setHouseWallet"
       | "setMaxRandomAge"
       | "setMinimumStake"
+      | "setSafeWithdrawFeeBps"
       | "stake"
       | "stakes"
       | "transferOwnership"
@@ -92,6 +96,8 @@ export interface AgentStakingInterface extends Interface {
       | "OwnershipTransferred"
       | "PoolSeeded"
       | "PoolWithdrawn"
+      | "SafeWithdraw"
+      | "SafeWithdrawFeeUpdated"
       | "Staked"
       | "Unstaked"
   ): EventFragment;
@@ -144,11 +150,23 @@ export interface AgentStakingInterface extends Interface {
     values: [AddressLike]
   ): string;
   encodeFunctionData(
+    functionFragment: "previewSafeWithdraw",
+    values: [AddressLike]
+  ): string;
+  encodeFunctionData(
     functionFragment: "randomNumberV2",
     values?: undefined
   ): string;
   encodeFunctionData(
     functionFragment: "renounceOwnership",
+    values?: undefined
+  ): string;
+  encodeFunctionData(
+    functionFragment: "safeWithdraw",
+    values: [AddressLike]
+  ): string;
+  encodeFunctionData(
+    functionFragment: "safeWithdrawFeeBps",
     values?: undefined
   ): string;
   encodeFunctionData(functionFragment: "seedPool", values?: undefined): string;
@@ -170,6 +188,10 @@ export interface AgentStakingInterface extends Interface {
   ): string;
   encodeFunctionData(
     functionFragment: "setMinimumStake",
+    values: [BigNumberish]
+  ): string;
+  encodeFunctionData(
+    functionFragment: "setSafeWithdrawFeeBps",
     values: [BigNumberish]
   ): string;
   encodeFunctionData(functionFragment: "stake", values: [AddressLike]): string;
@@ -229,11 +251,23 @@ export interface AgentStakingInterface extends Interface {
     data: BytesLike
   ): Result;
   decodeFunctionResult(
+    functionFragment: "previewSafeWithdraw",
+    data: BytesLike
+  ): Result;
+  decodeFunctionResult(
     functionFragment: "randomNumberV2",
     data: BytesLike
   ): Result;
   decodeFunctionResult(
     functionFragment: "renounceOwnership",
+    data: BytesLike
+  ): Result;
+  decodeFunctionResult(
+    functionFragment: "safeWithdraw",
+    data: BytesLike
+  ): Result;
+  decodeFunctionResult(
+    functionFragment: "safeWithdrawFeeBps",
     data: BytesLike
   ): Result;
   decodeFunctionResult(functionFragment: "seedPool", data: BytesLike): Result;
@@ -252,6 +286,10 @@ export interface AgentStakingInterface extends Interface {
   ): Result;
   decodeFunctionResult(
     functionFragment: "setMinimumStake",
+    data: BytesLike
+  ): Result;
+  decodeFunctionResult(
+    functionFragment: "setSafeWithdrawFeeBps",
     data: BytesLike
   ): Result;
   decodeFunctionResult(functionFragment: "stake", data: BytesLike): Result;
@@ -406,6 +444,36 @@ export namespace PoolWithdrawnEvent {
   export type LogDescription = TypedLogDescription<Event>;
 }
 
+export namespace SafeWithdrawEvent {
+  export type InputTuple = [
+    agent: AddressLike,
+    payout: BigNumberish,
+    fee: BigNumberish
+  ];
+  export type OutputTuple = [agent: string, payout: bigint, fee: bigint];
+  export interface OutputObject {
+    agent: string;
+    payout: bigint;
+    fee: bigint;
+  }
+  export type Event = TypedContractEvent<InputTuple, OutputTuple, OutputObject>;
+  export type Filter = TypedDeferredTopicFilter<Event>;
+  export type Log = TypedEventLog<Event>;
+  export type LogDescription = TypedLogDescription<Event>;
+}
+
+export namespace SafeWithdrawFeeUpdatedEvent {
+  export type InputTuple = [newFeeBps: BigNumberish];
+  export type OutputTuple = [newFeeBps: bigint];
+  export interface OutputObject {
+    newFeeBps: bigint;
+  }
+  export type Event = TypedContractEvent<InputTuple, OutputTuple, OutputObject>;
+  export type Filter = TypedDeferredTopicFilter<Event>;
+  export type Log = TypedEventLog<Event>;
+  export type LogDescription = TypedLogDescription<Event>;
+}
+
 export namespace StakedEvent {
   export type InputTuple = [agent: AddressLike, amount: BigNumberish];
   export type OutputTuple = [agent: string, amount: bigint];
@@ -530,9 +598,25 @@ export interface AgentStaking extends BaseContract {
     "view"
   >;
 
+  previewSafeWithdraw: TypedContractMethod<
+    [agent: AddressLike],
+    [
+      [bigint, bigint, bigint] & {
+        earnings: bigint;
+        fee: bigint;
+        payout: bigint;
+      }
+    ],
+    "view"
+  >;
+
   randomNumberV2: TypedContractMethod<[], [string], "view">;
 
   renounceOwnership: TypedContractMethod<[], [void], "nonpayable">;
+
+  safeWithdraw: TypedContractMethod<[agent: AddressLike], [void], "nonpayable">;
+
+  safeWithdrawFeeBps: TypedContractMethod<[], [bigint], "view">;
 
   seedPool: TypedContractMethod<[], [void], "payable">;
 
@@ -558,6 +642,12 @@ export interface AgentStaking extends BaseContract {
 
   setMinimumStake: TypedContractMethod<
     [minimumStake_: BigNumberish],
+    [void],
+    "nonpayable"
+  >;
+
+  setSafeWithdrawFeeBps: TypedContractMethod<
+    [feeBps: BigNumberish],
     [void],
     "nonpayable"
   >;
@@ -657,11 +747,30 @@ export interface AgentStaking extends BaseContract {
     "view"
   >;
   getFunction(
+    nameOrSignature: "previewSafeWithdraw"
+  ): TypedContractMethod<
+    [agent: AddressLike],
+    [
+      [bigint, bigint, bigint] & {
+        earnings: bigint;
+        fee: bigint;
+        payout: bigint;
+      }
+    ],
+    "view"
+  >;
+  getFunction(
     nameOrSignature: "randomNumberV2"
   ): TypedContractMethod<[], [string], "view">;
   getFunction(
     nameOrSignature: "renounceOwnership"
   ): TypedContractMethod<[], [void], "nonpayable">;
+  getFunction(
+    nameOrSignature: "safeWithdraw"
+  ): TypedContractMethod<[agent: AddressLike], [void], "nonpayable">;
+  getFunction(
+    nameOrSignature: "safeWithdrawFeeBps"
+  ): TypedContractMethod<[], [bigint], "view">;
   getFunction(
     nameOrSignature: "seedPool"
   ): TypedContractMethod<[], [void], "payable">;
@@ -680,6 +789,9 @@ export interface AgentStaking extends BaseContract {
   getFunction(
     nameOrSignature: "setMinimumStake"
   ): TypedContractMethod<[minimumStake_: BigNumberish], [void], "nonpayable">;
+  getFunction(
+    nameOrSignature: "setSafeWithdrawFeeBps"
+  ): TypedContractMethod<[feeBps: BigNumberish], [void], "nonpayable">;
   getFunction(
     nameOrSignature: "stake"
   ): TypedContractMethod<[agent: AddressLike], [void], "payable">;
@@ -784,6 +896,20 @@ export interface AgentStaking extends BaseContract {
     PoolWithdrawnEvent.InputTuple,
     PoolWithdrawnEvent.OutputTuple,
     PoolWithdrawnEvent.OutputObject
+  >;
+  getEvent(
+    key: "SafeWithdraw"
+  ): TypedContractEvent<
+    SafeWithdrawEvent.InputTuple,
+    SafeWithdrawEvent.OutputTuple,
+    SafeWithdrawEvent.OutputObject
+  >;
+  getEvent(
+    key: "SafeWithdrawFeeUpdated"
+  ): TypedContractEvent<
+    SafeWithdrawFeeUpdatedEvent.InputTuple,
+    SafeWithdrawFeeUpdatedEvent.OutputTuple,
+    SafeWithdrawFeeUpdatedEvent.OutputObject
   >;
   getEvent(
     key: "Staked"
@@ -920,6 +1046,28 @@ export interface AgentStaking extends BaseContract {
       PoolWithdrawnEvent.InputTuple,
       PoolWithdrawnEvent.OutputTuple,
       PoolWithdrawnEvent.OutputObject
+    >;
+
+    "SafeWithdraw(address,uint256,uint256)": TypedContractEvent<
+      SafeWithdrawEvent.InputTuple,
+      SafeWithdrawEvent.OutputTuple,
+      SafeWithdrawEvent.OutputObject
+    >;
+    SafeWithdraw: TypedContractEvent<
+      SafeWithdrawEvent.InputTuple,
+      SafeWithdrawEvent.OutputTuple,
+      SafeWithdrawEvent.OutputObject
+    >;
+
+    "SafeWithdrawFeeUpdated(uint256)": TypedContractEvent<
+      SafeWithdrawFeeUpdatedEvent.InputTuple,
+      SafeWithdrawFeeUpdatedEvent.OutputTuple,
+      SafeWithdrawFeeUpdatedEvent.OutputObject
+    >;
+    SafeWithdrawFeeUpdated: TypedContractEvent<
+      SafeWithdrawFeeUpdatedEvent.InputTuple,
+      SafeWithdrawFeeUpdatedEvent.OutputTuple,
+      SafeWithdrawFeeUpdatedEvent.OutputObject
     >;
 
     "Staked(address,uint256)": TypedContractEvent<

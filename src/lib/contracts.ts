@@ -9,7 +9,7 @@ export const COSTON2_CHAIN = {
 } as const;
 
 export const CONTRACT_ADDRESSES = {
-  AgentStaking: "0xD381Bf340de5E4b9b16e382913121B6E2fA1E6Af" as `0x${string}`,
+  AgentStaking: "0x337562BE508c551B62385E9cdABa4C3EA685E360" as `0x${string}`,
   AgentRegistry: "0x46aDDBd334de452746443798d32C7C7C5fC8Dd16" as `0x${string}`,
   RandomNumberV2: "0x5CdF9eAF3EB8b44fB696984a1420B56A7575D250" as `0x${string}`,
   FlareOrderBook: "0x390413F0c7826523403760E086775DA9004aD004" as `0x${string}`,
@@ -81,6 +81,24 @@ export const AGENT_STAKING_ABI = [
   },
   {
     type: "function",
+    name: "safeWithdrawFeeBps",
+    inputs: [],
+    outputs: [{ name: "", type: "uint256" }],
+    stateMutability: "view",
+  },
+  {
+    type: "function",
+    name: "previewSafeWithdraw",
+    inputs: [{ name: "agent", type: "address" }],
+    outputs: [
+      { name: "earnings", type: "uint256" },
+      { name: "fee", type: "uint256" },
+      { name: "payout", type: "uint256" },
+    ],
+    stateMutability: "view",
+  },
+  {
+    type: "function",
     name: "isStaked",
     inputs: [{ name: "agent", type: "address" }],
     outputs: [{ name: "", type: "bool" }],
@@ -104,6 +122,13 @@ export const AGENT_STAKING_ABI = [
   {
     type: "function",
     name: "unstake",
+    inputs: [{ name: "agent", type: "address" }],
+    outputs: [],
+    stateMutability: "nonpayable",
+  },
+  {
+    type: "function",
+    name: "safeWithdraw",
     inputs: [{ name: "agent", type: "address" }],
     outputs: [],
     stateMutability: "nonpayable",
@@ -156,6 +181,15 @@ export const AGENT_STAKING_ABI = [
     inputs: [
       { name: "agent", type: "address", indexed: true },
       { name: "amount", type: "uint256", indexed: false },
+    ],
+  },
+  {
+    type: "event",
+    name: "SafeWithdraw",
+    inputs: [
+      { name: "agent", type: "address", indexed: true },
+      { name: "payout", type: "uint256", indexed: false },
+      { name: "fee", type: "uint256", indexed: false },
     ],
   },
 ] as const;

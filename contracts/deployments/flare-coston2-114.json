@@ -1,7 +1,7 @@
 {
   "network": "flare-coston2",
   "chainId": 114,
-  "deployedAt": "2026-02-08T01:32:21.124Z",
+  "deployedAt": "2026-02-08T03:23:26.365Z",
   "deployer": "0x0dAAB919d45dC217d0F496341083fb6F5e4cBC34",
   "flareIntegration": {
     "ftsoUsage": "FLR/USD price feed for job quoting and escrow funding validation",
@@ -14,7 +14,7 @@
     "FlareOrderBook": "0x390413F0c7826523403760E086775DA9004aD004",
     "FlareEscrow": "0xA961AA0d21C2F24a20B6bdAD683f1DaFA45CFc73",
     "AgentRegistry": "0x46aDDBd334de452746443798d32C7C7C5fC8Dd16",
-    "AgentStaking": "0xD381Bf340de5E4b9b16e382913121B6E2fA1E6Af",
+    "AgentStaking": "0x337562BE508c551B62385E9cdABa4C3EA685E360",
     "RandomNumberV2": "0x5CdF9eAF3EB8b44fB696984a1420B56A7575D250"
   }
 }

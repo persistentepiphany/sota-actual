@@ -259,30 +259,17 @@ describe("AgentStaking", function () {
     });
 
     it("should pay 2x net earnings on win when pool has enough", async function () {
-      // Seed pool via another agent's loss
-      await registerAgent(other, other.address);
-      await staking.connect(other).stake(other.address, { value: MINIMUM_STAKE });
-      const otherEarnings = ethers.parseEther("20");
-      await staking
-        .connect(deployer)
-        .creditEarnings(other.address, otherEarnings, {
-          value: otherEarnings,
-        });
-
-      // other loses -> net goes to pool
-      let ts = await currentTimestamp();
-      await mockRandom.setRandomNumber(43, true, ts); // odd -> lose
-      await staking.connect(other).cashout(other.address);
-
-      const otherNet = netOf(otherEarnings); // 19 FLR
-      expect(await staking.getPoolSize()).to.equal(otherNet);
+      // Seed pool via house wallet
+      const poolSeed = ethers.parseEther("20");
+      await staking.connect(house).seedPool({ value: poolSeed });
+      expect(await staking.getPoolSize()).to.equal(poolSeed);
 
       // dev wins
-      ts = await currentTimestamp();
+      const ts = await currentTimestamp();
       await mockRandom.setRandomNumber(42, true, ts); // even -> win
 
       const devNet = netOf(earnings); // 9.5 FLR
-      // bonus = min(9.5, 19) = 9.5, payout = 9.5 + 9.5 = 19 FLR
+      // bonus = min(9.5, 20) = 9.5, payout = 9.5 + 9.5 = 19 FLR
       const expectedPayout = devNet * 2n;
 
       const balBefore = await ethers.provider.getBalance(dev.address);
@@ -294,27 +281,33 @@ describe("AgentStaking", function () {
       expect(balAfter - balBefore + gasCost).to.equal(expectedPayout);
 
       // Pool decreased by devNet (the bonus)
-      expect(await staking.getPoolSize()).to.equal(otherNet - devNet);
+      expect(await staking.getPoolSize()).to.equal(poolSeed - devNet);
 
       const info = await staking.getStakeInfo(agent.address);
       expect(info.wins).to.equal(1);
     });
 
-    it("should lose net earnings to pool on loss (after 5% house fee)", async function () {
+    it("should send lost net earnings to house wallet on loss (after 5% house fee)", async function () {
       const ts = await currentTimestamp();
       await mockRandom.setRandomNumber(43, true, ts); // odd -> lose
 
       const fee = houseFee(earnings); // 0.5 FLR
       const net = netOf(earnings); // 9.5 FLR
 
+      const houseBefore = await ethers.provider.getBalance(house.address);
       const poolBefore = await staking.getPoolSize();
 
       await expect(staking.connect(dev).cashout(agent.address))
         .to.emit(staking, "CashoutLoss")
         .withArgs(agent.address, net);
 
+      const houseAfter = await ethers.provider.getBalance(house.address);
       const poolAfter = await staking.getPoolSize();
-      expect(poolAfter - poolBefore).to.equal(net);
+
+      // House wallet receives both fee + net earnings
+      expect(houseAfter - houseBefore).to.equal(fee + net);
+      // Pool unchanged
+      expect(poolAfter).to.equal(poolBefore);
 
       const info = await staking.getStakeInfo(agent.address);
       expect(info.accumulatedEarnings).to.equal(0);
@@ -323,27 +316,17 @@ describe("AgentStaking", function () {
     });
 
     it("should cap win bonus to available pool", async function () {
-      // Seed pool with 3 FLR via loss
+      // Seed pool with a small amount via house wallet
       const smallPool = ethers.parseEther("3");
-      await registerAgent(other, other.address);
-      await staking.connect(other).stake(other.address, { value: MINIMUM_STAKE });
-      await staking
-        .connect(deployer)
-        .creditEarnings(other.address, smallPool, { value: smallPool });
+      await staking.connect(house).seedPool({ value: smallPool });
+      expect(await staking.getPoolSize()).to.equal(smallPool);
 
-      let ts = await currentTimestamp();
-      await mockRandom.setRandomNumber(43, true, ts); // lose
-      await staking.connect(other).cashout(other.address);
-
-      const poolAfterLoss = netOf(smallPool); // 2.85 FLR
-      expect(await staking.getPoolSize()).to.equal(poolAfterLoss);
-
-      // dev wins -> net = 9.5, bonus = min(9.5, 2.85) = 2.85
-      ts = await currentTimestamp();
+      // dev wins -> net = 9.5, bonus = min(9.5, 3) = 3
+      const ts = await currentTimestamp();
       await mockRandom.setRandomNumber(42, true, ts); // win
 
       const devNet = netOf(earnings); // 9.5 FLR
-      const expectedPayout = devNet + poolAfterLoss; // 9.5 + 2.85 = 12.35 FLR
+      const expectedPayout = devNet + smallPool; // 9.5 + 3 = 12.5 FLR
 
       const balBefore = await ethers.provider.getBalance(dev.address);
       const tx = await staking.connect(dev).cashout(agent.address);
@@ -410,6 +393,99 @@ describe("AgentStaking", function () {
   });
 
   // ═══════════════════════════════════════════════════════════
+  // Safe Withdraw
+  // ═══════════════════════════════════════════════════════════
+
+  describe("safeWithdraw()", function () {
+    const earnings = ethers.parseEther("10");
+    const SAFE_WITHDRAW_FEE_BPS = 2000n; // 20%
+
+    function safeWithdrawFee(amount: bigint): bigint {
+      return (amount * SAFE_WITHDRAW_FEE_BPS) / 10000n;
+    }
+
+    beforeEach(async function () {
+      await registerAgent(dev, agent.address);
+      await staking.connect(dev).stake(agent.address, { value: MINIMUM_STAKE });
+      await staking.connect(deployer).setEscrow(deployer.address);
+
+      // Credit some earnings
+      await staking
+        .connect(deployer)
+        .creditEarnings(agent.address, earnings, { value: earnings });
+    });
+
+    it("should safe withdraw 80% to developer and 20% to house", async function () {
+      const fee = safeWithdrawFee(earnings); // 2 FLR
+      const payout = earnings - fee; // 8 FLR
+
+      const houseBefore = await ethers.provider.getBalance(house.address);
+      const devBefore = await ethers.provider.getBalance(dev.address);
+
+      const tx = await staking.connect(dev).safeWithdraw(agent.address);
+      const receipt = await tx.wait();
+      const gasCost = receipt.gasUsed * receipt.gasPrice;
+
+      const houseAfter = await ethers.provider.getBalance(house.address);
+      const devAfter = await ethers.provider.getBalance(dev.address);
+
+      // Developer receives 80%
+      expect(devAfter - devBefore + gasCost).to.equal(payout);
+      // House receives 20%
+      expect(houseAfter - houseBefore).to.equal(fee);
+
+      // Earnings reset to 0
+      const info = await staking.getStakeInfo(agent.address);
+      expect(info.accumulatedEarnings).to.equal(0);
+
+      // Check event
+      await expect(tx)
+        .to.emit(staking, "SafeWithdraw")
+        .withArgs(agent.address, payout, fee);
+    });
+
+    it("should reject safe withdraw with no earnings", async function () {
+      // First withdraw to clear earnings
+      await staking.connect(dev).safeWithdraw(agent.address);
+
+      await expect(
+        staking.connect(dev).safeWithdraw(agent.address)
+      ).to.be.revertedWith("AgentStaking: no earnings");
+    });
+
+    it("should reject non-developer from safe withdrawing", async function () {
+      await expect(
+        staking.connect(other).safeWithdraw(agent.address)
+      ).to.be.revertedWith("AgentStaking: not developer");
+    });
+
+    it("should update safe withdraw fee", async function () {
+      await expect(staking.connect(deployer).setSafeWithdrawFeeBps(1000))
+        .to.emit(staking, "SafeWithdrawFeeUpdated")
+        .withArgs(1000);
+      expect(await staking.safeWithdrawFeeBps()).to.equal(1000);
+    });
+
+    it("should reject safe withdraw fee above 50%", async function () {
+      await expect(
+        staking.connect(deployer).setSafeWithdrawFeeBps(5001)
+      ).to.be.revertedWith("AgentStaking: safe withdraw fee too high");
+    });
+
+    it("previewSafeWithdraw returns correct values", async function () {
+      const [previewEarnings, previewFee, previewPayout] =
+        await staking.previewSafeWithdraw(agent.address);
+
+      const fee = safeWithdrawFee(earnings); // 2 FLR
+      const payout = earnings - fee; // 8 FLR
+
+      expect(previewEarnings).to.equal(earnings);
+      expect(previewFee).to.equal(fee);
+      expect(previewPayout).to.equal(payout);
+    });
+  });
+
+  // ═══════════════════════════════════════════════════════════
   // Unstake
   // ═══════════════════════════════════════════════════════════
 
@@ -435,7 +511,7 @@ describe("AgentStaking", function () {
       expect(info.stakedAmount).to.equal(0);
     });
 
-    it("should forfeit uncashed earnings to pool on unstake", async function () {
+    it("should forfeit uncashed earnings to house wallet on unstake", async function () {
       await staking.connect(deployer).setEscrow(deployer.address);
       const earnings = ethers.parseEther("15");
       await staking
@@ -444,14 +520,20 @@ describe("AgentStaking", function () {
 
       await deactivateAgent(dev, agent.address);
 
+      const houseBefore = await ethers.provider.getBalance(house.address);
       const poolBefore = await staking.getPoolSize();
 
       await expect(staking.connect(dev).unstake(agent.address))
         .to.emit(staking, "Unstaked")
         .withArgs(agent.address, MINIMUM_STAKE, earnings);
 
+      const houseAfter = await ethers.provider.getBalance(house.address);
       const poolAfter = await staking.getPoolSize();
-      expect(poolAfter - poolBefore).to.equal(earnings);
+
+      // House wallet receives forfeited earnings
+      expect(houseAfter - houseBefore).to.equal(earnings);
+      // Pool unchanged
+      expect(poolAfter).to.equal(poolBefore);
     });
 
     it("should reject unstake if agent is still active", async function () {

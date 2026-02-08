@@ -10,8 +10,8 @@ import "./AgentRegistry.sol";
  * @title AgentStaking
  * @notice Devs stake FLR to activate their AI agent. Job earnings accumulate
  *         in the contract. On cash-out, Flare's RandomNumberV2 runs a 50/50
- *         gamble: win = 2x earnings, lose = 0 (earnings go to shared pool).
- *         The stake itself is never lost.
+ *         gamble: win = net earnings + bonus from pool, lose = 0 (earnings
+ *         sent to house wallet). The stake itself is never lost.
  *
  *         Flare integration: RandomNumberV2 at
  *         0x5CdF9eAF3EB8b44fB696984a1420B56A7575D250 (Coston2).
@@ -33,6 +33,7 @@ contract AgentStaking is Ownable, ReentrancyGuard {
     uint256 public lossPool;
     uint256 public maxRandomAge; // max age of random number in seconds
     uint256 public houseFeeBps; // house cut in basis points (500 = 5%)
+    uint256 public safeWithdrawFeeBps; // safe withdraw fee in basis points (2000 = 20%)
 
     mapping(address => StakeInfo) public stakes;
 
@@ -53,6 +54,8 @@ contract AgentStaking is Ownable, ReentrancyGuard {
     event HouseWalletUpdated(address indexed wallet);
     event HouseFeeUpdated(uint256 newFeeBps);
     event HouseFeePaid(address indexed agent, uint256 amount);
+    event SafeWithdraw(address indexed agent, uint256 payout, uint256 fee);
+    event SafeWithdrawFeeUpdated(uint256 newFeeBps);
     event PoolSeeded(address indexed from, uint256 amount);
     event PoolWithdrawn(address indexed to, uint256 amount);
 
@@ -82,6 +85,7 @@ contract AgentStaking is Ownable, ReentrancyGuard {
         maxRandomAge = 120; // 120 seconds default
         houseWallet = 0x76F9398Ee268b9fdc06C0dff402B20532922fFAE;
         houseFeeBps = 500; // 5%
+        safeWithdrawFeeBps = 2000; // 20%
     }
 
     // ─── Config ─────────────────────────────────────────────
@@ -110,6 +114,12 @@ contract AgentStaking is Ownable, ReentrancyGuard {
         require(feeBps <= 2000, "AgentStaking: fee too high"); // max 20%
         houseFeeBps = feeBps;
         emit HouseFeeUpdated(feeBps);
+    }
+
+    function setSafeWithdrawFeeBps(uint256 feeBps) external onlyOwner {
+        require(feeBps <= 5000, "AgentStaking: safe withdraw fee too high"); // max 50%
+        safeWithdrawFeeBps = feeBps;
+        emit SafeWithdrawFeeUpdated(feeBps);
     }
 
     // ─── House Pool Management ───────────────────────────────
@@ -173,8 +183,8 @@ contract AgentStaking is Ownable, ReentrancyGuard {
     /**
      * @notice Cash out accumulated earnings with a 50/50 gamble.
      *         Uses Flare RandomNumberV2 to determine outcome.
-     *         Win: receive min(2x earnings, earnings + pool).
-     *         Lose: earnings go to the shared loss pool.
+     *         Win: receive net earnings + bonus from pool (capped by pool size).
+     *         Lose: net earnings sent to house wallet.
      *         Only the developer wallet can cash out. Payout goes to developer.
      */
     function cashout(address agent) external nonReentrant {
@@ -227,17 +237,53 @@ contract AgentStaking is Ownable, ReentrancyGuard {
 
             emit CashoutWin(agent, payout);
         } else {
-            // LOSE — net earnings go to pool
-            lossPool += netEarnings;
+            // LOSE — net earnings go to house wallet
             info.losses++;
+
+            (bool lossOk, ) = houseWallet.call{value: netEarnings}("");
+            require(lossOk, "AgentStaking: loss transfer failed");
 
             emit CashoutLoss(agent, netEarnings);
         }
     }
 
     /**
+     * @notice Safe withdraw accumulated earnings. Developer keeps (100% - fee)
+     *         and the fee goes to the house wallet. No gamble, guaranteed payout.
+     *         Only the developer wallet can safe withdraw. Payout goes to developer.
+     */
+    function safeWithdraw(address agent) external nonReentrant {
+        require(
+            agentRegistry.getDeveloper(agent) == msg.sender,
+            "AgentStaking: not developer"
+        );
+
+        StakeInfo storage info = stakes[agent];
+        require(info.isStaked, "AgentStaking: not staked");
+        require(info.accumulatedEarnings > 0, "AgentStaking: no earnings");
+
+        uint256 earnings = info.accumulatedEarnings;
+        info.accumulatedEarnings = 0;
+
+        uint256 fee = (earnings * safeWithdrawFeeBps) / 10000;
+        uint256 payout = earnings - fee;
+
+        // Send fee to house wallet
+        if (fee > 0) {
+            (bool feeOk, ) = houseWallet.call{value: fee}("");
+            require(feeOk, "AgentStaking: safe withdraw fee failed");
+        }
+
+        // Send payout to developer
+        (bool ok, ) = msg.sender.call{value: payout}("");
+        require(ok, "AgentStaking: safe withdraw payout failed");
+
+        emit SafeWithdraw(agent, payout, fee);
+    }
+
+    /**
      * @notice Unstake and reclaim the staked FLR. Agent must NOT be Active
-     *         in AgentRegistry. Uncashed earnings are forfeited to the pool.
+     *         in AgentRegistry. Uncashed earnings are forfeited to house wallet.
      *         Only the developer wallet can unstake. Stake returned to developer.
      */
     function unstake(address agent) external nonReentrant {
@@ -256,13 +302,16 @@ contract AgentStaking is Ownable, ReentrancyGuard {
         uint256 stakeAmount = info.stakedAmount;
         uint256 forfeited = info.accumulatedEarnings;
 
-        // Forfeit uncashed earnings to the pool
-        lossPool += forfeited;
-
         // Clear stake
         info.stakedAmount = 0;
         info.accumulatedEarnings = 0;
         info.isStaked = false;
+
+        // Forfeit uncashed earnings to house wallet
+        if (forfeited > 0) {
+            (bool fOk, ) = houseWallet.call{value: forfeited}("");
+            require(fOk, "AgentStaking: forfeit transfer failed");
+        }
 
         (bool ok, ) = msg.sender.call{value: stakeAmount}("");
         require(ok, "AgentStaking: unstake transfer failed");
@@ -301,6 +350,19 @@ contract AgentStaking is Ownable, ReentrancyGuard {
             bonus = lossPool;
         }
         maxPayout = net + bonus;
+    }
+
+    /**
+     * @notice Preview what a safe withdraw would yield (without executing).
+     */
+    function previewSafeWithdraw(address agent) external view returns (
+        uint256 earnings,
+        uint256 fee,
+        uint256 payout
+    ) {
+        earnings = stakes[agent].accumulatedEarnings;
+        fee = (earnings * safeWithdrawFeeBps) / 10000;
+        payout = earnings - fee;
     }
 
     /// @dev Accept native FLR (for pool funding, etc.)

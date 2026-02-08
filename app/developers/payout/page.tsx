@@ -74,6 +74,12 @@ interface CashoutPreview {
   maxPayout: bigint;
 }
 
+interface SafeWithdrawPreview {
+  earnings: bigint;
+  fee: bigint;
+  payout: bigint;
+}
+
 type GambleResult = { type: "win"; payout: bigint } | { type: "lose"; lost: bigint } | null;
 
 // ---------- component ----------
@@ -92,9 +98,11 @@ export default function PayoutPage() {
   // contract state
   const [stakeData, setStakeData] = useState<StakeData | null>(null);
   const [preview, setPreview] = useState<CashoutPreview | null>(null);
+  const [safePreview, setSafePreview] = useState<SafeWithdrawPreview | null>(null);
   const [poolSize, setPoolSize] = useState<bigint>(0n);
   const [minStake, setMinStake] = useState<bigint>(0n);
   const [houseFeeBps, setHouseFeeBps] = useState<bigint>(0n);
+  const [safeWithdrawFeeBps, setSafeWithdrawFeeBps] = useState<bigint>(0n);
 
   // UI state
   const [stakeAmount, setStakeAmount] = useState("");
@@ -260,7 +268,7 @@ export default function PayoutPage() {
     if (!selectedAgent) return;
     try {
       setLoadingData(true);
-      const [info, prev, pool, minS, fee] = await Promise.all([
+      const [info, prev, safePrev, pool, minS, fee, swFee] = await Promise.all([
         publicClient.readContract({
           address: CONTRACT_ADDRESSES.AgentStaking,
           abi: AGENT_STAKING_ABI,
@@ -271,6 +279,12 @@ export default function PayoutPage() {
           address: CONTRACT_ADDRESSES.AgentStaking,
           abi: AGENT_STAKING_ABI,
           functionName: "previewCashout",
+          args: [selectedAgent],
+        }),
+        publicClient.readContract({
+          address: CONTRACT_ADDRESSES.AgentStaking,
+          abi: AGENT_STAKING_ABI,
+          functionName: "previewSafeWithdraw",
           args: [selectedAgent],
         }),
         publicClient.readContract({
@@ -287,6 +301,11 @@ export default function PayoutPage() {
           address: CONTRACT_ADDRESSES.AgentStaking,
           abi: AGENT_STAKING_ABI,
           functionName: "houseFeeBps",
+        }),
+        publicClient.readContract({
+          address: CONTRACT_ADDRESSES.AgentStaking,
+          abi: AGENT_STAKING_ABI,
+          functionName: "safeWithdrawFeeBps",
         }),
       ]);
 
@@ -306,9 +325,17 @@ export default function PayoutPage() {
         maxPayout: prevData[2],
       });
 
+      const safePrevData = safePrev as any[];
+      setSafePreview({
+        earnings: safePrevData[0],
+        fee: safePrevData[1],
+        payout: safePrevData[2],
+      });
+
       setPoolSize(pool as bigint);
       setMinStake(minS as bigint);
       setHouseFeeBps(fee as bigint);
+      setSafeWithdrawFeeBps(swFee as bigint);
     } catch (err: any) {
       console.error("Stake data fetch error:", err);
     } finally {
@@ -433,6 +460,51 @@ export default function PayoutPage() {
     } catch (err: any) {
       setGambleAnimating(false);
       setError(err?.shortMessage || err?.message || "Cashout failed");
+    } finally {
+      setTxPending(false);
+    }
+  };
+
+  const doSafeWithdraw = async () => {
+    if (!selectedAgent || !account) return;
+    const wc = getWalletClient();
+    if (!wc) return;
+    try {
+      setTxPending(true);
+      setError(null);
+      setTxHash(null);
+      setGambleResult(null);
+
+      const hash = await wc.writeContract({
+        address: CONTRACT_ADDRESSES.AgentStaking,
+        abi: AGENT_STAKING_ABI,
+        functionName: "safeWithdraw",
+        args: [selectedAgent],
+        account,
+        chain: coston2,
+      });
+      setTxHash(hash);
+      const receipt = await publicClient.waitForTransactionReceipt({ hash });
+
+      // Parse SafeWithdraw event for confirmation
+      for (const log of receipt.logs as Log[]) {
+        try {
+          const decoded = decodeEventLog({
+            abi: AGENT_STAKING_ABI,
+            data: log.data,
+            topics: log.topics,
+          });
+          if (decoded.eventName === "SafeWithdraw") {
+            setGambleResult({ type: "win", payout: (decoded.args as any).payout });
+          }
+        } catch {
+          // not our event
+        }
+      }
+
+      await fetchStakeData();
+    } catch (err: any) {
+      setError(err?.shortMessage || err?.message || "Safe withdraw failed");
     } finally {
       setTxPending(false);
     }
@@ -767,6 +839,44 @@ export default function PayoutPage() {
                         </button>
                         <p className="text-center text-xs text-slate-500">
                           50/50 powered by Flare RandomNumberV2
+                        </p>
+
+                        {/* Divider */}
+                        <div className="flex items-center gap-3 pt-2">
+                          <div className="flex-1 border-t border-slate-700/50" />
+                          <span className="text-xs text-slate-500">or play it safe</span>
+                          <div className="flex-1 border-t border-slate-700/50" />
+                        </div>
+
+                        {/* Safe Withdraw Preview */}
+                        {safePreview && (
+                          <div className="space-y-2 text-sm">
+                            <div className="flex justify-between">
+                              <span className="text-slate-400">Safe Fee ({Number(safeWithdrawFeeBps) / 100}%)</span>
+                              <span className="text-red-400">-{fmt(safePreview.fee)} FLR</span>
+                            </div>
+                            <div className="flex justify-between">
+                              <span className="text-emerald-400">Guaranteed Payout</span>
+                              <span className="text-emerald-400 font-bold">{fmt(safePreview.payout)} FLR</span>
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Safe Withdraw Button */}
+                        <button
+                          onClick={doSafeWithdraw}
+                          disabled={txPending}
+                          className="w-full py-3 rounded-2xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-bold text-base transition-all disabled:opacity-50 flex items-center justify-center gap-2"
+                        >
+                          {txPending && !gambleAnimating ? (
+                            <Loader2 size={18} className="animate-spin" />
+                          ) : (
+                            <Wallet size={18} />
+                          )}
+                          SAFE WITHDRAW ({100 - Number(safeWithdrawFeeBps) / 100}%)
+                        </button>
+                        <p className="text-center text-xs text-slate-500">
+                          No gamble -- keep {100 - Number(safeWithdrawFeeBps) / 100}%, house takes {Number(safeWithdrawFeeBps) / 100}%
                         </p>
 
                         {/* Win/Loss Record */}

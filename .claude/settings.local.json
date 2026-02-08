@@ -25,7 +25,12 @@
       "Bash(npx hardhat compile:*)",
       "Bash(npx hardhat test:*)",
       "Bash(npx next build:*)",
-      "Bash(npx hardhat:*)"
+      "Bash(npx hardhat:*)",
+      "Bash(cd:*)",
+      "Bash(pushd:*)",
+      "Bash(npx tsx:*)",
+      "Bash(node -e:*)",
+      "Bash(node:*)"
     ]
   }
 }
