@@ -270,11 +270,11 @@ const AgentOrbitalLanding = () => {
       transition: color 0.3s ease, transform 0.3s ease; 
     }
     .word-animate:hover { 
-      color: #c4b5fd; 
+      color: var(--accent-text); 
       transform: translateY(-2px); 
     }
     .grid-line { 
-      stroke: #6366f1; 
+      stroke: var(--path-color); 
       stroke-width: 0.5; 
       opacity: 0; 
       stroke-dasharray: 5 5; 
@@ -282,7 +282,7 @@ const AgentOrbitalLanding = () => {
       animation: grid-draw 2s ease-out forwards; 
     }
     .detail-dot { 
-      fill: #a78bfa; 
+      fill: var(--accent-text); 
       opacity: 0; 
       animation: pulse-glow 3s ease-in-out infinite; 
     }
@@ -290,7 +290,7 @@ const AgentOrbitalLanding = () => {
       position: absolute; 
       width: 40px; 
       height: 40px; 
-      border: 1px solid rgba(139, 92, 246, 0.2); 
+      border: 1px solid var(--border-subtle); 
       opacity: 0; 
       animation: word-appear 1s ease-out forwards; 
     }
@@ -302,7 +302,7 @@ const AgentOrbitalLanding = () => {
       left: 0; 
       width: 0; 
       height: 1px; 
-      background: linear-gradient(90deg, transparent, #a78bfa, transparent); 
+      background: linear-gradient(90deg, transparent, var(--accent-text), transparent); 
       animation: underline-grow 2s ease-out forwards; 
       animation-delay: 2s; 
     }
@@ -311,7 +311,7 @@ const AgentOrbitalLanding = () => {
       position: absolute; 
       width: 2px; 
       height: 2px; 
-      background: #a78bfa; 
+      background: var(--accent-text); 
       border-radius: 50%; 
       opacity: 0; 
       animation: float 4s ease-in-out infinite; 
@@ -342,7 +342,7 @@ const AgentOrbitalLanding = () => {
   return (
     <>
       <style>{pageStyles}</style>
-      <div className="min-h-[calc(100vh-4rem)] bg-gradient-to-br from-slate-950 via-black to-slate-900 text-slate-100 overflow-hidden relative">
+      <div className="min-h-[calc(100vh-4rem)] home-shell text-[color:var(--foreground)] overflow-hidden relative">
         
         {/* Animated Background Paths */}
         <FloatingPaths position={1} />
@@ -352,7 +352,7 @@ const AgentOrbitalLanding = () => {
         <svg className="absolute inset-0 w-full h-full pointer-events-none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
           <defs>
             <pattern id="gridReactDarkResponsive" width="60" height="60" patternUnits="userSpaceOnUse">
-              <path d="M 60 0 L 0 0 0 60" fill="none" stroke="rgba(99, 102, 241, 0.06)" strokeWidth="0.5"/>
+              <path d="M 60 0 L 0 0 0 60" fill="none" stroke="var(--home-grid-stroke)" strokeWidth="0.5"/>
             </pattern>
           </defs>
           <rect width="100%" height="100%" fill="url(#gridReactDarkResponsive)" />
@@ -437,15 +437,15 @@ const AgentOrbitalLanding = () => {
                 const ButlerIcon = getIcon(butler.icon);
                 return (
                 <div 
-                  className="absolute top-32 left-1/2 -translate-x-1/2 w-72 bg-black/90 backdrop-blur-xl border border-violet-500/30 rounded-2xl p-5 z-30 shadow-xl shadow-violet-500/10"
+                  className="absolute top-32 left-1/2 -translate-x-1/2 w-72 bg-[color:var(--surface-2)] backdrop-blur-xl border border-violet-500/30 rounded-2xl p-5 z-30 shadow-xl shadow-violet-500/10"
                   onClick={(e) => e.stopPropagation()}
                 >
                   {/* Close Button */}
                   <button
                     onClick={(e) => { e.stopPropagation(); setShowButler(false); }}
-                    className="absolute top-3 right-3 w-6 h-6 rounded-full bg-slate-800/80 hover:bg-slate-700 flex items-center justify-center transition-colors"
+                    className="absolute top-3 right-3 w-6 h-6 rounded-full bg-[color:var(--surface-1)] hover:bg-[color:var(--surface-hover)] flex items-center justify-center transition-colors"
                   >
-                    <X size={14} className="text-slate-400" />
+                    <X size={14} className="text-[color:var(--text-muted)]" />
                   </button>
                   
                   <div className="flex items-center gap-3 mb-3">
@@ -453,40 +453,40 @@ const AgentOrbitalLanding = () => {
                       <Bot size={20} className="text-white" />
                     </div>
                     <div>
-                      <h3 className="text-base font-semibold text-white">{butler.title}</h3>
+                      <h3 className="text-base font-semibold text-[color:var(--foreground)]">{butler.title}</h3>
                       <div className="flex items-center gap-1.5">
                         <div className={`w-1.5 h-1.5 rounded-full ${
                           butler.status === 'online' ? 'bg-green-500' : 
                           butler.status === 'busy' ? 'bg-yellow-500' : 'bg-red-500'
                         }`} />
-                        <span className="text-xs text-slate-400 capitalize">{butler.status}</span>
+                        <span className="text-xs text-[color:var(--text-muted)] capitalize">{butler.status}</span>
                       </div>
                     </div>
                   </div>
-                  <p className="text-sm text-slate-400 leading-relaxed mb-4">{butler.description}</p>
+                  <p className="text-sm text-[color:var(--text-muted)] leading-relaxed mb-4">{butler.description}</p>
                   
                   {/* Stats */}
-                  <div className="grid grid-cols-3 gap-2 pt-3 border-t border-slate-700/50">
+                  <div className="grid grid-cols-3 gap-2 pt-3 border-t border-[color:var(--border-subtle)]">
                     <div className="text-center">
                       <div className="flex items-center justify-center gap-1 text-violet-400 mb-1">
                         <Zap size={12} />
                         <span className="text-xs font-medium">Requests</span>
                       </div>
-                      <span className="text-sm font-bold text-white">{butler.totalRequests.toLocaleString()}</span>
+                      <span className="text-sm font-bold text-[color:var(--foreground)]">{butler.totalRequests.toLocaleString()}</span>
                     </div>
                     <div className="text-center">
                       <div className="flex items-center justify-center gap-1 text-yellow-400 mb-1">
                         <Star size={12} />
                         <span className="text-xs font-medium">Rating</span>
                       </div>
-                      <span className="text-sm font-bold text-white">{butler.reputation}</span>
+                      <span className="text-sm font-bold text-[color:var(--foreground)]">{butler.reputation}</span>
                     </div>
                     <div className="text-center">
                       <div className="flex items-center justify-center gap-1 text-green-400 mb-1">
                         <Activity size={12} />
                         <span className="text-xs font-medium">Success</span>
                       </div>
-                      <span className="text-sm font-bold text-white">{butler.successRate}%</span>
+                      <span className="text-sm font-bold text-[color:var(--foreground)]">{butler.successRate}%</span>
                     </div>
                   </div>
                 </div>
@@ -524,12 +524,12 @@ const AgentOrbitalLanding = () => {
                     <div className={`w-14 h-14 rounded-full flex items-center justify-center transition-all duration-300 ${
                       isSelected 
                         ? 'bg-white shadow-lg shadow-violet-500/30' 
-                        : 'bg-slate-800/80 border border-slate-700/50 hover:bg-slate-700/80'
+                        : 'bg-[color:var(--surface-1)] border border-[color:var(--border-subtle)] hover:bg-[color:var(--surface-hover)]'
                     }`}>
-                      <Icon size={22} className={isSelected ? 'text-violet-600' : 'text-slate-300'} />
+                      <Icon size={22} className={isSelected ? 'text-violet-600' : 'text-[color:var(--foreground)]'} />
                     </div>
                     <div className={`absolute top-16 left-1/2 -translate-x-1/2 whitespace-nowrap text-xs font-medium transition-all duration-300 ${
-                      isSelected ? 'text-white' : 'text-slate-500'
+                      isSelected ? 'text-[color:var(--foreground)]' : 'text-[color:var(--text-muted)]'
                     }`}>
                       {agent.title}
                     </div>
@@ -542,56 +542,56 @@ const AgentOrbitalLanding = () => {
                 const SelectedIcon = getIcon(selectedAgent.icon);
                 return (
                 <div 
-                  className="absolute top-32 left-1/2 -translate-x-1/2 w-72 bg-black/90 backdrop-blur-xl border border-slate-700/50 rounded-2xl p-5 z-30 shadow-xl shadow-black/30"
+                  className="absolute top-32 left-1/2 -translate-x-1/2 w-72 bg-[color:var(--surface-2)] backdrop-blur-xl border border-[color:var(--border-subtle)] rounded-2xl p-5 z-30 shadow-xl shadow-[color:var(--shadow-color)]"
                   onClick={(e) => e.stopPropagation()}
                 >
                   {/* Close Button */}
                   <button
                     onClick={(e) => { e.stopPropagation(); setSelectedAgent(null); }}
-                    className="absolute top-3 right-3 w-6 h-6 rounded-full bg-slate-800/80 hover:bg-slate-700 flex items-center justify-center transition-colors"
+                    className="absolute top-3 right-3 w-6 h-6 rounded-full bg-[color:var(--surface-1)] hover:bg-[color:var(--surface-hover)] flex items-center justify-center transition-colors"
                   >
-                    <X size={14} className="text-slate-400" />
+                    <X size={14} className="text-[color:var(--text-muted)]" />
                   </button>
                   
                   <div className="flex items-center gap-3 mb-3">
-                    <div className="w-10 h-10 rounded-lg bg-slate-800 flex items-center justify-center">
-                      <SelectedIcon size={20} className="text-slate-300" />
+                    <div className="w-10 h-10 rounded-lg bg-[color:var(--surface-1)] flex items-center justify-center">
+                      <SelectedIcon size={20} className="text-[color:var(--foreground)]" />
                     </div>
                     <div>
-                      <h3 className="text-base font-semibold text-white">{selectedAgent.title}</h3>
+                      <h3 className="text-base font-semibold text-[color:var(--foreground)]">{selectedAgent.title}</h3>
                       <div className="flex items-center gap-1.5">
                         <div className={`w-1.5 h-1.5 rounded-full ${
                           selectedAgent.status === 'online' ? 'bg-green-500' : 
                           selectedAgent.status === 'busy' ? 'bg-yellow-500' : 'bg-red-500'
                         }`} />
-                        <span className="text-xs text-slate-400 capitalize">{selectedAgent.status}</span>
+                        <span className="text-xs text-[color:var(--text-muted)] capitalize">{selectedAgent.status}</span>
                       </div>
                     </div>
                   </div>
-                  <p className="text-sm text-slate-400 leading-relaxed mb-4">{selectedAgent.description}</p>
+                  <p className="text-sm text-[color:var(--text-muted)] leading-relaxed mb-4">{selectedAgent.description}</p>
                   
                   {/* Stats */}
-                  <div className="grid grid-cols-3 gap-2 pt-3 border-t border-slate-700/50">
+                  <div className="grid grid-cols-3 gap-2 pt-3 border-t border-[color:var(--border-subtle)]">
                     <div className="text-center">
                       <div className="flex items-center justify-center gap-1 text-violet-400 mb-1">
                         <Zap size={12} />
                         <span className="text-xs font-medium">Requests</span>
                       </div>
-                      <span className="text-sm font-bold text-white">{selectedAgent.totalRequests.toLocaleString()}</span>
+                      <span className="text-sm font-bold text-[color:var(--foreground)]">{selectedAgent.totalRequests.toLocaleString()}</span>
                     </div>
                     <div className="text-center">
                       <div className="flex items-center justify-center gap-1 text-yellow-400 mb-1">
                         <Star size={12} />
                         <span className="text-xs font-medium">Rating</span>
                       </div>
-                      <span className="text-sm font-bold text-white">{selectedAgent.reputation}</span>
+                      <span className="text-sm font-bold text-[color:var(--foreground)]">{selectedAgent.reputation}</span>
                     </div>
                     <div className="text-center">
                       <div className="flex items-center justify-center gap-1 text-green-400 mb-1">
                         <Activity size={12} />
                         <span className="text-xs font-medium">Success</span>
                       </div>
-                      <span className="text-sm font-bold text-white">{selectedAgent.successRate}%</span>
+                      <span className="text-sm font-bold text-[color:var(--foreground)]">{selectedAgent.successRate}%</span>
                     </div>
                   </div>
                 </div>
@@ -603,7 +603,7 @@ const AgentOrbitalLanding = () => {
           {/* Footer Text */}
           <div className="text-center">
             <div className="mb-4 w-12 sm:w-16 h-px bg-gradient-to-r from-transparent via-violet-400 to-transparent opacity-30 mx-auto"></div>
-            <h2 className="text-xs sm:text-sm font-mono font-light text-slate-400 uppercase tracking-[0.2em] opacity-80">
+            <h2 className="text-xs sm:text-sm font-mono font-light text-[color:var(--text-muted)] uppercase tracking-[0.2em] opacity-80">
               <span className="word-animate" data-delay="3000">Orchestrate.</span>
               <span className="word-animate" data-delay="3200">Automate.</span>
               <span className="word-animate" data-delay="3400">Simplify.</span>
@@ -632,19 +632,19 @@ const AgentOrbitalLanding = () => {
             {/* Section Header with Search */}
             <div className="flex flex-col sm:flex-row items-center justify-between gap-4 mb-8">
               <div>
-                <h3 className="text-xl font-semibold text-white text-center sm:text-left">All Agents</h3>
-                <p className="text-sm text-slate-400 text-center sm:text-left">Browse and search available agents</p>
+                <h3 className="text-xl font-semibold text-[color:var(--foreground)] text-center sm:text-left">All Agents</h3>
+                <p className="text-sm text-[color:var(--text-muted)] text-center sm:text-left">Browse and search available agents</p>
               </div>
               
               {/* Search Bar */}
               <div className="relative w-full sm:w-72">
-                <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" />
+                <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-[color:var(--text-muted)]" />
                 <input
                   type="text"
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   placeholder="Search agents..."
-                  className="w-full pl-10 pr-4 py-2.5 bg-slate-800/60 border border-slate-700/50 rounded-xl text-sm text-white placeholder-slate-500 focus:outline-none focus:border-violet-500/50 transition-colors"
+                  className="w-full pl-10 pr-4 py-2.5 bg-[color:var(--surface-1)] border border-[color:var(--border-subtle)] rounded-xl text-sm text-[color:var(--foreground)] placeholder:text-[color:var(--text-muted)] focus:outline-none focus:border-violet-500/50 transition-colors"
                 />
               </div>
             </div>
@@ -652,8 +652,8 @@ const AgentOrbitalLanding = () => {
             {/* Agents Grid */}
             {filteredAgents.length === 0 ? (
               <div className="text-center py-12">
-                <Bot size={40} className="text-slate-600 mx-auto mb-3" />
-                <p className="text-slate-500">
+                <Bot size={40} className="text-[color:var(--text-muted)] mx-auto mb-3" />
+                <p className="text-[color:var(--text-muted)]">
                   {searchQuery ? 'No agents found matching your search' : 'No agents available'}
                 </p>
               </div>
@@ -664,33 +664,33 @@ const AgentOrbitalLanding = () => {
                   return (
                     <div
                       key={agent.id}
-                      className="p-5 rounded-xl bg-slate-900/50 border border-slate-700/30 backdrop-blur-sm hover:border-violet-500/30 transition-all duration-300 group"
+                      className="p-5 rounded-xl bg-[color:var(--surface-1)] border border-[color:var(--border-subtle)] backdrop-blur-sm hover:border-violet-500/30 transition-all duration-300 group"
                     >
                       <div className="flex items-start gap-4">
-                        <div className="w-12 h-12 rounded-xl bg-slate-800 flex items-center justify-center group-hover:bg-violet-500/20 transition-colors">
-                          <Icon size={22} className="text-slate-400 group-hover:text-violet-400 transition-colors" />
+                        <div className="w-12 h-12 rounded-xl bg-[color:var(--surface-1)] flex items-center justify-center group-hover:bg-violet-500/20 transition-colors">
+                          <Icon size={22} className="text-[color:var(--text-muted)] group-hover:text-violet-400 transition-colors" />
                         </div>
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-2 mb-1">
-                            <h4 className="font-semibold text-white truncate">{agent.title}</h4>
+                            <h4 className="font-semibold text-[color:var(--foreground)] truncate">{agent.title}</h4>
                             <div className={`w-2 h-2 rounded-full flex-shrink-0 ${
                               agent.status === 'online' ? 'bg-green-500' : 
                               agent.status === 'busy' ? 'bg-yellow-500' : 'bg-red-500'
                             }`} />
                           </div>
-                          <p className="text-sm text-slate-400 line-clamp-2 mb-3">{agent.description}</p>
+                          <p className="text-sm text-[color:var(--text-muted)] line-clamp-2 mb-3">{agent.description}</p>
                           
                           {/* Mini Stats */}
                           <div className="flex items-center gap-4 text-xs">
-                            <div className="flex items-center gap-1 text-slate-500">
+                            <div className="flex items-center gap-1 text-[color:var(--text-muted)]">
                               <Star size={12} className="text-yellow-500" />
                               <span>{agent.reputation.toFixed(1)}</span>
                             </div>
-                            <div className="flex items-center gap-1 text-slate-500">
+                            <div className="flex items-center gap-1 text-[color:var(--text-muted)]">
                               <Activity size={12} className="text-green-500" />
                               <span>{agent.successRate}%</span>
                             </div>
-                            <div className="flex items-center gap-1 text-slate-500">
+                            <div className="flex items-center gap-1 text-[color:var(--text-muted)]">
                               <Zap size={12} className="text-violet-400" />
                               <span>{agent.totalRequests.toLocaleString()} jobs</span>
                             </div>

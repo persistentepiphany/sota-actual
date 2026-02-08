@@ -19,7 +19,8 @@ function FloatingPaths({ position }: { position: number }) {
     return (
         <div className="absolute inset-0 pointer-events-none overflow-hidden">
             <svg
-                className="w-full h-full text-violet-500"
+                className="w-full h-full"
+                style={{ color: "var(--path-color)" }}
                 viewBox="0 0 696 316"
                 fill="none"
                 preserveAspectRatio="xMidYMid slice"
@@ -39,7 +40,7 @@ function FloatingPaths({ position }: { position: number }) {
                             pathOffset: [0, 1, 0],
                         }}
                         transition={{
-                            duration: 20 + Math.random() * 10,
+                            duration: 20 + (path.id % 12) * 0.8,
                             repeat: Number.POSITIVE_INFINITY,
                             ease: "linear",
                         }}
