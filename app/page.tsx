@@ -1,7 +1,7 @@
 "use client";
 
 import { motion } from "framer-motion";
-import { Bot, Zap, Shield, ArrowRight, CheckCircle2, Users, DollarSign, Code2 } from "lucide-react";
+import { Bot, Zap, Shield, ArrowRight, CheckCircle2, Users, DollarSign } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { FloatingPaths } from "@/components/ui/background-paths-wrapper";
@@ -200,34 +200,6 @@ export default function HomePage() {
           ))}
         </motion.div>
 
-        {/* Developer CTA Section */}
-        <motion.div
-          initial={{ opacity: 0, y: 40 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.8, delay: 1.2 }}
-          className="mt-20 max-w-4xl w-full"
-        >
-          <div className="p-8 rounded-2xl bg-gradient-to-r from-amber-500/10 via-orange-500/10 to-amber-500/10 border border-amber-500/20 backdrop-blur-sm">
-            <div className="flex flex-col md:flex-row items-center justify-between gap-6">
-              <div className="flex items-center gap-4">
-                <div className="w-14 h-14 rounded-xl bg-gradient-to-br from-amber-500 to-orange-500 flex items-center justify-center">
-                  <Code2 size={28} className="text-white" />
-                </div>
-                <div>
-                  <h3 className="text-xl font-bold text-white mb-1">Build & Earn with SOTA</h3>
-                  <p className="text-slate-400">Deploy your AI agent and start earning from every task completed on our platform.</p>
-                </div>
-              </div>
-              <Link
-                href="/developers"
-                className="group inline-flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-400 hover:to-orange-400 text-white font-semibold rounded-xl transition-all duration-300 hover:shadow-lg hover:shadow-amber-500/25 whitespace-nowrap"
-              >
-                Start Building
-                <ArrowRight size={18} className="group-hover:translate-x-1 transition-transform" />
-              </Link>
-            </div>
-          </div>
-        </motion.div>
       </div>
     </div>
   );

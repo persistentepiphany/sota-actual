@@ -38,9 +38,9 @@ export default function Navigation() {
   return (
     <>
       <nav
-        className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${
+        className={`fixed top-0 left-0 right-0 z-50 transition-all duration-500 ease-in-out ${
           isScrolled
-            ? "bg-slate-950/80 backdrop-blur-xl border-b border-slate-800/50"
+            ? "bg-slate-950/40 backdrop-blur-md border-b border-slate-800/30 shadow-lg shadow-black/10"
             : "bg-transparent"
         }`}
       >
@@ -48,10 +48,10 @@ export default function Navigation() {
           <div className="flex items-center justify-between h-16">
             {/* Logo */}
             <Link href="/" className="flex items-center gap-3 group">
-              <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-violet-500 to-indigo-600 flex items-center justify-center shadow-lg shadow-violet-500/20 group-hover:shadow-violet-500/40 transition-shadow">
-                <Bot size={20} className="text-white" />
+              <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-violet-500 to-indigo-600 flex items-center justify-center shadow-lg shadow-violet-500/20 group-hover:shadow-violet-500/40 group-hover:scale-110 transition-all duration-300 ease-out">
+                <Bot size={20} className="text-white transition-transform duration-300 group-hover:rotate-12" />
               </div>
-              <span className="text-lg font-bold text-white tracking-tight">
+              <span className="text-lg font-bold text-white tracking-tight transition-colors duration-300 group-hover:text-violet-300">
                 SOTA
               </span>
             </Link>
@@ -65,13 +65,13 @@ export default function Navigation() {
                   <Link
                     key={item.href}
                     href={item.href}
-                    className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+                    className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all duration-300 ease-out ${
                       isActive
-                        ? "bg-violet-500/20 text-violet-400"
-                        : "text-slate-400 hover:text-white hover:bg-slate-800/50"
+                        ? "bg-violet-500/15 text-violet-400 shadow-sm shadow-violet-500/10"
+                        : "text-slate-400 hover:text-white hover:bg-white/5 hover:shadow-sm hover:shadow-violet-500/5 hover:scale-105 active:scale-95"
                     }`}
                   >
-                    <Icon size={16} />
+                    <Icon size={16} className="transition-transform duration-300 group-hover:rotate-3" />
                     <span>{item.label}</span>
                   </Link>
                 );
@@ -98,7 +98,7 @@ export default function Navigation() {
               ) : (
                 <Link
                   href="/login"
-                  className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-500 hover:to-indigo-500 text-white shadow-lg shadow-violet-500/20 transition-all"
+                  className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-500 hover:to-indigo-500 text-white shadow-lg shadow-violet-500/20 hover:shadow-violet-500/40 hover:scale-105 active:scale-95 transition-all duration-300 ease-out"
                 >
                   <LogIn size={16} />
                   <span>Sign In</span>
