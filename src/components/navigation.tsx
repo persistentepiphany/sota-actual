@@ -1,7 +1,7 @@
 "use client";
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import {
   Bot,
   Store,
@@ -13,8 +13,9 @@ import {
   LogOut,
 } from "lucide-react";
 import { useAuth } from "@/components/auth-provider";
+import { InteractiveNavMenu, type NavMenuItem } from "@/components/ui/interactive-nav-menu";
 
-const navItems = [
+const navItems: NavMenuItem[] = [
   { href: "/", label: "Home", icon: Home },
   { href: "/agents", label: "Agents", icon: Bot },
   { href: "/marketplace", label: "Marketplace", icon: Store },
@@ -23,9 +24,15 @@ const navItems = [
 
 export default function Navigation() {
   const pathname = usePathname();
+  const router = useRouter();
   const { user, loading, signOut } = useAuth();
   const [isScrolled, setIsScrolled] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+
+  const activeIndex = useMemo(() => {
+    const idx = navItems.findIndex((item) => item.href === pathname);
+    return idx >= 0 ? idx : -1;
+  }, [pathname]);
 
   useEffect(() => {
     const handleScroll = () => {
@@ -34,6 +41,10 @@ export default function Navigation() {
     window.addEventListener("scroll", handleScroll);
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
+
+  const handleNavClick = (index: number) => {
+    router.push(navItems[index].href);
+  };
 
   return (
     <>
@@ -56,26 +67,13 @@ export default function Navigation() {
               </span>
             </Link>
 
-            {/* Desktop Navigation */}
-            <div className="hidden md:flex items-center gap-1">
-              {navItems.map((item) => {
-                const isActive = pathname === item.href;
-                const Icon = item.icon;
-                return (
-                  <Link
-                    key={item.href}
-                    href={item.href}
-                    className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all duration-300 ease-out ${
-                      isActive
-                        ? "bg-violet-500/15 text-violet-400 shadow-sm shadow-violet-500/10"
-                        : "text-slate-400 hover:text-white hover:bg-white/5 hover:shadow-sm hover:shadow-violet-500/5 hover:scale-105 active:scale-95"
-                    }`}
-                  >
-                    <Icon size={16} className="transition-transform duration-300 group-hover:rotate-3" />
-                    <span>{item.label}</span>
-                  </Link>
-                );
-              })}
+            {/* Desktop Navigation — Interactive Menu */}
+            <div className="hidden md:flex items-center">
+              <InteractiveNavMenu
+                items={navItems}
+                activeIndex={activeIndex}
+                onItemClick={handleNavClick}
+              />
             </div>
 
             {/* Auth Buttons (Desktop) */}
