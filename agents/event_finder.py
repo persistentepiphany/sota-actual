@@ -85,87 +85,252 @@ def strip_past(results: List[Dict]) -> List[Dict]:
 
 # ─── Scrapers ────────────────────────────────────────────────
 
-def scrape_devpost(location: str = "", topics: str = "", num: int = 10) -> List[Dict]:
-    """Scrape live hackathons from Devpost using their JSON API."""
-    results = []
+def scrape_devpost(location="", num=10) -> List[Dict]:
+    """Scrape live hackathons from Devpost using their JSON API"""
+    location_matches = []
+    all_hackathons = []
     try:
-        print("  Searching Devpost...")
-        headers = {**HEADERS, "Accept": "application/json", "X-Requested-With": "XMLHttpRequest"}
-        url = "https://devpost.com/api/hackathons"
-        params = {"status[]": "open", "order_by": "recently-added"}
+        print("🔍 Scraping Devpost...")
+        headers = {
+            'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+            'Accept': 'application/json, text/javascript, */*; q=0.01',
+            'X-Requested-With': 'XMLHttpRequest'
+        }
 
-        response = requests.get(url, headers=headers, params=params, timeout=15)
-        if response.status_code != 200:
-            return results
+        # Try location-specific search first, then fallback to all open
+        urls_to_try = []
+        if location:
+            urls_to_try.append(("https://devpost.com/api/hackathons", {
+                'status[]': 'open', 'order_by': 'recently-added',
+                'search': location,
+            }))
+        urls_to_try.append(("https://devpost.com/api/hackathons", {
+            'status[]': 'open', 'order_by': 'recently-added',
+        }))
 
-        data = response.json()
-        for hack in data.get("hackathons", [])[:num * 2]:
-            title = hack.get("title", "").strip()
-            if not title:
-                continue
+        for url, params in urls_to_try:
+            response = requests.get(url, headers=headers, params=params, timeout=15)
 
-            link = hack.get("url", "") or hack.get("display_url", "")
-            if link and not link.startswith("http"):
-                link = f"https://devpost.com{link}"
+            if response.status_code == 200:
+                try:
+                    data = response.json()
+                    hackathons = data.get('hackathons', [])
 
-            loc_text = hack.get("location", "Online") or "Online"
-            date_text = hack.get("submission_period_dates", "") or "Check website"
-            desc_text = (hack.get("tagline", "") or hack.get("description", ""))[:200]
-            is_virtual = loc_text.lower() in ("online", "tbd", "remote", "virtual")
+                    for hack in hackathons[:num * 3]:
+                        try:
+                            title = hack.get('title', '').strip()
+                            if not title:
+                                continue
 
-            # Location filter
-            if location and location.lower() not in ("anywhere", ""):
-                if location.lower() not in loc_text.lower() and location.lower() not in title.lower():
-                    continue
+                            link = hack.get('url', '') or hack.get('display_url', '')
+                            if link and not link.startswith('http'):
+                                link = f"https://devpost.com{link}"
 
-            # Topic filter
-            if topics:
-                combined = (title + " " + desc_text).lower()
-                if not any(t.strip().lower() in combined for t in topics.split(",")):
-                    continue
+                            # Extract location
+                            loc_text = hack.get('location', 'Online')
+                            if not loc_text or loc_text.lower() in ['tbd', 'remote']:
+                                loc_text = 'Online'
 
-            results.append({
-                "name": title,
-                "platform": "Devpost",
-                "url": link,
-                "location": loc_text,
-                "date": date_text,
-                "description": desc_text or "Hackathon on Devpost",
-                "is_virtual": is_virtual,
-            })
+                            # Extract dates
+                            submission_period = hack.get('submission_period_dates', '')
+                            date_text = submission_period if submission_period else "Check website for dates"
 
-        print(f"    Found {len(results)} result(s) on Devpost")
+                            # Extract description
+                            desc_text = hack.get('tagline', '') or hack.get('description', '')
+                            if desc_text:
+                                desc_text = desc_text[:200]
+
+                            entry = {
+                                "name": title,
+                                "platform": "Devpost",
+                                "url": link,
+                                "location": loc_text,
+                                "date": date_text,
+                                "description": desc_text or "Hackathon on Devpost - visit URL for details"
+                            }
+
+                            # Soft-match: prioritize location matches but keep all
+                            if location and (
+                                location.lower() in loc_text.lower()
+                                or location.lower() in title.lower()
+                                or location.lower() in (desc_text or "").lower()
+                            ):
+                                location_matches.append(entry)
+                            else:
+                                all_hackathons.append(entry)
+
+                        except Exception:
+                            continue
+                except json.JSONDecodeError:
+                    pass
+
+            if location_matches:
+                break  # Got location-specific results, no need to try generic
+
+        # Return location matches first, then pad with general hackathons
+        results = location_matches[:num]
+        if len(results) < num:
+            # Deduplicate by title
+            seen = {r["name"].lower() for r in results}
+            for h in all_hackathons:
+                if h["name"].lower() not in seen:
+                    results.append(h)
+                    seen.add(h["name"].lower())
+                if len(results) >= num:
+                    break
+
+        print(f"   ✓ Found {len(results)} hackathon(s) on Devpost ({len(location_matches)} location-matched)")
     except Exception as e:
-        print(f"    Devpost error: {e}")
+        print(f"   ⚠️  Devpost error: {e}")
+
     return results
 
 
-def scrape_mlh(location: str = "", topics: str = "", num: int = 10) -> List[Dict]:
-    """Scrape live hackathons from Major League Hacking."""
-    results = []
+def scrape_mlh(location="", num=10) -> List[Dict]:
+    """Scrape live hackathons from Major League Hacking (MLH)"""
+    location_matches = []
+    all_hackathons = []
     try:
-        print("  Searching MLH...")
+        print("🔍 Scraping MLH...")
+        headers = {
+            'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+        }
+
+        # MLH events page - try both 2026 and 2025
         for year in ["2026", "2025"]:
             url = f"https://mlh.io/seasons/{year}/events"
             try:
-                response = requests.get(url, headers=HEADERS, timeout=15)
-                if response.status_code != 200:
-                    continue
+                response = requests.get(url, headers=headers, timeout=15)
 
-                soup = BeautifulSoup(response.content, "html.parser")
-                events = (
-                    soup.find_all("div", class_="event")
-                    or soup.find_all("div", class_=re.compile(r"event.*card", re.I))
-                    or soup.select(".event-wrapper .event")
-                    or soup.find_all("a", href=re.compile(r"/event/"))
-                )
+                if response.status_code == 200:
+                    soup = BeautifulSoup(response.content, 'html.parser')
 
-                for event in events[:num * 2]:
-                    title_elem = (
-                        event.find("h3") or event.find("h2")
-                        or event.find("a", href=True)
-                        or event.find(class_=re.compile(r".*title.*", re.I))
+                    # Try multiple selectors (MLH changes their HTML regularly)
+                    events = (
+                        soup.find_all('div', class_='event') or
+                        soup.find_all('div', class_=re.compile(r'event.*card', re.I)) or
+                        soup.select('.event-wrapper .event') or
+                        soup.find_all('div', class_=re.compile(r'event', re.I)) or
+                        soup.find_all('a', href=re.compile(r'/event/'))
                     )
+
+                    for event in events[:num * 3]:
+                        try:
+                            # Find title
+                            title_elem = (
+                                event.find('h3') or
+                                event.find('h2') or
+                                event.find('a', href=True) or
+                                event.find(class_=re.compile(r'.*title.*|.*name.*', re.I))
+                            )
+                            if not title_elem:
+                                continue
+
+                            title = title_elem.get_text(strip=True)
+                            if not title or len(title) < 3:
+                                continue
+
+                            # Extract link
+                            link = ""
+                            link_elem = event.find('a', href=True) if event.name != 'a' else event
+                            if link_elem and 'href' in link_elem.attrs:
+                                link = link_elem['href']
+                                if link and not link.startswith('http'):
+                                    link = f"https://mlh.io{link}"
+
+                            # Extract dates
+                            date_text = ""
+                            date_elem = event.find('time') or event.find(class_=re.compile(r'.*date.*', re.I))
+                            if date_elem:
+                                date_text = date_elem.get_text(strip=True)
+                            if not date_text:
+                                # Try extracting from full text
+                                text = event.get_text()
+                                date_match = re.search(
+                                    r'(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]*\.?\s+\d{1,2}',
+                                    text, re.I
+                                )
+                                if date_match:
+                                    date_text = date_match.group()
+
+                            # Extract location
+                            loc_text = "Online"
+                            loc_elem = event.find(class_=re.compile(r'.*location.*|.*city.*|.*venue.*', re.I))
+                            if loc_elem:
+                                loc_text = loc_elem.get_text(strip=True)
+                            elif "hybrid" in event.get_text().lower():
+                                loc_text = "Hybrid"
+
+                            entry = {
+                                "name": title,
+                                "platform": "MLH",
+                                "url": link or url,
+                                "location": loc_text,
+                                "date": date_text or "Check website for dates",
+                                "description": "Official MLH hackathon"
+                            }
+
+                            # Soft location match
+                            if location and (
+                                location.lower() in loc_text.lower()
+                                or location.lower() in title.lower()
+                            ):
+                                location_matches.append(entry)
+                            else:
+                                all_hackathons.append(entry)
+
+                        except Exception:
+                            continue
+
+                    if location_matches or all_hackathons:
+                        break
+            except Exception:
+                continue
+
+        # Return location matches first, then pad with general
+        results = location_matches[:num]
+        if len(results) < num:
+            seen = {r["name"].lower() for r in results}
+            for h in all_hackathons:
+                if h["name"].lower() not in seen:
+                    results.append(h)
+                    seen.add(h["name"].lower())
+                if len(results) >= num:
+                    break
+
+        print(f"   ✓ Found {len(results)} hackathon(s) on MLH ({len(location_matches)} location-matched)")
+    except Exception as e:
+        print(f"   ⚠️  MLH error: {e}")
+
+    return results
+
+
+def scrape_hackathoncom(location="", num=10) -> List[Dict]:
+    """Scrape hackathons from Hackathon.com"""
+    results = []
+    try:
+        print("🔍 Scraping Hackathon.com...")
+        headers = {
+            'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+        }
+
+        url = "https://www.hackathon.com/events"
+        response = requests.get(url, headers=headers, timeout=15)
+
+        if response.status_code == 200:
+            soup = BeautifulSoup(response.content, 'html.parser')
+
+            # Try multiple selectors
+            events = (
+                soup.find_all('div', class_=['event-card', 'event-item', 'hackathon-card']) or
+                soup.find_all('article', class_=re.compile(r'.*event.*|.*hackathon.*', re.I)) or
+                soup.select('.events-list > div') or
+                soup.find_all('div', class_=re.compile(r'.*event.*', re.I))[:num]
+            )
+
+            for event in events[:num]:
+                try:
+                    title_elem = event.find(['h1', 'h2', 'h3', 'h4']) or event.find('a', class_=re.compile(r'.*title.*', re.I))
                     if not title_elem:
                         continue
                     title = title_elem.get_text(strip=True)
@@ -173,128 +338,44 @@ def scrape_mlh(location: str = "", topics: str = "", num: int = 10) -> List[Dict
                         continue
 
                     link = ""
-                    link_elem = event.find("a", href=True) if event.name != "a" else event
+                    link_elem = event.find("a", href=True)
                     if link_elem and "href" in link_elem.attrs:
                         link = link_elem["href"]
                         if link and not link.startswith("http"):
-                            link = f"https://mlh.io{link}"
+                            link = f"https://www.hackathon.com{link}"
 
+                    text = event.get_text()
                     date_text = ""
-                    date_elem = event.find("time") or event.find(class_=re.compile(r".*date.*", re.I))
-                    if date_elem:
-                        date_text = date_elem.get_text(strip=True)
+                    for pattern in [
+                        r"\b(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]*\.?\s+\d{1,2}(?:\s*-\s*\d{1,2})?,?\s+\d{4}\b",
+                        r"\b\d{1,2}/\d{1,2}/\d{4}\b",
+                        r"\b\d{4}-\d{2}-\d{2}\b",
+                    ]:
+                        m = re.search(pattern, text, re.I)
+                        if m:
+                            date_text = m.group()
+                            break
 
                     loc_text = "Online"
-                    loc_elem = event.find(class_=re.compile(r".*location.*", re.I))
-                    if loc_elem:
-                        loc_text = loc_elem.get_text(strip=True)
-
-                    is_virtual = "digital" in loc_text.lower() or "online" in loc_text.lower()
-
-                    if location and location.lower() not in ("anywhere", ""):
-                        if location.lower() not in loc_text.lower() and location.lower() not in title.lower():
-                            continue
-
-                    if topics:
-                        combined = (title + " " + loc_text).lower()
-                        if not any(t.strip().lower() in combined for t in topics.split(",")):
-                            continue
+                    is_virtual = "online" in text.lower() or "virtual" in text.lower()
+                    if not is_virtual and location:
+                        loc_text = location
 
                     results.append({
                         "name": title,
-                        "platform": "MLH",
+                        "platform": "Hackathon.com",
                         "url": link or url,
                         "location": loc_text,
                         "date": date_text or "Check website",
-                        "description": "Official MLH hackathon",
-                        "is_virtual": is_virtual,
+                        "description": "Community hackathon",
                     })
 
-                if results:
-                    break
-            except Exception:
-                continue
-
-        print(f"    Found {len(results)} result(s) on MLH")
-    except Exception as e:
-        print(f"    MLH error: {e}")
-    return results
-
-
-def scrape_hackathoncom(location: str = "", topics: str = "", num: int = 10) -> List[Dict]:
-    """Scrape hackathons from Hackathon.com."""
-    results = []
-    try:
-        print("  Searching Hackathon.com...")
-        url = "https://www.hackathon.com/events"
-        response = requests.get(url, headers=HEADERS, timeout=15)
-        if response.status_code != 200:
-            return results
-
-        soup = BeautifulSoup(response.content, "html.parser")
-        events = (
-            soup.find_all("div", class_=["event-card", "event-item", "hackathon-card"])
-            or soup.find_all("article", class_=re.compile(r".*event.*|.*hackathon.*", re.I))
-            or soup.select(".events-list > div")
-            or soup.find_all("div", class_=re.compile(r".*event.*", re.I))[:num * 2]
-        )
-
-        for event in events[:num * 2]:
-            title_elem = event.find(["h1", "h2", "h3", "h4"]) or event.find(
-                "a", class_=re.compile(r".*title.*", re.I)
-            )
-            if not title_elem:
-                continue
-            title = title_elem.get_text(strip=True)
-            if not title or len(title) < 3:
-                continue
-
-            link = ""
-            link_elem = event.find("a", href=True)
-            if link_elem and "href" in link_elem.attrs:
-                link = link_elem["href"]
-                if link and not link.startswith("http"):
-                    link = f"https://www.hackathon.com{link}"
-
-            text = event.get_text()
-            date_text = ""
-            for pattern in [
-                r"\b(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]*\.?\s+\d{1,2}(?:\s*-\s*\d{1,2})?,?\s+\d{4}\b",
-                r"\b\d{1,2}/\d{1,2}/\d{4}\b",
-                r"\b\d{4}-\d{2}-\d{2}\b",
-            ]:
-                m = re.search(pattern, text, re.I)
-                if m:
-                    date_text = m.group()
-                    break
-
-            loc_text = "Online"
-            is_virtual = "online" in text.lower() or "virtual" in text.lower()
-            if not is_virtual and location:
-                loc_text = location
-
-            if location and location.lower() not in ("anywhere", ""):
-                if location.lower() not in loc_text.lower() and location.lower() not in title.lower():
+                except Exception:
                     continue
 
-            if topics:
-                combined = (title + " " + text[:300]).lower()
-                if not any(t.strip().lower() in combined for t in topics.split(",")):
-                    continue
-
-            results.append({
-                "name": title,
-                "platform": "Hackathon.com",
-                "url": link or url,
-                "location": loc_text,
-                "date": date_text or "Check website",
-                "description": "Community hackathon",
-                "is_virtual": is_virtual,
-            })
-
-        print(f"    Found {len(results)} result(s) on Hackathon.com")
+        print(f"   ✓ Found {len(results)} hackathon(s) on Hackathon.com")
     except Exception as e:
-        print(f"    Hackathon.com error: {e}")
+        print(f"   ⚠️  Hackathon.com error: {e}")
     return results
 
 
@@ -308,7 +389,6 @@ CURATED_SOURCES = [
         "location": "Online & Worldwide",
         "date": "Year-round",
         "description": "Browse hundreds of active hackathons on Devpost.",
-        "is_virtual": True,
     },
     {
         "name": "MLH Official Hackathon Season 2025-2026",
@@ -317,7 +397,6 @@ CURATED_SOURCES = [
         "location": "Online & Worldwide",
         "date": "Sep 2025 - Aug 2026",
         "description": "Major League Hacking hosts 200+ official student hackathons annually.",
-        "is_virtual": False,
     },
     {
         "name": "ETHGlobal (Web3/Blockchain)",
@@ -326,7 +405,6 @@ CURATED_SOURCES = [
         "location": "Global cities + Online",
         "date": "Monthly",
         "description": "Premier Ethereum and Web3 hackathons worldwide. $100K+ in prizes.",
-        "is_virtual": False,
     },
     {
         "name": "HackerEarth Challenges",
@@ -335,7 +413,6 @@ CURATED_SOURCES = [
         "location": "Online",
         "date": "Weekly",
         "description": "Online coding challenges and hackathons from companies hiring developers.",
-        "is_virtual": True,
     },
 ]
 
@@ -343,11 +420,6 @@ CURATED_SOURCES = [
 def get_fallback_hackathons(location: str = "", mode: str = "both", num: int = 5) -> List[Dict]:
     """Return curated list of hackathon platforms, filtered by mode."""
     out = CURATED_SOURCES[:]
-    if mode == "online":
-        out = [h for h in out if h["is_virtual"]]
-    elif mode == "in-person":
-        out = [h for h in out if not h["is_virtual"]]
-
     if location and location.lower() not in ("anywhere", ""):
         filtered = [
             h for h in out
@@ -377,18 +449,24 @@ def search_hackathons(
     print(f"  Mode:     {mode}")
     print()
 
-    all_results.extend(scrape_devpost(location, topics, num))
-    all_results.extend(scrape_mlh(location, topics, num))
-    all_results.extend(scrape_hackathoncom(location, topics, num))
-
-    # Filter by mode
-    if mode == "online":
-        all_results = [r for r in all_results if r.get("is_virtual")]
-    elif mode == "in-person":
-        all_results = [r for r in all_results if not r.get("is_virtual")]
+    all_results.extend(scrape_devpost(location, num))
+    all_results.extend(scrape_mlh(location, num))
+    all_results.extend(scrape_hackathoncom(location, num))
 
     # Strip past events
     all_results = strip_past(all_results)
+
+    # Topic filtering (post-hoc since scrapers don't take topics)
+    if topics:
+        topic_list = [t.strip().lower() for t in topics.split(",")]
+        filtered = []
+        for r in all_results:
+            combined = (r.get("name", "") + " " + r.get("description", "")).lower()
+            if any(t in combined for t in topic_list):
+                filtered.append(r)
+        # If topic filtering removes everything, keep originals
+        if filtered:
+            all_results = filtered
 
     # Add curated sources if few live results
     if len(all_results) < 3:
@@ -490,8 +568,7 @@ def main():
     print("=" * 70 + "\n")
 
     for i, evt in enumerate(results, 1):
-        mode_tag = "[ONLINE]" if evt.get("is_virtual") else "[IN-PERSON]"
-        print(f"  {i}. {evt['name']}  {mode_tag}")
+        print(f"  {i}. {evt['name']}")
         print(f"     Platform: {evt['platform']}")
         print(f"     Location: {evt['location']}")
         print(f"     Date:     {evt['date']}")
