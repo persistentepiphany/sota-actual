@@ -37,6 +37,7 @@ class FlareContractAddresses:
     flare_order_book: str = ""
     flare_escrow: str = ""
     agent_registry: str = ""
+    usdc: str = ""
 
 
 @dataclass

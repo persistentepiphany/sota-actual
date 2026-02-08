@@ -273,11 +273,12 @@ class SlotFillingTool(BaseTool):
             if candidate_tools is None:
                 candidate_tools = [
                     {"name": "hackathon_registration", "required_params": ["location", "theme", "date_range", "online_or_in_person"]},
-                    {"name": "hotel_booking", "required_params": ["location", "dates", "guests"]},
-                    {"name": "restaurant_booking", "required_params": ["location", "cuisine", "date", "guests"]},
+                    {"name": "hotel_booking", "required_params": ["phone_number", "location", "check_in", "check_out", "guests", "user_name"]},
+                    {"name": "restaurant_booking", "required_params": ["phone_number", "location", "cuisine", "date", "time", "guests", "user_name"]},
                     {"name": "call_verification", "required_params": ["phone_number", "purpose"]},
                     {"name": "web_scraping", "required_params": ["url", "data_points"]},
                     {"name": "data_analysis", "required_params": ["data_source", "analysis_type"]},
+                    {"name": "market_prediction", "required_params": ["asset", "horizon_minutes", "risk_profile"]},
                 ]
             
             current_slots = current_slots or {}
@@ -516,7 +517,7 @@ class PostJobTool(BaseTool):
                     "on_chain_job_id": on_chain_job_id,
                     "posted_at": time.time(),
                 },
-                bid_window_seconds=30,  # 30s for in-process workers
+                bid_window_seconds=15,  # 15s for in-process workers
             )
 
             print(f"📢 Job {job_id_str} posted — collecting bids for {listing.bid_window_seconds}s…")

@@ -147,14 +147,174 @@ class CallerAgent(AutoBidderMixin, BaseArchiveAgent):
 
     async def execute_job(self, job: ActiveJob) -> dict:
         """
-        Caller flow does not need a local LLM step.
-        The outbound call (with job payload) is initiated via ElevenLabs already.
+        Execute a booking/verification call.
+
+        Tries ElevenLabs ConvAI outbound call first (conversational AI),
+        falls back to Twilio TwiML (text-to-speech script).
         """
-        logger.info(f"📞 Skipping local LLM execution for job #{job.job_id} (call already initiated via ElevenLabs)")
+        params = job.params or {}
+        phone_number = params.get("phone_number", "")
+        purpose = params.get("purpose", job.description or "booking")
+
+        # Determine booking type from job metadata or description
+        tool_tag = (job.metadata_uri or "").lower() if hasattr(job, "metadata_uri") else ""
+        desc_lower = (job.description or "").lower()
+        if "hotel" in tool_tag or "hotel" in desc_lower:
+            booking_type = "hotel"
+        elif "restaurant" in tool_tag or "restaurant" in desc_lower:
+            booking_type = "restaurant"
+        else:
+            booking_type = "restaurant"
+
+        # Booking details
+        location = params.get("location") or params.get("city") or ""
+        date = params.get("date") or params.get("check_in") or "tomorrow"
+        check_out = params.get("check_out") or ""
+        time_slot = params.get("time") or ("3pm" if booking_type == "hotel" else "8pm")
+        guests = params.get("guests") or params.get("num_of_people") or 2
+        cuisine = params.get("cuisine") or ""
+        user_name = params.get("user_name") or "SOTA Guest"
+        special_requests = params.get("special_requests") or ""
+        if booking_type == "hotel" and check_out:
+            special_requests = f"Check-out: {check_out}. {special_requests}".strip()
+
+        if not phone_number:
+            return {
+                "success": False,
+                "error": "No phone_number provided in job parameters",
+                "chat_summary": "I couldn't make the call because no phone number was provided.",
+            }
+
+        logger.info("📞 Executing call job #%s → %s (%s)", job.job_id, phone_number, purpose)
+
+        # ── Try ElevenLabs ConvAI outbound call ──────────────
+        from .tools import MakeElevenLabsCallTool, MakePhoneCallTool, GetCallStatusTool
+        import json as _json
+
+        el_api_key = os.getenv("ELEVENLABS_API_KEY")
+        el_phone_id = os.getenv("ELEVENLABS_PHONE_ID")
+        el_agent_id = os.getenv("ELEVENLABS_CALLER_AGENT_ID") or os.getenv("ELEVENLABS_AGENT_ID")
+
+        if el_api_key and el_phone_id and el_agent_id:
+            logger.info("📞 Using ElevenLabs ConvAI for outbound call")
+            tool = MakeElevenLabsCallTool()
+            raw = await tool.execute(
+                to_number=phone_number,
+                user_name=user_name,
+                time=time_slot,
+                date=str(date),
+                num_of_people=int(guests),
+                booking_type=booking_type,
+                cuisine=cuisine,
+                location=location,
+                special_requests=special_requests,
+            )
+            result = _json.loads(raw)
+            if result.get("success"):
+                return {
+                    "success": True,
+                    "method": "elevenlabs_convai",
+                    "phone_number": phone_number,
+                    "call_data": result,
+                    "chat_summary": (
+                        f"I've placed a call to {phone_number} to "
+                        f"{'book a table' if 'restaurant' in purpose.lower() else 'make a reservation'} "
+                        f"for {guests} guests on {date} at {time_slot}. "
+                        f"The AI assistant is handling the conversation now."
+                    ),
+                }
+            logger.warning("ElevenLabs call failed, falling back to Twilio: %s", result.get("error"))
+
+        # ── Fallback: Twilio TwiML call ──────────────────────
+        logger.info("📞 Using Twilio TwiML for outbound call")
+        if booking_type == "hotel":
+            script = (
+                f"Hello, I'm calling on behalf of {user_name} through a concierge service. "
+                f"I'd like to book a room for {guests} {'guests' if int(guests) > 1 else 'guest'}, "
+                f"checking in on {date}. "
+            )
+            if check_out:
+                script += f"Check-out would be {check_out}. "
+            if location:
+                script += f"Preferably in the {location} area. "
+        else:
+            script = (
+                f"Hello, I'm calling on behalf of {user_name} through a concierge service. "
+                f"I'd like to book a table for {guests} {'people' if int(guests) > 1 else 'person'} "
+                f"on {date} at {time_slot}. "
+            )
+            if cuisine:
+                script += f"We're interested in {cuisine} cuisine. "
+            if location:
+                script += f"Location preference: {location}. "
+        script += "Could you confirm availability? Thank you."
+
+        call_tool = MakePhoneCallTool()
+        raw = await call_tool.execute(
+            phone_number=phone_number,
+            script=script,
+            gather_input=False,
+            record=True,
+        )
+        call_result = _json.loads(raw)
+
+        if not call_result.get("success"):
+            return {
+                "success": False,
+                "error": call_result.get("error", "Call failed"),
+                "chat_summary": f"I tried to call {phone_number} but the call couldn't be connected: {call_result.get('error', 'unknown error')}",
+            }
+
+        call_sid = call_result.get("call_sid")
+
+        # Poll for call completion (up to 90 seconds)
+        status_tool = GetCallStatusTool()
+        final_status = "initiated"
+        call_duration = None
+        recording_urls = []
+
+        for _ in range(18):  # 18 * 5s = 90s max
+            await asyncio.sleep(5)
+            try:
+                status_raw = await status_tool.execute(call_sid)
+                status_data = _json.loads(status_raw)
+                if status_data.get("success"):
+                    final_status = status_data.get("status", "unknown")
+                    call_duration = status_data.get("duration")
+                    recording_urls = status_data.get("recording_urls", [])
+                    if final_status in ("completed", "failed", "busy", "no-answer", "canceled"):
+                        break
+            except Exception:
+                pass
+
+        logger.info("📞 Call %s finished: status=%s duration=%s", call_sid, final_status, call_duration)
+
         return {
-            "success": True,
-            "result": "Call initiated via ElevenLabs; no local execution required",
-            "job_id": job.job_id
+            "success": final_status == "completed",
+            "method": "twilio_twiml",
+            "phone_number": phone_number,
+            "call_sid": call_sid,
+            "status": final_status,
+            "duration_seconds": call_duration,
+            "recording_urls": recording_urls,
+            "booking_details": {
+                "type": booking_type,
+                "guests": guests,
+                "date": date,
+                "time": time_slot,
+                "name": user_name,
+                "location": location,
+                "cuisine": cuisine,
+            },
+            "chat_summary": (
+                f"I called {phone_number} to make a {booking_type} reservation "
+                f"for {guests} guests on {date} at {time_slot} under {user_name}. "
+                f"Call status: {final_status}"
+                + (f", duration: {call_duration}s" if call_duration else "")
+                + ". "
+                + ("The reservation request has been communicated." if final_status == "completed"
+                   else f"The call ended with status: {final_status}. You may want to try again.")
+            ),
         }
 
 

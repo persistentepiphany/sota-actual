@@ -67,7 +67,7 @@ from agents.src.caller.agent import CallerAgent
 
 # Flare Predictor — market signals using FTSO data
 try:
-    from src.flare_predictor.agent import FlarePredictor, create_flare_predictor_agent
+    from agents.src.flare_predictor.agent import FlarePredictor, create_flare_predictor_agent
 except ImportError:
     FlarePredictor = None  # type: ignore
     create_flare_predictor_agent = None
@@ -554,6 +554,58 @@ async def execute_job_after_escrow(job_id: str):
 
         if worker_type == "hackathon":
             formatted = strip_markdown(format_hackathon_results(exec_result))
+        elif worker_type == "flare_predictor" and isinstance(exec_result, dict):
+            signal = exec_result.get("signal", "HOLD")
+            confidence = exec_result.get("confidence", 0)
+            asset = exec_result.get("asset", "")
+            chat_summary = exec_result.get("chat_summary", "")
+            reasoning = exec_result.get("reasoning_detailed", "")
+            if isinstance(reasoning, list):
+                reasoning = " ".join(reasoning)
+            entry = exec_result.get("entry_zone", {})
+            stop = exec_result.get("stop_loss")
+            tp = exec_result.get("take_profit")
+
+            parts = []
+            if chat_summary:
+                parts.append(chat_summary)
+            parts.append(f"\nSignal: {signal} ({confidence:.0%} confidence)")
+            if entry:
+                parts.append(f"Entry zone: ${entry.get('low', 0):.4f} - ${entry.get('high', 0):.4f}")
+            if stop:
+                parts.append(f"Stop loss: ${stop:.4f}")
+            if tp:
+                parts.append(f"Take profit: ${tp:.4f}")
+            if reasoning:
+                parts.append(f"\n{reasoning}")
+            formatted = "\n".join(parts)
+        elif worker_type == "caller" and isinstance(exec_result, dict):
+            chat_summary = exec_result.get("chat_summary", "")
+            booking = exec_result.get("booking_details", {})
+            status = exec_result.get("status", "unknown")
+            duration = exec_result.get("duration_seconds")
+            phone = exec_result.get("phone_number", "")
+
+            parts = []
+            if chat_summary:
+                parts.append(chat_summary)
+            else:
+                parts.append(f"Call to {phone} — status: {status}")
+            if booking:
+                details = []
+                if booking.get("type"):
+                    details.append(f"Type: {booking['type']}")
+                if booking.get("guests"):
+                    details.append(f"Guests: {booking['guests']}")
+                if booking.get("date"):
+                    details.append(f"Date: {booking['date']}")
+                if booking.get("time"):
+                    details.append(f"Time: {booking['time']}")
+                if booking.get("name"):
+                    details.append(f"Name: {booking['name']}")
+                if details:
+                    parts.append("\nBooking details: " + ", ".join(details))
+            formatted = "\n".join(parts)
         elif isinstance(exec_result, dict):
             # Generic result formatting for non-hackathon workers
             raw_text = exec_result.get("result") or exec_result.get("chat_summary") or ""
@@ -934,11 +986,12 @@ async def predict_market_signal(req: PredictorRequest):
                 "max_loss_percent": req.max_loss_percent or 2.0,
             }
         
-        # 5. Generate signal via LLM
+        # 5. Generate signal via LLM (extract numeric price for calculations)
+        price_numeric = current_price["price"] if isinstance(current_price, dict) else current_price
         signal_input = {
             "asset": req.asset,
             "horizon_minutes": req.horizon_minutes,
-            "current_price": current_price,
+            "current_price": price_numeric,
             "ftso_time_series": time_series,
             "derived_features": derived,
             "external_indicators": external,
