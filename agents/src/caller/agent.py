@@ -156,13 +156,27 @@ class CallerAgent(AutoBidderMixin, BaseArchiveAgent):
         phone_number = params.get("phone_number", "")
         purpose = params.get("purpose", job.description or "booking")
 
+        # Determine booking type from job metadata or description
+        tool_tag = (job.metadata_uri or "").lower() if hasattr(job, "metadata_uri") else ""
+        desc_lower = (job.description or "").lower()
+        if "hotel" in tool_tag or "hotel" in desc_lower:
+            booking_type = "hotel"
+        elif "restaurant" in tool_tag or "restaurant" in desc_lower:
+            booking_type = "restaurant"
+        else:
+            booking_type = "restaurant"
+
         # Booking details
         location = params.get("location") or params.get("city") or ""
         date = params.get("date") or params.get("check_in") or "tomorrow"
-        time_slot = params.get("time") or "8pm"
+        check_out = params.get("check_out") or ""
+        time_slot = params.get("time") or ("3pm" if booking_type == "hotel" else "8pm")
         guests = params.get("guests") or params.get("num_of_people") or 2
         cuisine = params.get("cuisine") or ""
         user_name = params.get("user_name") or "SOTA Guest"
+        special_requests = params.get("special_requests") or ""
+        if booking_type == "hotel" and check_out:
+            special_requests = f"Check-out: {check_out}. {special_requests}".strip()
 
         if not phone_number:
             return {
@@ -193,6 +207,7 @@ class CallerAgent(AutoBidderMixin, BaseArchiveAgent):
                 booking_type=booking_type,
                 cuisine=cuisine,
                 location=location,
+                special_requests=special_requests,
             )
             result = _json.loads(raw)
             if result.get("success"):
@@ -212,22 +227,27 @@ class CallerAgent(AutoBidderMixin, BaseArchiveAgent):
 
         # ── Fallback: Twilio TwiML call ──────────────────────
         logger.info("📞 Using Twilio TwiML for outbound call")
-        booking_type = "restaurant" if "restaurant" in purpose.lower() else "hotel" if "hotel" in purpose.lower() else "booking"
-        script = (
-            f"Hello, this is an automated call from SOTA concierge service. "
-            f"I'm calling to make a {booking_type} reservation. "
-            f"{'We would like a table' if booking_type == 'restaurant' else 'We would like to book a room'} "
-            f"for {guests} {'people' if int(guests) > 1 else 'person'} "
-            f"on {date} at {time_slot}. "
-        )
-        if cuisine:
-            script += f"We're interested in {cuisine} cuisine. "
-        if location:
-            script += f"Location preference: {location}. "
-        script += (
-            f"The reservation would be under the name {user_name}. "
-            f"Please confirm availability. Thank you!"
-        )
+        if booking_type == "hotel":
+            script = (
+                f"Hello, I'm calling on behalf of {user_name} through a concierge service. "
+                f"I'd like to book a room for {guests} {'guests' if int(guests) > 1 else 'guest'}, "
+                f"checking in on {date}. "
+            )
+            if check_out:
+                script += f"Check-out would be {check_out}. "
+            if location:
+                script += f"Preferably in the {location} area. "
+        else:
+            script = (
+                f"Hello, I'm calling on behalf of {user_name} through a concierge service. "
+                f"I'd like to book a table for {guests} {'people' if int(guests) > 1 else 'person'} "
+                f"on {date} at {time_slot}. "
+            )
+            if cuisine:
+                script += f"We're interested in {cuisine} cuisine. "
+            if location:
+                script += f"Location preference: {location}. "
+        script += "Could you confirm availability? Thank you."
 
         call_tool = MakePhoneCallTool()
         raw = await call_tool.execute(
