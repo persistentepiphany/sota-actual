@@ -273,8 +273,8 @@ class SlotFillingTool(BaseTool):
             if candidate_tools is None:
                 candidate_tools = [
                     {"name": "hackathon_registration", "required_params": ["location", "theme", "date_range", "online_or_in_person"]},
-                    {"name": "hotel_booking", "required_params": ["phone_number", "location", "check_in", "check_out", "guests", "user_name"]},
-                    {"name": "restaurant_booking", "required_params": ["phone_number", "location", "cuisine", "date", "time", "guests", "user_name"]},
+                    {"name": "hotel_booking", "required_params": ["location", "check_in", "check_out", "guests", "user_name"]},
+                    {"name": "restaurant_booking", "required_params": ["location", "cuisine", "date", "time", "guests", "user_name"]},
                     {"name": "call_verification", "required_params": ["phone_number", "purpose"]},
                     {"name": "web_scraping", "required_params": ["url", "data_points"]},
                     {"name": "data_analysis", "required_params": ["data_source", "analysis_type"]},

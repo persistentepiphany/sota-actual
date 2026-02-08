@@ -299,7 +299,7 @@ export default function PayoutPage() {
         isStaked: stakeInfo.isStaked ?? stakeInfo[4],
       });
 
-      const prevData = prev as any[];
+      const prevData = prev as unknown as any[];
       setPreview({
         earnings: prevData[0],
         houseFee: prevData[1],

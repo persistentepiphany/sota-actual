@@ -652,11 +652,50 @@ async def execute_job_after_escrow(job_id: str):
             except Exception as e:
                 logger.warning(f"DB completed update failed: {e}")
 
+        # ── On-chain completion: markCompleted → FDC confirm → release payment ──
+        on_chain_job_id = job.metadata.get("on_chain_job_id") if job.metadata else None
+        release_tx = None
+        if on_chain_job_id and contracts:
+            try:
+                import hashlib
+                proof_data = json.dumps(exec_result, default=str).encode() if isinstance(exec_result, dict) else str(exec_result).encode()
+                proof_hash = hashlib.sha256(proof_data).digest()
+
+                # 1. Mark completed on-chain (poster can call this now)
+                try:
+                    mark_completed(contracts, int(on_chain_job_id), proof_hash)
+                    logger.info(f"✅ On-chain markCompleted for job #{on_chain_job_id}")
+                except Exception as mc_err:
+                    logger.warning(f"⚠️ markCompleted skipped: {mc_err}")
+
+                # 2. FDC bypass: manually confirm delivery (owner = deployer)
+                try:
+                    manual_confirm_delivery(contracts, int(on_chain_job_id))
+                    logger.info(f"✅ FDC delivery confirmed (manual) for job #{on_chain_job_id}")
+                except Exception as fdc_err:
+                    logger.warning(f"⚠️ manualConfirmDelivery skipped: {fdc_err}")
+
+                # 3. Release escrow payment to provider (0xc670ca2A...)
+                try:
+                    if is_delivery_confirmed(contracts, int(on_chain_job_id)):
+                        release_tx = release_payment(contracts, int(on_chain_job_id))
+                        logger.info(f"💰 Payment released for job #{on_chain_job_id} — tx: {release_tx}")
+                        print(f"💰 Payment released for job #{on_chain_job_id}")
+                    else:
+                        logger.warning(f"⚠️ FDC not confirmed, cannot release payment for job #{on_chain_job_id}")
+                except Exception as rel_err:
+                    logger.warning(f"⚠️ releasePayment skipped: {rel_err}")
+
+            except Exception as chain_err:
+                logger.error(f"⚠️ On-chain completion failed for job #{on_chain_job_id}: {chain_err}")
+
         return {
             "success": True,
             "job_id": job_id,
             "execution_result": exec_result,
             "formatted_results": formatted,
+            "payment_released": release_tx is not None,
+            "release_tx": release_tx,
         }
     except Exception as e:
         logger.error(f"❌ Job {job_id} execution failed: {e}")

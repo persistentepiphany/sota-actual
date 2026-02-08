@@ -9,11 +9,11 @@ export const COSTON2_CHAIN = {
 } as const;
 
 export const CONTRACT_ADDRESSES = {
-  AgentStaking: "0xD381Bf340de5E4b9b16e382913121B6E2fA1E6Af" as `0x${string}`,
-  AgentRegistry: "0x46aDDBd334de452746443798d32C7C7C5fC8Dd16" as `0x${string}`,
+  AgentStaking: "0x695637E3B93Ce57F587290933300Bfa1a307204A" as `0x${string}`,
+  AgentRegistry: "0x861a98D0725Df0E3afb909E046c88a71f501fB62" as `0x${string}`,
   RandomNumberV2: "0x5CdF9eAF3EB8b44fB696984a1420B56A7575D250" as `0x${string}`,
-  FlareOrderBook: "0x390413F0c7826523403760E086775DA9004aD004" as `0x${string}`,
-  FlareEscrow: "0xA961AA0d21C2F24a20B6bdAD683f1DaFA45CFc73" as `0x${string}`,
+  FlareOrderBook: "0x9c065aFAB518DebA9704041092d3FF1B6415aF09" as `0x${string}`,
+  FlareEscrow: "0x721F0259f3336336921f4EE1Ad5fe28C54Be6De7" as `0x${string}`,
 } as const;
 
 export function explorerAddress(addr: string) {
