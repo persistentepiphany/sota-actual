@@ -1,6 +1,7 @@
 "use client"
 
 import { useEffect, useRef } from "react"
+// @ts-ignore — three types may not be installed in all envs
 import * as THREE from "three"
 
 export function ShaderAnimation() {

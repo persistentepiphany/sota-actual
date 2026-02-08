@@ -4,9 +4,9 @@ import { prisma } from "@/lib/prisma";
 // ── Contract deployment addresses (Coston2 testnet) ──────────
 const EXPLORER_BASE = "https://coston2-explorer.flare.network";
 const CONTRACTS = {
-  FlareOrderBook: "0x390413F0c7826523403760E086775DA9004aD004",
-  FlareEscrow: "0x3b87ef622951c827F0730906A6F07ad6AB16A5C9",
-  AgentRegistry: "0xc62a1e98543c42c475cd37e63188a29f098b35D4",
+  FlareOrderBook: "0x9c065aFAB518DebA9704041092d3FF1B6415aF09",
+  FlareEscrow: "0x721F0259f3336336921f4EE1Ad5fe28C54Be6De7",
+  AgentRegistry: "0x861a98D0725Df0E3afb909E046c88a71f501fB62",
 } as const;
 
 // ── Interfaces ───────────────────────────────────────────────

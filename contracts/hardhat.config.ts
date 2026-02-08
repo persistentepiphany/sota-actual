@@ -3,6 +3,7 @@ import { HardhatUserConfig } from "hardhat/config";
 import "@nomicfoundation/hardhat-toolbox";
 import path from "path";
 
+dotenvConfig({ path: path.resolve(__dirname, ".env") });
 dotenvConfig({ path: path.resolve(__dirname, "..", ".env") });
 
 const flareAccounts = process.env.FLARE_PRIVATE_KEY

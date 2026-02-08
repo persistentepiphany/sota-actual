@@ -236,7 +236,7 @@ contract FlareOrderBook is Ownable {
     }
 
     /**
-     * @notice Assigned agent marks the job as completed.
+     * @notice Poster or provider marks the job as completed.
      *         After this, the FDC proof must be submitted to FDCVerifier,
      *         then FlareEscrow.releaseToProvider() can be called.
      */
@@ -245,7 +245,10 @@ contract FlareOrderBook is Ownable {
         bytes32 deliveryProof
     ) external {
         Job storage job = jobs[jobId];
-        require(job.provider == msg.sender, "FlareOrderBook: not provider");
+        require(
+            job.provider == msg.sender || job.poster == msg.sender,
+            "FlareOrderBook: not poster or provider"
+        );
         require(job.status == JobStatus.ASSIGNED, "FlareOrderBook: not assigned");
 
         job.status = JobStatus.COMPLETED;

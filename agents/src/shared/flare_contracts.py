@@ -7,6 +7,7 @@ FTSOPriceConsumer, FDCVerifier, and AgentRegistry on Flare.
 
 import json
 import time
+import threading
 from pathlib import Path
 from typing import Optional, Any
 from dataclasses import dataclass
@@ -107,21 +108,44 @@ def get_flare_contracts(private_key: Optional[str] = None) -> FlareContracts:
 
 # ─── Transaction Helpers ─────────────────────────────────────
 
-def _send_tx(contracts: FlareContracts, fn: Any, value: int = 0) -> str:
-    """Build, sign, send a contract call. Returns tx hash hex."""
+# Global nonce lock — serialises transactions from the same account
+_nonce_lock = threading.Lock()
+
+
+def _send_tx(contracts: FlareContracts, fn: Any, value: int = 0, retries: int = 3) -> str:
+    """Build, sign, send a contract call. Returns tx hash hex.
+
+    Uses "pending" nonce to include unconfirmed transactions and
+    retries on nonce collisions.
+    """
     if not contracts.account:
         raise ValueError("No account configured for signing")
 
-    tx = fn.build_transaction({
-        "from": contracts.account.address,
-        "nonce": contracts.w3.eth.get_transaction_count(contracts.account.address),
-        "gas": 600_000,
-        "gasPrice": contracts.w3.eth.gas_price,
-        "value": value,
-    })
-    signed = contracts.w3.eth.account.sign_transaction(tx, contracts.account.key)
-    tx_hash = contracts.w3.eth.send_raw_transaction(signed.raw_transaction)
-    return tx_hash.hex()
+    last_err = None
+    for attempt in range(retries):
+        try:
+            with _nonce_lock:
+                nonce = contracts.w3.eth.get_transaction_count(
+                    contracts.account.address, "pending"
+                )
+                tx = fn.build_transaction({
+                    "from": contracts.account.address,
+                    "nonce": nonce,
+                    "gas": 600_000,
+                    "gasPrice": contracts.w3.eth.gas_price,
+                    "value": value,
+                })
+                signed = contracts.w3.eth.account.sign_transaction(tx, contracts.account.key)
+                tx_hash = contracts.w3.eth.send_raw_transaction(signed.raw_transaction)
+            return tx_hash.hex()
+        except Exception as e:
+            last_err = e
+            err_msg = str(e).lower()
+            if "nonce" in err_msg and attempt < retries - 1:
+                time.sleep(1)  # brief delay before retry
+                continue
+            raise
+    raise last_err  # type: ignore
 
 
 def _wait(contracts: FlareContracts, tx_hash: str, timeout: int = 120):
@@ -284,16 +308,22 @@ def get_job_count(contracts: FlareContracts) -> int:
 
 
 def get_escrow_deposit(contracts: FlareContracts, job_id: int) -> dict:
-    """Get escrow deposit details."""
+    """Get escrow deposit details.
+
+    Deposit struct: poster, provider, amount, usdValue, paymentType, token,
+                    funded, released, refunded
+    """
     dep = contracts.escrow.functions.getDeposit(job_id).call()
     return {
         "poster": dep[0],
         "provider": dep[1],
         "amount_flr": float(Web3.from_wei(dep[2], "ether")),
         "usd_value": float(Web3.from_wei(dep[3], "ether")),
-        "funded": dep[4],
-        "released": dep[5],
-        "refunded": dep[6],
+        "payment_type": dep[4],   # 0=NATIVE_FLR, 1=STABLECOIN
+        "token": dep[5],          # address(0) for native FLR
+        "funded": dep[6],
+        "released": dep[7],
+        "refunded": dep[8],
     }
 
 

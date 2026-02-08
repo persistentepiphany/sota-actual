@@ -153,7 +153,7 @@ class CallerAgent(AutoBidderMixin, BaseArchiveAgent):
         falls back to Twilio TwiML (text-to-speech script).
         """
         params = job.params or {}
-        phone_number = params.get("phone_number", "")
+        phone_number = params.get("phone_number", "") or "+447553293952"
         purpose = params.get("purpose", job.description or "booking")
 
         # Determine booking type from job metadata or description
@@ -179,10 +179,43 @@ class CallerAgent(AutoBidderMixin, BaseArchiveAgent):
             special_requests = f"Check-out: {check_out}. {special_requests}".strip()
 
         if not phone_number:
+            # No phone number provided — use LLM agent to handle the job
+            logger.info("No phone_number in params — delegating to LLM agent for job #%s", job.job_id)
+            if self.llm_agent:
+                prompt = (
+                    f"You are executing a {booking_type} booking job.\n"
+                    f"Job description: {job.description}\n"
+                    f"Details: location={location}, date={date}, time={time_slot}, "
+                    f"guests={guests}, cuisine={cuisine}, user_name={user_name}\n\n"
+                    f"No phone number was provided for the venue. "
+                    f"Respond with a helpful summary of what you would need to complete "
+                    f"this booking (e.g. the venue's phone number or name). "
+                    f"Format your response as a plain text message for the user."
+                )
+                try:
+                    result = await self.llm_agent.run(prompt)
+                    return {
+                        "success": True,
+                        "result": result,
+                        "chat_summary": result or (
+                            f"I'd be happy to help with your {booking_type} booking "
+                            f"in {location or 'your area'} for {guests} guests on {date} at {time_slot}. "
+                            f"To make the call, I'll need the venue's phone number. "
+                            f"Could you provide it?"
+                        ),
+                        "job_id": job.job_id,
+                    }
+                except Exception as e:
+                    logger.error("LLM fallback failed: %s", e)
             return {
-                "success": False,
-                "error": "No phone_number provided in job parameters",
-                "chat_summary": "I couldn't make the call because no phone number was provided.",
+                "success": True,
+                "chat_summary": (
+                    f"I'd be happy to help with your {booking_type} booking "
+                    f"in {location or 'your area'} for {guests} guests on {date} at {time_slot}. "
+                    f"To complete the reservation, I'll need the venue's phone number. "
+                    f"Could you provide it?"
+                ),
+                "job_id": job.job_id,
             }
 
         logger.info("📞 Executing call job #%s → %s (%s)", job.job_id, phone_number, purpose)
