@@ -142,23 +142,26 @@ Respond with your bid decision.
         logger.info("Executing market prediction for %s (horizon: %d min)", asset, horizon)
         
         try:
-            from .services.ftso_data import get_ftso_time_series, compute_derived_features
+            from .services.ftso_data import get_ftso_time_series, compute_derived_features, get_current_ftso_price
             from .services.signal_generator import generate_market_signal
             from .services.external_data import get_external_indicators
             
-            # 1. Fetch FTSO time series
+            # 1. Fetch FTSO time series and current price
             time_series = await get_ftso_time_series(asset, horizon * 2)
-            
+            current_price_data = await get_current_ftso_price(asset)
+            price_numeric = current_price_data["price"] if isinstance(current_price_data, dict) else current_price_data
+
             # 2. Compute derived features
             derived = compute_derived_features(time_series)
-            
+
             # 3. Get external indicators (if available)
             external = await get_external_indicators(asset)
-            
+
             # 4. Generate signal via LLM
             signal_input = {
                 "asset": asset,
                 "horizon_minutes": horizon,
+                "current_price": price_numeric,
                 "ftso_time_series": time_series,
                 "derived_features": derived,
                 "external_indicators": external,
@@ -174,6 +177,7 @@ Respond with your bid decision.
                 "success": True,
                 "asset": asset,
                 "horizon_minutes": horizon,
+                "chat_summary": result.get("chat_summary", result.get("reasoning_short", "Signal generated.")),
                 **result
             }
             

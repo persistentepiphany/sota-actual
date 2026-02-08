@@ -43,6 +43,15 @@ interface ConvSummary {
 
 type OrbStatus = "idle" | "listening" | "thinking" | "speaking";
 
+/** SSR-safe unique ID (avoids Webpack resolving Node crypto module) */
+function newSessionId(): string {
+  if (typeof globalThis.crypto?.randomUUID === "function") {
+    return globalThis.crypto.randomUUID();
+  }
+  // Fallback for SSR / older runtimes
+  return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`;
+}
+
 /* ── Bid Progress Bar Component (Glassmorphism Style) ── */
 function BidProgressBar({ duration, onComplete }: { duration: number; onComplete?: () => void }) {
   const [progress, setProgress] = useState(0);
@@ -128,7 +137,7 @@ export default function ChatScreen() {
   const [transcript, setTranscript] = useState<TranscriptLine[]>([]);
   const [orbStatus, setOrbStatus] = useState<OrbStatus>("idle");
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [sessionId, setSessionId] = useState<string | null>(null);
+  const [sessionId, setSessionId] = useState(newSessionId);
   const [conversations, setConversations] = useState<ConvSummary[]>([]);
   const [bidProgress, setBidProgress] = useState<{ active: boolean; duration: number } | null>(null);
   const [taskExecution, setTaskExecution] = useState<{ active: boolean; message: string } | null>(null);
@@ -138,6 +147,12 @@ export default function ChatScreen() {
   const { sendTransactionAsync } = useSendTransaction();
   const { showToast } = useToast();
   const [textInput, setTextInput] = useState("");
+
+  // Refs to avoid stale closures in addLine callback
+  const sessionIdRef = useRef(sessionId);
+  const addressRef = useRef(address);
+  useEffect(() => { sessionIdRef.current = sessionId; }, [sessionId]);
+  useEffect(() => { addressRef.current = address; }, [address]);
   const [isSending, setIsSending] = useState(false);
 
   // Auto-scroll transcript to bottom on new messages or progress bar or task execution
@@ -147,10 +162,10 @@ export default function ChatScreen() {
     }
   }, [transcript, bidProgress, taskExecution]);
 
-  // Load conversations when sidebar opens
+  // Load conversations when sidebar opens (filtered by wallet)
   useEffect(() => {
-    if (sidebarOpen) {
-      fetch("/api/chat")
+    if (sidebarOpen && address) {
+      fetch(`/api/chat?wallet=${address}`)
         .then((r) => r.json())
         .then((sessions: any[]) => {
           if (Array.isArray(sessions))
@@ -158,13 +173,24 @@ export default function ChatScreen() {
         })
         .catch(() => {});
     }
-  }, [sidebarOpen]);
+  }, [sidebarOpen, address]);
 
   const addLine = useCallback((role: TranscriptLine["role"], content: string) => {
     setTranscript((p) => [
       ...p,
       { id: crypto.randomUUID(), role, content, timestamp: new Date() },
     ]);
+    // Persist to Firestore via API (fire-and-forget)
+    fetch("/api/chat", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        sessionId: sessionIdRef.current,
+        role,
+        text: content,
+        wallet: addressRef.current,
+      }),
+    }).catch(() => {});
   }, []);
 
   /* ── Post job JSON to backend marketplace ── */
@@ -184,8 +210,8 @@ export default function ChatScreen() {
       jobData.budget_usd = 0.02; // ~2 C2FLR at current FTSO rate
     }
     
-    // Show progress bar during bid collection (30 seconds)
-    setBidProgress({ active: true, duration: 30 });
+    // Show progress bar during bid collection (15 seconds)
+    setBidProgress({ active: true, duration: 15 });
     
     try {
       const res = await fetch(`${FLARE_BUTLER_URL}/marketplace/post`, {
@@ -562,8 +588,34 @@ export default function ChatScreen() {
               value: parseEther(String(flrRequired)),
             });
             console.log("✅ Escrow funded! tx:", txHash);
-            showToast("Escrow funded! C2FLR locked.", "success");
-            addLine("assistant", `✅ Escrow funded! ${Number(flrRequired).toFixed(4)} C2FLR locked on-chain.`);
+            showToast("Escrow funded! Starting task...", "success");
+            addLine("assistant", `✅ Escrow funded! ${Number(flrRequired).toFixed(4)} C2FLR locked on-chain. Starting task now...`);
+
+            // Trigger job execution after escrow funded
+            const boardJobId = jp.job_id;
+            if (boardJobId) {
+              setTaskExecution({ active: true, message: "Generating your market analysis..." });
+              try {
+                const execRes = await fetch(`${FLARE_BUTLER_URL}/marketplace/execute/${boardJobId}`, {
+                  method: "POST",
+                });
+                setTaskExecution(null);
+                if (execRes.ok) {
+                  const execData = await execRes.json();
+                  if (execData.formatted_results) {
+                    addLine("assistant", execData.formatted_results);
+                  } else {
+                    addLine("assistant", "Your request has been completed.");
+                  }
+                } else {
+                  addLine("assistant", "The task is being processed. I'll have results for you shortly.");
+                }
+              } catch (execErr) {
+                console.error("Execution failed:", execErr);
+                setTaskExecution(null);
+                addLine("assistant", "I'm still working on your request. Please check back shortly.");
+              }
+            }
           } catch (fundErr: any) {
             console.error("❌ Escrow funding failed:", fundErr);
             showToast("Escrow funding declined", "warning");
@@ -722,7 +774,7 @@ export default function ChatScreen() {
                   <button
                     className="sidebar-panel-btn"
                     onClick={() => {
-                      setSessionId(null);
+                      setSessionId(newSessionId());
                       setTranscript([]);
                       setSidebarOpen(false);
                     }}
@@ -741,8 +793,24 @@ export default function ChatScreen() {
                 {conversations.map((c, i) => (
                   <motion.button
                     key={c.id}
-                    className="sidebar-panel-item"
-                    onClick={() => {
+                    className={`sidebar-panel-item${c.id === sessionId ? " active" : ""}`}
+                    onClick={async () => {
+                      try {
+                        const res = await fetch(`/api/chat?sessionId=${c.id}`);
+                        const msgs = await res.json();
+                        if (Array.isArray(msgs)) {
+                          setTranscript(
+                            msgs.map((m: any) => ({
+                              id: m.id,
+                              role: m.role as "user" | "assistant",
+                              content: m.text,
+                              timestamp: new Date(m.createdAt),
+                            }))
+                          );
+                        }
+                      } catch {
+                        // If fetch fails, just switch session
+                      }
                       setSessionId(c.id);
                       setSidebarOpen(false);
                     }}

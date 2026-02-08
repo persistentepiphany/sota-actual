@@ -396,11 +396,14 @@ class MakeElevenLabsCallTool(BaseTool):
                 "type": "string",
                 "description": "Destination phone in E.164 format, e.g., +447512593720"
             },
-            "user_name": {"type": "string", "description": "Recipient/user name"},
+            "user_name": {"type": "string", "description": "Guest name for the reservation"},
             "time": {"type": "string", "description": "Time slot, e.g., 8pm"},
             "date": {"type": "string", "description": "Date string"},
-            "num_of_people": {"type": "integer", "description": "Number of people"},
-            "user": {"type": "string", "description": "User identifier"},
+            "num_of_people": {"type": "integer", "description": "Number of guests"},
+            "booking_type": {"type": "string", "description": "restaurant or hotel"},
+            "cuisine": {"type": "string", "description": "Cuisine preference (restaurant only)"},
+            "location": {"type": "string", "description": "Location / area preference"},
+            "special_requests": {"type": "string", "description": "Any special requests"},
         },
         "required": ["to_number", "user_name"],
     }
@@ -411,18 +414,21 @@ class MakeElevenLabsCallTool(BaseTool):
         user_name: str,
         time: str = "8pm",
         date: str = "tomorrow",
-        num_of_people: int = 4,
-        user: str = "demo",
+        num_of_people: int = 2,
+        booking_type: str = "restaurant",
+        cuisine: str = "",
+        location: str = "",
+        special_requests: str = "",
     ) -> str:
         api_key = os.getenv("ELEVENLABS_API_KEY")
-        agent_id = os.getenv("ELEVENLABS_AGENT_ID")
+        agent_id = os.getenv("ELEVENLABS_CALLER_AGENT_ID") or os.getenv("ELEVENLABS_AGENT_ID")
         phone_id = os.getenv("ELEVENLABS_PHONE_ID")
 
         if not api_key or not agent_id or not phone_id:
             return json.dumps(
                 {
                     "success": False,
-                    "error": "Missing ELEVENLABS_API_KEY / ELEVENLABS_AGENT_ID / ELEVENLABS_PHONE_ID",
+                    "error": "Missing ELEVENLABS_API_KEY / ELEVENLABS_CALLER_AGENT_ID / ELEVENLABS_PHONE_ID",
                 }
             )
 
@@ -436,9 +442,12 @@ class MakeElevenLabsCallTool(BaseTool):
                 "dynamic_variables": {
                     "user_name": user_name,
                     "time": time,
-                    "num_of_people": num_of_people,
+                    "num_of_people": str(num_of_people),
                     "date": date,
-                    "user": user,
+                    "booking_type": booking_type,
+                    "cuisine": cuisine,
+                    "location": location,
+                    "special_requests": special_requests,
                 },
             },
         }

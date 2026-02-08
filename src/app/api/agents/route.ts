@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { agentSchema } from "@/lib/validators";
-import { getUserFromRequest } from "@/lib/auth";
+import { getCurrentUser } from "@/lib/auth";
 
 export async function GET() {
   const agents = await prisma.agent.findMany({
@@ -12,7 +12,7 @@ export async function GET() {
 }
 
 export async function POST(req: Request) {
-  const user = await getUserFromRequest();
+  const user = await getCurrentUser(req);
   if (!user) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
@@ -50,12 +50,11 @@ export async function POST(req: Request) {
   }
 
   const agent = await prisma.agent.create({
-    data: {
-      ...parsed.data,
-      ownerId: user.id,
-      tags: parsed.data.tags,
-      isVerified: false, // New agents start unverified
-    },
+    title: parsed.data.title,
+    description: parsed.data.description,
+    ownerId: user.id,
+    tags: parsed.data.tags || "",
+    isVerified: false,
   });
 
   return NextResponse.json({ agent });
