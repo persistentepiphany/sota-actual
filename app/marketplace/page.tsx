@@ -105,6 +105,69 @@ interface MarketplaceData {
   agents: Agent[];
 }
 
+// Parse raw job description "task_type: key=val, key=val" into readable details
+function parseJobDetails(description: string): { type: string; details: { label: string; value: string }[] } {
+  const colonIdx = description.indexOf(":");
+  const type = colonIdx > 0 ? description.slice(0, colonIdx).trim() : description;
+  const rest = colonIdx > 0 ? description.slice(colonIdx + 1).trim() : "";
+
+  if (!rest) return { type, details: [] };
+
+  const labelMap: Record<string, string> = {
+    location: "Location",
+    date_range: "Date Range",
+    date: "Date",
+    time: "Time",
+    check_in: "Check-in",
+    check_out: "Check-out",
+    online_or_in_person: "Format",
+    theme_technology_focus: "Focus",
+    guests: "Guests",
+    num_of_people: "Guests",
+    cuisine: "Cuisine",
+    user_name: "Name",
+    phone_number: "Phone",
+    city: "City",
+    special_requests: "Notes",
+    asset: "Asset",
+    horizon_minutes: "Horizon",
+    risk_profile: "Risk",
+    purpose: "Purpose",
+    budget: "Budget",
+    room_type: "Room Type",
+  };
+
+  const details: { label: string; value: string }[] = [];
+
+  // Match key=value pairs (value can be quoted or bracket-enclosed)
+  const regex = /(\w+)=(\[[^\]]*\]|'[^']*'|"[^"]*"|[^,]+)/g;
+  let match;
+  while ((match = regex.exec(rest)) !== null) {
+    const key = match[1].trim();
+    let val = match[2].trim();
+    // Clean brackets / quotes
+    val = val.replace(/^\[['"]?|['"]?\]$/g, "").replace(/^['"]|['"]$/g, "");
+    if (!val || val === "None" || val === "none") continue;
+    const label = labelMap[key] || key.replace(/_/g, " ").replace(/\b\w/g, c => c.toUpperCase());
+    details.push({ label, value: val });
+  }
+  return { type, details };
+}
+
+// Human-friendly task type label
+function taskTypeLabel(raw: string): string {
+  const map: Record<string, string> = {
+    hackathon_discovery: "Hackathon Search",
+    hackathon_registration: "Hackathon Search",
+    hotel_booking: "Hotel Booking",
+    restaurant_booking: "Restaurant Booking",
+    call_verification: "Phone Verification",
+    market_prediction: "Market Prediction",
+    trading_signal: "Trading Signal",
+  };
+  return map[raw.toLowerCase()] || raw.replace(/_/g, " ").replace(/\b\w/g, c => c.toUpperCase());
+}
+
 export default function Marketplace() {
   const [data, setData] = useState<MarketplaceData | null>(null);
   const [loading, setLoading] = useState(true);
@@ -704,10 +767,32 @@ export default function Marketplace() {
                     </button>
                   </div>
 
-                  {/* Job Description */}
-                  <p className="text-xs text-slate-400 mb-3 leading-relaxed">
-                    {selectedTask.description}
-                  </p>
+                  {/* Job Details */}
+                  {(() => {
+                    const parsed = parseJobDetails(selectedTask.description);
+                    return (
+                      <div className="mb-3">
+                        <div className="flex items-center gap-1.5 mb-2">
+                          <FileText size={10} className="text-slate-500" />
+                          <span className="text-[10px] font-medium text-slate-500 uppercase tracking-wide">
+                            {taskTypeLabel(parsed.type)}
+                          </span>
+                        </div>
+                        {parsed.details.length > 0 ? (
+                          <div className="bg-slate-800/40 rounded-lg p-2.5 space-y-1.5">
+                            {parsed.details.map((d, i) => (
+                              <div key={i} className="flex items-start gap-2">
+                                <span className="text-[10px] text-slate-500 w-16 flex-shrink-0 pt-px">{d.label}</span>
+                                <span className="text-[11px] text-slate-300">{d.value}</span>
+                              </div>
+                            ))}
+                          </div>
+                        ) : (
+                          <p className="text-xs text-slate-500 italic">No additional details</p>
+                        )}
+                      </div>
+                    );
+                  })()}
 
                   {/* Tags */}
                   <div className="flex flex-wrap gap-1.5 mb-3">
