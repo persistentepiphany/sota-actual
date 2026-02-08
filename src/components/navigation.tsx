@@ -15,7 +15,6 @@ import {
 } from "lucide-react";
 import { useAuth } from "@/components/auth-provider";
 import { InteractiveNavMenu, type NavMenuItem } from "@/components/ui/interactive-nav-menu";
-import { ThemeToggle } from "@/components/theme-toggle";
 
 const navItems: NavMenuItem[] = [
   { href: "/", label: "Home", icon: Home },
@@ -81,7 +80,6 @@ export default function Navigation() {
 
             {/* Auth Buttons (Desktop) */}
             <div className="hidden md:flex items-center gap-3">
-              <ThemeToggle />
               {loading ? (
                 <div className="w-20 h-8 bg-slate-800/50 rounded-lg animate-pulse" />
               ) : user ? (
@@ -108,16 +106,13 @@ export default function Navigation() {
               )}
             </div>
 
-            {/* Mobile Controls */}
-            <div className="md:hidden flex items-center gap-2">
-              <ThemeToggle />
-              <button
-                onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-                className="p-2 text-slate-400 hover:text-white"
-              >
-                {isMobileMenuOpen ? <X size={24} /> : <Menu size={24} />}
-              </button>
-            </div>
+            {/* Mobile Menu Button */}
+            <button
+              onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+              className="md:hidden p-2 text-slate-400 hover:text-white"
+            >
+              {isMobileMenuOpen ? <X size={24} /> : <Menu size={24} />}
+            </button>
           </div>
         </div>
 
@@ -125,7 +120,6 @@ export default function Navigation() {
         {isMobileMenuOpen && (
           <div className="md:hidden bg-slate-900/95 backdrop-blur-xl border-t border-slate-800/50">
             <div className="px-4 py-4 space-y-1">
-              <ThemeToggle className="w-full justify-center mb-3" showLabel />
               {navItems.map((item) => {
                 const isActive = pathname === item.href;
                 const Icon = item.icon;
@@ -181,6 +175,7 @@ export default function Navigation() {
           </div>
         )}
       </nav>
+
       {/* Spacer to prevent content from going under fixed nav */}
       <div className="h-16" />
     </>

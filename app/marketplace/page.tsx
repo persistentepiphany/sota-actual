@@ -283,9 +283,9 @@ export default function Marketplace() {
         };
       default:
         return {
-          color: "text-[color:var(--text-muted)]",
-          bg: "bg-[color:var(--surface-hover)]",
-          border: "border-[color:var(--border-subtle)]",
+          color: "text-slate-400",
+          bg: "bg-slate-400/10",
+          border: "border-slate-400/30",
           glow: "",
           label: status.toUpperCase(),
           icon: null,
@@ -306,7 +306,7 @@ export default function Marketplace() {
         className={`group relative overflow-hidden cursor-pointer transition-all duration-200 ${
           isSelected
             ? "bg-violet-500/10 border-l-2 border-l-violet-500"
-            : "hover:bg-[color:var(--surface-hover)] border-l-2 border-l-transparent"
+            : "hover:bg-slate-800/30 border-l-2 border-l-transparent"
         }`}
       >
         <div className="grid grid-cols-12 gap-4 px-4 py-4 items-center">
@@ -314,7 +314,7 @@ export default function Marketplace() {
           <div className="col-span-2">
             <div className="flex items-center gap-2">
               <div className={`w-2.5 h-2.5 rounded-full ${config.bg} ${config.color}`} />
-              <span className="text-sm font-mono text-[color:var(--text-muted)]">{task.jobId.slice(0, 8)}...</span>
+              <span className="text-sm font-mono text-slate-500">{task.jobId.slice(0, 8)}...</span>
             </div>
             <span className={`text-xs font-medium ${config.color} mt-0.5 inline-block`}>
               {config.label}
@@ -323,12 +323,12 @@ export default function Marketplace() {
 
           {/* Task Title */}
           <div className="col-span-3">
-            <h4 className="text-base font-medium text-[color:var(--foreground)] truncate group-hover:text-[color:var(--foreground)] transition-colors">
+            <h4 className="text-base font-medium text-slate-200 truncate group-hover:text-white transition-colors">
               {task.title}
             </h4>
             <div className="flex gap-1 mt-1">
               {task.tags.slice(0, 2).map((tag) => (
-                <span key={tag} className="text-xs px-1.5 py-0.5 bg-[color:var(--surface-1)] text-[color:var(--text-muted)] rounded">
+                <span key={tag} className="text-xs px-1.5 py-0.5 bg-slate-800 text-slate-400 rounded">
                   {tag}
                 </span>
               ))}
@@ -343,14 +343,14 @@ export default function Marketplace() {
                   {bids.slice(0, 3).map((bid) => (
                     <div
                       key={bid.id}
-                      className="w-7 h-7 rounded-full bg-[color:var(--surface-hover)] border-2 border-[color:var(--border-subtle)] flex items-center justify-center"
+                      className="w-7 h-7 rounded-full bg-slate-700 border-2 border-slate-900 flex items-center justify-center"
                       title={bid.agent}
                     >
-                      {(() => { const I = getIcon(bid.agentIcon); return <I size={12} className="text-[color:var(--text-muted)]" />; })()}
+                      {(() => { const I = getIcon(bid.agentIcon); return <I size={12} className="text-slate-400" />; })()}
                     </div>
                   ))}
                 </div>
-                <span className="text-sm text-[color:var(--text-muted)] ml-1">
+                <span className="text-sm text-slate-500 ml-1">
                   {bids.length} bid{bids.length !== 1 ? "s" : ""}
                 </span>
               </div>
@@ -359,7 +359,7 @@ export default function Marketplace() {
                 <div className="w-7 h-7 rounded-lg bg-violet-500/20 flex items-center justify-center">
                   <AgentIcon size={14} className="text-violet-400" />
                 </div>
-                <span className="text-sm text-[color:var(--foreground)]">{task.agent}</span>
+                <span className="text-sm text-slate-300">{task.agent}</span>
               </div>
             )}
           </div>
@@ -369,10 +369,10 @@ export default function Marketplace() {
             {task.status === "executing" ? (
               <div>
                 <div className="flex items-center justify-between text-sm mb-1">
-                  <span className="text-[color:var(--text-muted)]">Progress</span>
+                  <span className="text-slate-500">Progress</span>
                   <span className="text-amber-400 font-medium">{task.progress}%</span>
                 </div>
-                <div className="h-2 bg-[color:var(--surface-1)] rounded-full overflow-hidden">
+                <div className="h-2 bg-slate-800 rounded-full overflow-hidden">
                   <motion.div
                     initial={{ width: 0 }}
                     animate={{ width: `${task.progress}%` }}
@@ -386,7 +386,7 @@ export default function Marketplace() {
                 <span className="text-base font-medium text-cyan-400">
                   {bids.length > 0 ? bids[0].price : "No bids"}
                 </span>
-                {bids.length > 0 && <span className="text-xs text-[color:var(--text-muted)]">best</span>}
+                {bids.length > 0 && <span className="text-xs text-slate-500">best</span>}
               </div>
             ) : (
               <div className="flex items-center gap-1.5">
@@ -407,7 +407,7 @@ export default function Marketplace() {
 
           {/* ETA / Time */}
           <div className="col-span-2">
-            <div className="flex items-center gap-1.5 text-sm text-[color:var(--text-muted)]">
+            <div className="flex items-center gap-1.5 text-sm text-slate-400">
               <Timer size={14} />
               <span>
                 {task.status === "executing"
@@ -423,7 +423,7 @@ export default function Marketplace() {
           <div className="col-span-1 flex justify-end">
             <button
               className={`p-1.5 rounded-lg transition-colors ${
-                isSelected ? "bg-violet-500/20 text-violet-400" : "hover:bg-[color:var(--surface-hover)] text-[color:var(--text-muted)]"
+                isSelected ? "bg-violet-500/20 text-violet-400" : "hover:bg-slate-700 text-slate-500"
               }`}
             >
               <ArrowUpRight size={14} />
@@ -455,9 +455,9 @@ export default function Marketplace() {
     icon: LucideIcon;
     color: string;
   }) => (
-    <div className="bg-[color:var(--surface-1)] backdrop-blur-sm rounded-xl border border-[color:var(--border-subtle)] p-4">
+    <div className="bg-slate-900/40 backdrop-blur-sm rounded-xl border border-slate-800/50 p-4">
       <div className="flex items-center justify-between mb-2">
-        <span className="text-xs text-[color:var(--text-muted)] uppercase tracking-wide">{label}</span>
+        <span className="text-xs text-slate-500 uppercase tracking-wide">{label}</span>
         <Icon size={16} className={color} />
       </div>
       <div className="flex items-end justify-between">
@@ -479,17 +479,17 @@ export default function Marketplace() {
     const config = getStatusConfig(task.status);
 
     return (
-      <div className="flex items-center gap-3 py-2 border-b border-[color:var(--border-subtle)] last:border-0">
+      <div className="flex items-center gap-3 py-2 border-b border-slate-800/50 last:border-0">
         <div className={`w-8 h-8 rounded-lg ${config.bg} flex items-center justify-center`}>
           {config.icon}
         </div>
         <div className="flex-1 min-w-0">
-          <p className="text-xs text-[color:var(--foreground)] truncate">{task.title}</p>
-          <p className="text-[10px] text-[color:var(--text-muted)]">{task.agent}</p>
+          <p className="text-xs text-slate-300 truncate">{task.title}</p>
+          <p className="text-[10px] text-slate-500">{task.agent}</p>
         </div>
         <div className="text-right">
           <p className={`text-xs font-medium ${config.color}`}>{config.label}</p>
-          <p className="text-[10px] text-[color:var(--text-muted)]">
+          <p className="text-[10px] text-slate-500">
             {new Date(task.createdAt).toLocaleTimeString()}
           </p>
         </div>
@@ -509,7 +509,7 @@ export default function Marketplace() {
       50% { opacity: 0.3; transform: scale(1.1); }
     }
     .grid-line {
-      stroke: var(--path-color);
+      stroke: #6366f1;
       stroke-width: 0.5;
       opacity: 0;
       stroke-dasharray: 5 5;
@@ -517,7 +517,7 @@ export default function Marketplace() {
       animation: grid-draw 2s ease-out forwards;
     }
     .detail-dot {
-      fill: var(--accent-text);
+      fill: #a78bfa;
       opacity: 0;
       animation: pulse-glow 3s ease-in-out infinite;
     }
@@ -527,10 +527,10 @@ export default function Marketplace() {
     return (
       <>
         <style>{pageStyles}</style>
-        <div className="min-h-[calc(100vh-4rem)] home-shell flex items-center justify-center">
+        <div className="min-h-[calc(100vh-4rem)] bg-gradient-to-br from-slate-950 via-black to-slate-900 flex items-center justify-center">
           <div className="text-center">
             <Loader2 size={32} className="text-violet-500 animate-spin mx-auto mb-4" />
-            <p className="text-[color:var(--text-muted)]">Connecting to marketplace...</p>
+            <p className="text-slate-400">Connecting to marketplace...</p>
           </div>
         </div>
       </>
@@ -541,10 +541,10 @@ export default function Marketplace() {
     return (
       <>
         <style>{pageStyles}</style>
-        <div className="min-h-[calc(100vh-4rem)] home-shell flex items-center justify-center">
+        <div className="min-h-[calc(100vh-4rem)] bg-gradient-to-br from-slate-950 via-black to-slate-900 flex items-center justify-center">
           <div className="text-center">
             <XCircle size={32} className="text-red-500 mx-auto mb-4" />
-            <p className="text-[color:var(--foreground)] font-medium">{error}</p>
+            <p className="text-slate-300 font-medium">{error}</p>
             <button
               onClick={fetchTasks}
               className="mt-4 px-4 py-2 bg-violet-600 text-white rounded-lg hover:bg-violet-500 transition-colors"
@@ -564,7 +564,7 @@ export default function Marketplace() {
   return (
     <>
       <style>{pageStyles}</style>
-      <div className="min-h-[calc(100vh-4rem)] home-shell text-[color:var(--foreground)] overflow-hidden relative">
+      <div className="min-h-[calc(100vh-4rem)] bg-gradient-to-br from-slate-950 via-black to-slate-900 text-slate-100 overflow-hidden relative">
         {/* Animated Background */}
         <FloatingPaths position={1} />
         <FloatingPaths position={-1} />
@@ -573,7 +573,7 @@ export default function Marketplace() {
         <svg className="absolute inset-0 w-full h-full pointer-events-none" xmlns="http://www.w3.org/2000/svg">
           <defs>
             <pattern id="gridMarket" width="40" height="40" patternUnits="userSpaceOnUse">
-              <path d="M 40 0 L 0 0 0 40" fill="none" stroke="var(--home-grid-stroke)" strokeWidth="0.5" />
+              <path d="M 40 0 L 0 0 0 40" fill="none" stroke="rgba(99, 102, 241, 0.04)" strokeWidth="0.5" />
             </pattern>
           </defs>
           <rect width="100%" height="100%" fill="url(#gridMarket)" />
@@ -588,41 +588,41 @@ export default function Marketplace() {
                 <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-violet-500 to-indigo-600 flex items-center justify-center shadow-lg shadow-violet-500/25">
                   <Gavel size={24} className="text-white" />
                 </div>
-                <div className="absolute -top-1 -right-1 w-3 h-3 bg-emerald-400 rounded-full border-2 border-[color:var(--border-subtle)] animate-pulse" />
+                <div className="absolute -top-1 -right-1 w-3 h-3 bg-emerald-400 rounded-full border-2 border-slate-900 animate-pulse" />
               </div>
               <div>
-                <h1 className="text-xl font-bold text-[color:var(--foreground)] flex items-center gap-2">
+                <h1 className="text-xl font-bold text-white flex items-center gap-2">
                   Order Book
                   <span className="text-xs font-normal px-2 py-0.5 bg-emerald-500/20 text-emerald-400 rounded">LIVE</span>
                 </h1>
-                <p className="text-sm text-[color:var(--text-muted)]">Real-time AI agent task marketplace</p>
+                <p className="text-sm text-slate-500">Real-time AI agent task marketplace</p>
               </div>
             </div>
 
             {/* Search & Controls */}
             <div className="flex items-center gap-4">
               <div className="relative">
-                <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-[color:var(--text-muted)]" />
+                <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" />
                 <input
                   type="text"
                   placeholder="Search orders..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-64 pl-10 pr-4 py-2 bg-[color:var(--surface-1)] border border-[color:var(--border-subtle)] rounded-lg text-sm text-[color:var(--foreground)] placeholder:text-[color:var(--text-muted)] focus:outline-none focus:border-violet-500/50 transition-all"
+                  className="w-64 pl-10 pr-4 py-2 bg-slate-900/50 border border-slate-700/50 rounded-lg text-sm text-slate-200 placeholder-slate-500 focus:outline-none focus:border-violet-500/50 transition-all"
                 />
               </div>
 
-              <div className="flex items-center gap-2 text-xs text-[color:var(--text-muted)]">
+              <div className="flex items-center gap-2 text-xs text-slate-400">
                 <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
                 <span>{agents.filter((a) => a.status === "active").length} agents online</span>
               </div>
 
               <button
                 onClick={fetchTasks}
-                className="p-2 hover:bg-[color:var(--surface-hover)] rounded-lg transition-colors group"
+                className="p-2 hover:bg-slate-800 rounded-lg transition-colors group"
                 title="Refresh"
               >
-                <RefreshCw size={16} className="text-[color:var(--text-muted)] group-hover:text-[color:var(--foreground)] transition-colors" />
+                <RefreshCw size={16} className="text-slate-400 group-hover:text-white transition-colors" />
               </button>
             </div>
           </div>
@@ -664,7 +664,7 @@ export default function Marketplace() {
             {/* Order Book Panel */}
             <div className="flex-1 flex flex-col">
               {/* Filter Tabs */}
-              <div className="bg-[color:var(--surface-1)] backdrop-blur-sm rounded-t-xl border border-[color:var(--border-subtle)] border-b-0 px-4 py-3">
+              <div className="bg-slate-900/50 backdrop-blur-sm rounded-t-xl border border-slate-800/50 border-b-0 px-4 py-3">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-1">
                     {[
@@ -679,14 +679,14 @@ export default function Marketplace() {
                         className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all ${
                           activeFilter === tab.key
                             ? "bg-violet-500/20 text-violet-400"
-                            : "text-[color:var(--text-muted)] hover:text-[color:var(--foreground)] hover:bg-[color:var(--surface-hover)]"
+                            : "text-slate-400 hover:text-white hover:bg-slate-800/50"
                         }`}
                       >
                         <span>{tab.label}</span>
                         <span className={`px-1.5 py-0.5 rounded text-xs ${
                           activeFilter === tab.key
                             ? "bg-violet-500/30 text-violet-300"
-                            : "bg-[color:var(--surface-1)] text-[color:var(--text-muted)]"
+                            : "bg-slate-800 text-slate-500"
                         }`}>
                           {tab.count || 0}
                         </span>
@@ -694,11 +694,11 @@ export default function Marketplace() {
                     ))}
                   </div>
 
-                  <div className="flex items-center bg-[color:var(--surface-1)] rounded-lg p-1">
+                  <div className="flex items-center bg-slate-800/50 rounded-lg p-1">
                     <button
                       onClick={() => setViewMode("orderbook")}
                       className={`p-1.5 rounded transition-colors ${
-                        viewMode === "orderbook" ? "bg-violet-500/20 text-violet-400" : "text-[color:var(--text-muted)] hover:text-[color:var(--foreground)]"
+                        viewMode === "orderbook" ? "bg-violet-500/20 text-violet-400" : "text-slate-500 hover:text-slate-300"
                       }`}
                     >
                       <LayoutList size={16} />
@@ -706,7 +706,7 @@ export default function Marketplace() {
                     <button
                       onClick={() => setViewMode("grid")}
                       className={`p-1.5 rounded transition-colors ${
-                        viewMode === "grid" ? "bg-violet-500/20 text-violet-400" : "text-[color:var(--text-muted)] hover:text-[color:var(--foreground)]"
+                        viewMode === "grid" ? "bg-violet-500/20 text-violet-400" : "text-slate-500 hover:text-slate-300"
                       }`}
                     >
                       <LayoutGrid size={16} />
@@ -716,8 +716,8 @@ export default function Marketplace() {
               </div>
 
               {/* Order Book Table Header */}
-              <div className="bg-[color:var(--surface-hover)] border-x border-[color:var(--border-subtle)] px-4 py-2">
-                <div className="grid grid-cols-12 gap-4 text-xs text-[color:var(--text-muted)] uppercase tracking-wide">
+              <div className="bg-slate-800/30 border-x border-slate-800/50 px-4 py-2">
+                <div className="grid grid-cols-12 gap-4 text-xs text-slate-500 uppercase tracking-wide">
                   <div className="col-span-2">Order ID</div>
                   <div className="col-span-3">Task</div>
                   <div className="col-span-2">Agent / Bids</div>
@@ -728,18 +728,18 @@ export default function Marketplace() {
               </div>
 
               {/* Order Book Rows */}
-              <div className="bg-[color:var(--surface-1)] backdrop-blur-sm rounded-b-xl border border-[color:var(--border-subtle)] border-t-0 divide-y divide-[color:var(--border-subtle)] flex-1 min-h-0 overflow-y-auto">
+              <div className="bg-slate-900/30 backdrop-blur-sm rounded-b-xl border border-slate-800/50 border-t-0 divide-y divide-slate-800/30 flex-1 min-h-0 overflow-y-auto">
                 {filteredTasks.length > 0 ? (
                   filteredTasks.map((task, index) => (
                     <OrderBookRow key={task.id} task={task} index={index} />
                   ))
                 ) : (
                   <div className="py-12 text-center">
-                    <div className="w-16 h-16 rounded-2xl bg-[color:var(--surface-1)] flex items-center justify-center mx-auto mb-4">
-                      <Gavel size={28} className="text-[color:var(--text-muted)]" />
+                    <div className="w-16 h-16 rounded-2xl bg-slate-800/50 flex items-center justify-center mx-auto mb-4">
+                      <Gavel size={28} className="text-slate-600" />
                     </div>
-                    <h3 className="text-lg font-medium text-[color:var(--text-muted)] mb-2">No orders found</h3>
-                    <p className="text-sm text-[color:var(--text-muted)]">Orders will appear here when tasks are created</p>
+                    <h3 className="text-lg font-medium text-slate-400 mb-2">No orders found</h3>
+                    <p className="text-sm text-slate-500">Orders will appear here when tasks are created</p>
                   </div>
                 )}
               </div>
@@ -752,18 +752,18 @@ export default function Marketplace() {
                 <motion.div
                   initial={{ opacity: 0, scale: 0.95 }}
                   animate={{ opacity: 1, scale: 1 }}
-                  className="bg-[color:var(--surface-1)] backdrop-blur-sm rounded-xl border border-[color:var(--border-subtle)] p-4"
+                  className="bg-slate-900/50 backdrop-blur-sm rounded-xl border border-slate-700/50 p-4"
                 >
                   <div className="flex items-start justify-between mb-3">
                     <div>
-                      <h4 className="text-sm font-semibold text-[color:var(--foreground)]">{selectedTask.title}</h4>
-                      <p className="text-xs text-[color:var(--text-muted)] font-mono mt-0.5">{selectedTask.jobId}</p>
+                      <h4 className="text-sm font-semibold text-white">{selectedTask.title}</h4>
+                      <p className="text-xs text-slate-500 font-mono mt-0.5">{selectedTask.jobId}</p>
                     </div>
                     <button
                       onClick={() => setSelectedTask(null)}
-                      className="p-1 hover:bg-[color:var(--surface-hover)] rounded transition-colors"
+                      className="p-1 hover:bg-slate-800 rounded transition-colors"
                     >
-                      <X size={14} className="text-[color:var(--text-muted)]" />
+                      <X size={14} className="text-slate-400" />
                     </button>
                   </div>
 
@@ -773,22 +773,22 @@ export default function Marketplace() {
                     return (
                       <div className="mb-3">
                         <div className="flex items-center gap-1.5 mb-2">
-                          <FileText size={10} className="text-[color:var(--text-muted)]" />
-                          <span className="text-[10px] font-medium text-[color:var(--text-muted)] uppercase tracking-wide">
+                          <FileText size={10} className="text-slate-500" />
+                          <span className="text-[10px] font-medium text-slate-500 uppercase tracking-wide">
                             {taskTypeLabel(parsed.type)}
                           </span>
                         </div>
                         {parsed.details.length > 0 ? (
-                          <div className="bg-[color:var(--surface-1)]/40 rounded-lg p-2.5 space-y-1.5">
+                          <div className="bg-slate-800/40 rounded-lg p-2.5 space-y-1.5">
                             {parsed.details.map((d, i) => (
                               <div key={i} className="flex items-start gap-2">
-                                <span className="text-[10px] text-[color:var(--text-muted)] w-16 flex-shrink-0 pt-px">{d.label}</span>
-                                <span className="text-[11px] text-[color:var(--foreground)]">{d.value}</span>
+                                <span className="text-[10px] text-slate-500 w-16 flex-shrink-0 pt-px">{d.label}</span>
+                                <span className="text-[11px] text-slate-300">{d.value}</span>
                               </div>
                             ))}
                           </div>
                         ) : (
-                          <p className="text-xs text-[color:var(--text-muted)] italic">No additional details</p>
+                          <p className="text-xs text-slate-500 italic">No additional details</p>
                         )}
                       </div>
                     );
@@ -797,7 +797,7 @@ export default function Marketplace() {
                   {/* Tags */}
                   <div className="flex flex-wrap gap-1.5 mb-3">
                     {selectedTask.tags.map((tag) => (
-                      <span key={tag} className="text-[10px] px-1.5 py-0.5 bg-[color:var(--surface-1)] text-[color:var(--text-muted)] rounded">
+                      <span key={tag} className="text-[10px] px-1.5 py-0.5 bg-slate-800 text-slate-400 rounded">
                         {tag}
                       </span>
                     ))}
@@ -806,7 +806,7 @@ export default function Marketplace() {
                   {/* Bids Section */}
                   {selectedTask.bids.length > 0 && (
                     <div className="mb-3">
-                      <h5 className="text-[10px] font-medium text-[color:var(--text-muted)] uppercase tracking-wide mb-2 flex items-center gap-1.5">
+                      <h5 className="text-[10px] font-medium text-slate-500 uppercase tracking-wide mb-2 flex items-center gap-1.5">
                         <Gavel size={10} />
                         Bids ({selectedTask.bids.length})
                       </h5>
@@ -814,13 +814,13 @@ export default function Marketplace() {
                         {selectedTask.bids.map((bid) => {
                           const BidIcon = getIcon(bid.agentIcon);
                           return (
-                            <div key={bid.id} className="flex items-center gap-2 p-2 bg-[color:var(--surface-hover)] rounded-lg">
+                            <div key={bid.id} className="flex items-center gap-2 p-2 bg-slate-800/30 rounded-lg">
                               <div className="w-6 h-6 rounded-md bg-cyan-500/10 flex items-center justify-center flex-shrink-0">
                                 <BidIcon size={11} className="text-cyan-400" />
                               </div>
                               <div className="flex-1 min-w-0">
-                                <span className="text-[11px] font-medium text-[color:var(--foreground)] truncate block">{bid.agent}</span>
-                                <div className="flex items-center gap-2 text-[10px] text-[color:var(--text-muted)]">
+                                <span className="text-[11px] font-medium text-slate-300 truncate block">{bid.agent}</span>
+                                <div className="flex items-center gap-2 text-[10px] text-slate-500">
                                   <span className="flex items-center gap-0.5">
                                     <Star size={8} />
                                     {bid.reputation}
@@ -853,18 +853,18 @@ export default function Marketplace() {
                                   ? "bg-emerald-500"
                                   : isInProgress
                                   ? "bg-amber-500 animate-pulse"
-                                  : "bg-[color:var(--surface-hover)]"
+                                  : "bg-slate-700"
                               }`}
                             />
                             {index < selectedTask.stages.length - 1 && (
-                              <div className={`w-0.5 flex-1 min-h-[30px] ${isComplete ? "bg-emerald-500/30" : "bg-[color:var(--surface-hover)]"}`} />
+                              <div className={`w-0.5 flex-1 min-h-[30px] ${isComplete ? "bg-emerald-500/30" : "bg-slate-700/50"}`} />
                             )}
                           </div>
                           <div className="flex-1 pb-3">
-                            <p className={`text-xs font-medium ${isComplete || isInProgress ? "text-[color:var(--foreground)]" : "text-[color:var(--text-muted)]"}`}>
+                            <p className={`text-xs font-medium ${isComplete || isInProgress ? "text-slate-200" : "text-slate-500"}`}>
                               {stage.name}
                             </p>
-                            <p className="text-[10px] text-[color:var(--text-muted)] mt-0.5">{stage.description}</p>
+                            <p className="text-[10px] text-slate-500 mt-0.5">{stage.description}</p>
                           </div>
                         </div>
                       );
@@ -874,13 +874,13 @@ export default function Marketplace() {
               )}
 
               {/* Execution Feed */}
-              <div className="bg-[color:var(--surface-1)] backdrop-blur-sm rounded-xl border border-[color:var(--border-subtle)] p-4">
+              <div className="bg-slate-900/50 backdrop-blur-sm rounded-xl border border-slate-800/50 p-4">
                 <div className="flex items-center justify-between mb-4">
-                  <h3 className="text-sm font-semibold text-[color:var(--foreground)] flex items-center gap-2">
+                  <h3 className="text-sm font-semibold text-white flex items-center gap-2">
                     <Activity size={14} className="text-violet-400" />
                     Recent Executions
                   </h3>
-                  <span className="text-[10px] text-[color:var(--text-muted)]">Auto-updating</span>
+                  <span className="text-[10px] text-slate-500">Auto-updating</span>
                 </div>
 
                 <div className="space-y-0 max-h-[300px] overflow-y-auto">
@@ -889,14 +889,14 @@ export default function Marketplace() {
                       <ExecutionFeedItem key={task.id} task={task} index={index} />
                     ))
                   ) : (
-                    <p className="text-xs text-[color:var(--text-muted)] text-center py-4">No recent executions</p>
+                    <p className="text-xs text-slate-500 text-center py-4">No recent executions</p>
                   )}
                 </div>
               </div>
 
               {/* Active Agents */}
-              <div className="bg-[color:var(--surface-1)] backdrop-blur-sm rounded-xl border border-[color:var(--border-subtle)] p-4">
-                <h3 className="text-sm font-semibold text-[color:var(--foreground)] flex items-center gap-2 mb-4">
+              <div className="bg-slate-900/50 backdrop-blur-sm rounded-xl border border-slate-800/50 p-4">
+                <h3 className="text-sm font-semibold text-white flex items-center gap-2 mb-4">
                   <Shield size={14} className="text-emerald-400" />
                   Active Agents
                 </h3>
@@ -904,7 +904,7 @@ export default function Marketplace() {
                   {agents.filter(a => a.status === "active").slice(0, 5).map((agent) => {
                     const AgentIcon = getIcon(agent.icon);
                     return (
-                      <div key={agent.id} className="flex items-center gap-3 p-2 rounded-lg hover:bg-[color:var(--surface-hover)] transition-colors">
+                      <div key={agent.id} className="flex items-center gap-3 p-2 rounded-lg hover:bg-slate-800/30 transition-colors">
                         <div className="w-8 h-8 rounded-lg bg-violet-500/20 flex items-center justify-center">
                           <AgentIcon size={14} className="text-violet-400" />
                         </div>
@@ -915,12 +915,12 @@ export default function Marketplace() {
                                 href={agent.explorerLink}
                                 target="_blank"
                                 rel="noopener noreferrer"
-                                className="text-xs font-medium text-[color:var(--foreground)] hover:text-violet-400 transition-colors"
+                                className="text-xs font-medium text-slate-300 hover:text-violet-400 transition-colors"
                               >
                                 {agent.title}
                               </a>
                             ) : (
-                              <p className="text-xs font-medium text-[color:var(--foreground)]">{agent.title}</p>
+                              <p className="text-xs font-medium text-slate-300">{agent.title}</p>
                             )}
                             {agent.isVerified && <BadgeCheck size={10} className="text-emerald-400" />}
                           </div>
@@ -928,7 +928,7 @@ export default function Marketplace() {
                             <div className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
                             <span className="text-[10px] text-emerald-400">Ready</span>
                             {agent.reputation !== undefined && agent.reputation > 0 && (
-                              <span className="text-[10px] text-[color:var(--text-muted)] flex items-center gap-0.5">
+                              <span className="text-[10px] text-slate-500 flex items-center gap-0.5">
                                 <Star size={8} />
                                 {agent.reputation.toFixed(1)}
                               </span>
