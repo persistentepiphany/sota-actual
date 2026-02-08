@@ -86,6 +86,24 @@ export const AGENT_STAKING_ABI = [
     outputs: [{ name: "", type: "bool" }],
     stateMutability: "view",
   },
+  {
+    type: "function",
+    name: "previewSafeWithdraw",
+    inputs: [{ name: "agent", type: "address" }],
+    outputs: [
+      { name: "earnings", type: "uint256" },
+      { name: "fee", type: "uint256" },
+      { name: "payout", type: "uint256" },
+    ],
+    stateMutability: "view",
+  },
+  {
+    type: "function",
+    name: "safeWithdrawFeeBps",
+    inputs: [],
+    outputs: [{ name: "", type: "uint256" }],
+    stateMutability: "view",
+  },
   // Writes
   {
     type: "function",
@@ -104,6 +122,13 @@ export const AGENT_STAKING_ABI = [
   {
     type: "function",
     name: "unstake",
+    inputs: [{ name: "agent", type: "address" }],
+    outputs: [],
+    stateMutability: "nonpayable",
+  },
+  {
+    type: "function",
+    name: "safeWithdraw",
     inputs: [{ name: "agent", type: "address" }],
     outputs: [],
     stateMutability: "nonpayable",
@@ -156,6 +181,15 @@ export const AGENT_STAKING_ABI = [
     inputs: [
       { name: "agent", type: "address", indexed: true },
       { name: "amount", type: "uint256", indexed: false },
+    ],
+  },
+  {
+    type: "event",
+    name: "SafeWithdraw",
+    inputs: [
+      { name: "agent", type: "address", indexed: true },
+      { name: "payout", type: "uint256", indexed: false },
+      { name: "fee", type: "uint256", indexed: false },
     ],
   },
 ] as const;

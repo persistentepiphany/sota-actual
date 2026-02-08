@@ -660,9 +660,9 @@ export default function Marketplace() {
             />
           </div>
 
-          <div className="flex gap-6">
+          <div className="flex gap-6 items-stretch">
             {/* Order Book Panel */}
-            <div className="flex-1">
+            <div className="flex-1 flex flex-col">
               {/* Filter Tabs */}
               <div className="bg-slate-900/50 backdrop-blur-sm rounded-t-xl border border-slate-800/50 border-b-0 px-4 py-3">
                 <div className="flex items-center justify-between">
@@ -728,7 +728,7 @@ export default function Marketplace() {
               </div>
 
               {/* Order Book Rows */}
-              <div className="bg-slate-900/30 backdrop-blur-sm rounded-b-xl border border-slate-800/50 border-t-0 divide-y divide-slate-800/30 max-h-[500px] overflow-y-auto">
+              <div className="bg-slate-900/30 backdrop-blur-sm rounded-b-xl border border-slate-800/50 border-t-0 divide-y divide-slate-800/30 flex-1 min-h-0 overflow-y-auto">
                 {filteredTasks.length > 0 ? (
                   filteredTasks.map((task, index) => (
                     <OrderBookRow key={task.id} task={task} index={index} />

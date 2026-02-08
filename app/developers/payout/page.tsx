@@ -325,7 +325,7 @@ export default function PayoutPage() {
         maxPayout: prevData[2],
       });
 
-      const safePrevData = safePrev as any[];
+      const safePrevData = safePrev as unknown as any[];
       setSafePreview({
         earnings: safePrevData[0],
         fee: safePrevData[1],
