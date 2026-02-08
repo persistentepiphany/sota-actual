@@ -38,6 +38,7 @@ class AgentCapability(str, Enum):
     PHONE_CALL = "phone_call"
     DATA_ANALYSIS = "data_analysis"
     JOB_ORCHESTRATION = "job_orchestration"
+    WEB_SCRAPING = "web_scraping"
 
 
 @dataclass
