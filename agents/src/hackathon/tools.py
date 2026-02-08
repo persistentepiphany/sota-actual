@@ -48,7 +48,7 @@ def _is_upcoming(date_str: str | None) -> bool:
         dt = datetime.strptime(date_str[:10], "%Y-%m-%d")
         return dt.date() >= datetime.utcnow().date()
     except (ValueError, TypeError):
-        return True  # unparseable → keep
+        return True  # unparseable -> keep
 
 
 def _strip_past(hackathons: list[dict]) -> list[dict]:
@@ -143,109 +143,95 @@ class SearchHackathonsTool(BaseTool):
         if not date_to:
             date_to = (today + timedelta(days=90)).strftime("%Y-%m-%d")
 
-        # Build search clauses
-        location_clause = (
-            f"located in or near {location}"
-            if location and location.lower() not in ("anywhere", "global", "worldwide", "")
-            else "anywhere in the world"
-        )
-
-        topic_clause = f" focused on {topics}" if topics else ""
-
-        mode_clause = {
-            "online": " that are virtual / online only",
-            "in-person": " that are in-person / physical only",
-            "both": "",
-        }.get(mode, "")
-
-        prompt = (
-            f"Search the internet for UPCOMING hackathons and coding competitions "
-            f"{location_clause} between {date_from} and {date_to}"
-            f"{topic_clause}{mode_clause}.\n\n"
-            f"CRITICAL: Only include events whose start date is on or after {date_from}. "
-            f"Do NOT include any event that has already started or ended before {date_from}.\n\n"
-            f"You MUST search ALL of these sources individually:\n"
-            f"1. lu.ma -- search 'site:lu.ma hackathon {location}'\n"
-            f"2. devpost.com -- search 'site:devpost.com hackathon {location}'\n"
-            f"3. mlh.io -- check mlh.io/seasons/2026/events\n"
-            f"4. eventbrite.com -- search 'site:eventbrite.com hackathon {location}'\n"
-            f"5. ethglobal.com -- check ethglobal.com/events\n"
-            f"6. Any other hackathon listing sites you can find\n\n"
-            f"Luma (lu.ma) is especially important -- many tech hackathons are "
-            f"listed there. Make sure to search it thoroughly.\n\n"
-            f"CRITICAL -- URL REQUIREMENTS:\n"
-            f"- The 'url' field MUST be the direct link to the event page, NOT a search results page.\n"
-            f"- For Luma events use the full lu.ma URL (e.g. https://lu.ma/abc123)\n"
-            f"- For Devpost events use the full devpost URL (e.g. https://my-hack.devpost.com/)\n"
-            f"- For Eventbrite use the full eventbrite URL\n"
-            f"- NEVER use a generic homepage -- always link to the specific event.\n"
-            f"- Verify every URL actually exists before including it.\n\n"
-            f"CRITICAL -- DATE FILTER:\n"
-            f"- Today is {today_str}.\n"
-            f"- ONLY include events with date_start >= {date_from}.\n"
-            f"- Exclude anything that already happened.\n\n"
-            f"Return ONLY a JSON array (no markdown fences) where each element has:\n"
-            f'{{"name": "...", "date_start": "YYYY-MM-DD", "date_end": "YYYY-MM-DD", '
-            f'"location": "...", "url": "https://direct-link-to-event-page", '
-            f'"organizer": "...", "source": "luma|devpost|mlh|eventbrite|ethglobal|other", '
-            f'"description": "...", "prizes": "...", "is_virtual": true/false, '
-            f'"topics": ["topic1", "topic2"], '
-            f'"registration_url": "https://direct-registration-link"}}\n\n'
-            f"The 'url' must be a clickable link to the event page. "
-            f"The 'registration_url' should be the sign-up / register link if different from 'url'. "
-            f"Include the source platform in the 'source' field. "
-            f"Set 'is_virtual' to true for online events, false for in-person. "
-            f"Include relevant topic tags in 'topics'. "
-            f"If you cannot find any, return an empty array []."
-        )
-
+        kw_clause = f" related to {topics}" if topics else ""
         hackathons = []
 
-        try:
-            client = AsyncOpenAI(api_key=api_key)
+        # ── Strategy 1: OpenAI web search ────────────────────────
+        if api_key:
+            prompt = (
+                f"Search the internet for upcoming hackathons and coding competitions "
+                f"near {location} between {date_from} and {date_to}{kw_clause}.\n\n"
+                f"You MUST search ALL of these sources individually:\n"
+                f"1. lu.ma — search 'site:lu.ma hackathon {location}'\n"
+                f"2. devpost.com — search 'site:devpost.com hackathon {location}'\n"
+                f"3. mlh.io — check mlh.io/seasons/2026/events\n"
+                f"4. eventbrite.com — search 'site:eventbrite.com hackathon {location}'\n"
+                f"5. ethglobal.com — check ethglobal.com/events\n"
+                f"6. Any other hackathon listing sites you can find\n\n"
+                f"Luma (lu.ma) is especially important — many tech hackathons are "
+                f"listed there. Make sure to search it thoroughly.\n\n"
+                f"CRITICAL — URL REQUIREMENTS:\n"
+                f"- The 'url' field MUST be the direct link to the event page, NOT a search results page.\n"
+                f"- For Luma events use the full lu.ma URL (e.g. https://lu.ma/abc123)\n"
+                f"- For Devpost events use the full devpost URL (e.g. https://my-hack.devpost.com/)\n"
+                f"- For Eventbrite use the full eventbrite URL\n"
+                f"- NEVER use a generic homepage — always link to the specific event.\n"
+                f"- Verify every URL actually exists before including it.\n\n"
+                f"CRITICAL — DATE FILTER:\n"
+                f"- Today is {today_str}.\n"
+                f"- ONLY include events with date_start >= {date_from}.\n"
+                f"- Exclude anything that already happened.\n\n"
+                f"Return ONLY a JSON array (no markdown fences) where each element has:\n"
+                f'{{"name": "...", "date_start": "YYYY-MM-DD", "date_end": "YYYY-MM-DD", '
+                f'"location": "...", "url": "https://direct-link-to-event-page", '
+                f'"organizer": "...", "source": "luma|devpost|mlh|eventbrite|ethglobal|other", '
+                f'"description": "...", "prizes": "...", "is_virtual": false, '
+                f'"topics": ["topic1", "topic2"], '
+                f'"registration_url": "https://direct-registration-link"}}\n\n'
+                f"The 'url' must be a clickable link to the event page. "
+                f"The 'registration_url' should be the sign-up / register link if different from 'url'. "
+                f"Include the source platform in the 'source' field. "
+                f"If you cannot find any, return an empty array []."
+            )
 
             try:
-                response = await client.responses.create(
-                    model="gpt-4o-mini",
-                    tools=[{"type": "web_search_preview"}],
-                    input=prompt,
-                )
-                raw = ""
-                for item in response.output:
-                    if hasattr(item, "content"):
-                        for block in item.content:
-                            if hasattr(block, "text"):
-                                raw += block.text
-                if not raw.strip():
-                    raise ValueError("Empty web search response")
-            except Exception as ws_err:
-                logger.warning("Web search fallback: %s -- using chat completions", ws_err)
-                resp = await client.chat.completions.create(
-                    model=os.getenv("LLM_MODEL", OPENAI_SEARCH_MODEL),
-                    messages=[
-                        {"role": "system", "content": "You are a hackathon research assistant. Return ONLY valid JSON arrays. Never include past events."},
-                        {"role": "user", "content": prompt},
-                    ],
-                    temperature=0.2,
-                )
-                raw = resp.choices[0].message.content or "[]"
+                client = AsyncOpenAI(api_key=api_key)
 
-            # Parse and post-filter
-            hackathons = self._extract_json_array(raw)
-            hackathons = _strip_past(hackathons)
+                # Try web-search enabled model first, fall back to regular
+                try:
+                    response = await client.responses.create(
+                        model="gpt-4o-mini",
+                        tools=[{"type": "web_search_preview"}],
+                        input=prompt,
+                    )
+                    # Extract text from response output
+                    raw = ""
+                    for item in response.output:
+                        if hasattr(item, "content"):
+                            for block in item.content:
+                                if hasattr(block, "text"):
+                                    raw += block.text
+                    if not raw.strip():
+                        raise ValueError("Empty web search response")
+                except Exception as ws_err:
+                    logger.warning("Web search fallback: %s — using chat completions", ws_err)
+                    resp = await client.chat.completions.create(
+                        model=os.getenv("LLM_MODEL", OPENAI_SEARCH_MODEL),
+                        messages=[
+                            {"role": "system", "content": "You are a hackathon research assistant. Return ONLY valid JSON arrays. Never include past events."},
+                            {"role": "user", "content": prompt},
+                        ],
+                        temperature=0.2,
+                    )
+                    raw = resp.choices[0].message.content or "[]"
 
-            # Apply mode filter
-            if mode == "online":
-                hackathons = [h for h in hackathons if h.get("is_virtual") is True]
-            elif mode == "in-person":
-                hackathons = [h for h in hackathons if h.get("is_virtual") is not True]
+                hackathons = self._extract_json_array(raw)
+                hackathons = _strip_past(hackathons)
 
-        except Exception as e:
-            logger.error("OpenAI hackathon search failed: %s", e)
+                # Apply mode filter
+                if mode == "online":
+                    hackathons = [h for h in hackathons if h.get("is_virtual") is True]
+                elif mode == "in-person":
+                    hackathons = [h for h in hackathons if h.get("is_virtual") is not True]
 
-        # ── Scraper fallback: if few results, try direct web scraping ──
+                logger.info("OpenAI search returned %d hackathon(s)", len(hackathons))
+
+            except Exception as e:
+                logger.error("OpenAI hackathon search failed: %s", e)
+
+        # ── Strategy 2: Direct web scraping fallback ─────────────
         if len(hackathons) < 2:
-            logger.info("Trying direct web scraping fallback (found %d so far)...", len(hackathons))
+            logger.info("Trying direct web scraping fallback (found %d so far)…", len(hackathons))
             scraped = await self._scrape_hackathon_sites(location)
             existing_names = {h.get("name", "").lower().strip()[:50] for h in hackathons}
             for s in scraped:
@@ -264,7 +250,6 @@ class SearchHackathonsTool(BaseTool):
                 "date_from": date_from,
                 "date_to": date_to,
                 "topics": topics,
-                "mode": mode,
             },
         }, indent=2)
 
@@ -535,9 +520,6 @@ class FormatHackathonResultsTool(BaseTool):
         # Final safety net: strip past events before display
         hackathons = _strip_past(hackathons)
 
-        if not hackathons:
-            return "No upcoming hackathons found matching your criteria."
-
         count = len(hackathons)
         lines = [f"I found {count} hackathon{'s' if count != 1 else ''} for you:\n"]
         for i, h in enumerate(hackathons, 1):
@@ -548,24 +530,17 @@ class FormatHackathonResultsTool(BaseTool):
             url = h.get("url", "")
             reg_url = h.get("registration_url", "")
             prizes = h.get("prizes", "")
-            source = h.get("source", "")
-            virtual = h.get("is_virtual", False)
-            topics = h.get("topics", [])
+            virtual = " (Virtual)" if h.get("is_virtual") else ""
 
-            mode_tag = "[ONLINE]" if virtual else "[IN-PERSON]"
-            lines.append(f"{i}. {name}  {mode_tag}")
-            lines.append(f"   Dates: {ds} -> {de}")
-            lines.append(f"   Location: {loc}")
-            if topics:
-                lines.append(f"   Topics: {', '.join(topics)}")
+            date_str = f"{ds} - {de}" if de and de != ds else ds
+            lines.append(f"{i}. {name}{virtual}")
+            lines.append(f"   {date_str}  |  {loc}")
             if prizes:
-                lines.append(f"   Prizes: {prizes}")
+                lines.append(f"   Prize: {prizes}")
             if url:
-                lines.append(f"   Event: {url}")
-            if reg_url and reg_url != url:
-                lines.append(f"   Register: {reg_url}")
-            if source:
-                lines.append(f"   Source: {source}")
+                lines.append(f"   {url}")
+            elif reg_url:
+                lines.append(f"   {reg_url}")
             lines.append("")
 
         lines.append("Want me to help you register for any of these?")

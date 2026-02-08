@@ -51,35 +51,14 @@ interface Stage {
   status: "complete" | "in_progress" | "pending";
 }
 
-interface BidDetail {
+interface Bid {
   id: string;
   agent: string;
-  agentId: number | null;
   agentIcon: string;
-  price: number | null;
-  priceFormatted: string;
+  price: string;
   reputation: number;
   eta: string;
-  isVerified: boolean;
-  explorerLink: string | null;
   timestamp: string;
-}
-
-interface WinnerInfo {
-  agent: string;
-  agentId: number | null;
-  agentIcon: string;
-  winnerPrice: number | null;
-  winnerPriceFormatted: string;
-  reputation: number;
-  isVerified: boolean;
-  explorerLink: string | null;
-}
-
-interface ContractLinks {
-  orderBook: string;
-  escrow: string;
-  agentRegistry: string;
 }
 
 interface Task {
@@ -94,10 +73,7 @@ interface Task {
   tags: string[];
   createdAt: string;
   stages: Stage[];
-  budgetUsdc: number | null;
-  bids: BidDetail[];
-  winner: WinnerInfo | null;
-  contractLinks: ContractLinks;
+  bids: Bid[];
 }
 
 interface Agent {
@@ -127,7 +103,6 @@ interface MarketplaceData {
     failed: number;
   };
   agents: Agent[];
-  contractLinks?: ContractLinks;
 }
 
 export default function Marketplace() {
@@ -139,7 +114,6 @@ export default function Marketplace() {
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
   const [activeFilter, setActiveFilter] = useState<"all" | "bids" | "executing" | "settled">("all");
   const [recentExecutions, setRecentExecutions] = useState<Task[]>([]);
-  const [expandedBid, setExpandedBid] = useState<{ taskId: string; bidId: string } | null>(null);
 
   // Fetch tasks from API
   const fetchTasks = useCallback(async () => {
@@ -258,9 +232,6 @@ export default function Marketplace() {
     const AgentIcon = getIcon(task.agentIcon);
     const isSelected = selectedTask?.id === task.id;
     const bids = task.bids || [];
-    const bestBid = bids.length > 0
-      ? bids.reduce((best, b) => (b.price !== null && (best.price === null || b.price < best.price)) ? b : best, bids[0])
-      : null;
 
     return (
       <motion.div
@@ -297,11 +268,6 @@ export default function Marketplace() {
                   {tag}
                 </span>
               ))}
-              {task.budgetUsdc !== null && (
-                <span className="text-[10px] px-1.5 py-0.5 bg-violet-500/10 text-violet-400 rounded">
-                  {task.budgetUsdc.toFixed(2)} USDC
-                </span>
-              )}
             </div>
           </div>
 
@@ -311,23 +277,13 @@ export default function Marketplace() {
               <div className="flex items-center gap-1">
                 <div className="flex -space-x-2">
                   {bids.slice(0, 3).map((bid) => (
-                    <button
+                    <div
                       key={bid.id}
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setExpandedBid(
-                          expandedBid?.bidId === bid.id ? null : { taskId: task.id, bidId: bid.id }
-                        );
-                      }}
-                      className={`w-6 h-6 rounded-full bg-slate-700 border-2 flex items-center justify-center transition-colors ${
-                        expandedBid?.bidId === bid.id
-                          ? "border-violet-500 ring-1 ring-violet-500/50"
-                          : "border-slate-900 hover:border-violet-500"
-                      }`}
-                      title={`${bid.agent}${bid.isVerified ? " (Verified)" : ""} - Click for details`}
+                      className="w-6 h-6 rounded-full bg-slate-700 border-2 border-slate-900 flex items-center justify-center"
+                      title={bid.agent}
                     >
                       {(() => { const I = getIcon(bid.agentIcon); return <I size={10} className="text-slate-400" />; })()}
-                    </button>
+                    </div>
                   ))}
                 </div>
                 <span className="text-xs text-slate-500 ml-1">
@@ -339,20 +295,7 @@ export default function Marketplace() {
                 <div className="w-6 h-6 rounded-lg bg-violet-500/20 flex items-center justify-center">
                   <AgentIcon size={12} className="text-violet-400" />
                 </div>
-                {task.winner?.explorerLink ? (
-                  <a
-                    href={task.winner.explorerLink}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    onClick={(e) => e.stopPropagation()}
-                    className="text-sm text-slate-300 hover:text-violet-400 transition-colors flex items-center gap-1"
-                  >
-                    {task.agent}
-                    {task.winner.isVerified && <BadgeCheck size={12} className="text-emerald-400" />}
-                  </a>
-                ) : (
-                  <span className="text-sm text-slate-300">{task.agent}</span>
-                )}
+                <span className="text-sm text-slate-300">{task.agent}</span>
               </div>
             )}
           </div>
@@ -377,18 +320,16 @@ export default function Marketplace() {
               <div className="flex items-center gap-1">
                 <DollarSign size={12} className="text-cyan-400" />
                 <span className="text-sm font-medium text-cyan-400">
-                  {bestBid ? bestBid.priceFormatted : "No bids"}
+                  {bids.length > 0 ? bids[0].price : "No bids"}
                 </span>
-                {bestBid && <span className="text-[10px] text-slate-500">best</span>}
+                {bids.length > 0 && <span className="text-[10px] text-slate-500">best</span>}
               </div>
             ) : (
               <div className="flex items-center gap-1">
                 {task.status === "completed" ? (
                   <>
                     <CheckCircle size={14} className="text-emerald-400" />
-                    <span className="text-sm font-medium text-emerald-400">
-                      {task.winner?.winnerPriceFormatted || "Settled"}
-                    </span>
+                    <span className="text-sm font-medium text-emerald-400">Settled</span>
                   </>
                 ) : (
                   <>
@@ -432,130 +373,6 @@ export default function Marketplace() {
             <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-amber-500/50 to-transparent" />
           </div>
         )}
-
-        {/* Bid Detail Popup */}
-        <AnimatePresence>
-          {bids.map((bid) =>
-            expandedBid?.taskId === task.id && expandedBid?.bidId === bid.id ? (
-              <motion.div
-                key={`popup-${bid.id}`}
-                initial={{ opacity: 0, height: 0 }}
-                animate={{ opacity: 1, height: "auto" }}
-                exit={{ opacity: 0, height: 0 }}
-                transition={{ duration: 0.2 }}
-                className="overflow-hidden border-t border-slate-800/50"
-                onClick={(e) => e.stopPropagation()}
-              >
-                <div className="px-4 py-3 bg-slate-800/40">
-                  <div className="grid grid-cols-2 gap-4">
-                    {/* Left: Trade Data */}
-                    <div className="space-y-2">
-                      <h5 className="text-[10px] font-medium text-slate-500 uppercase tracking-wide flex items-center gap-1.5">
-                        <Gavel size={10} />
-                        Bid Details
-                      </h5>
-
-                      <div className="flex items-center gap-2">
-                        {(() => { const BI = getIcon(bid.agentIcon); return (
-                          <div className="w-7 h-7 rounded-md bg-cyan-500/10 flex items-center justify-center flex-shrink-0">
-                            <BI size={13} className="text-cyan-400" />
-                          </div>
-                        ); })()}
-                        <div>
-                          <div className="flex items-center gap-1">
-                            {bid.explorerLink ? (
-                              <a
-                                href={bid.explorerLink}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="text-xs font-medium text-slate-200 hover:text-violet-400 transition-colors flex items-center gap-1"
-                              >
-                                {bid.agent}
-                                <ExternalLink size={9} className="opacity-60" />
-                              </a>
-                            ) : (
-                              <span className="text-xs font-medium text-slate-200">{bid.agent}</span>
-                            )}
-                            {bid.isVerified && <BadgeCheck size={11} className="text-emerald-400" />}
-                          </div>
-                        </div>
-                      </div>
-
-                      <div className="grid grid-cols-2 gap-x-4 gap-y-1.5 text-[11px]">
-                        <div className="flex items-center justify-between">
-                          <span className="text-slate-500">Price</span>
-                          <span className="text-cyan-400 font-medium">{bid.priceFormatted}</span>
-                        </div>
-                        <div className="flex items-center justify-between">
-                          <span className="text-slate-500">ETA</span>
-                          <span className="text-slate-300">{bid.eta}</span>
-                        </div>
-                        <div className="flex items-center justify-between">
-                          <span className="text-slate-500">Reputation</span>
-                          <span className="text-slate-300 flex items-center gap-0.5">
-                            <Star size={9} className="text-amber-400" />
-                            {bid.reputation.toFixed(1)}
-                          </span>
-                        </div>
-                        <div className="flex items-center justify-between">
-                          <span className="text-slate-500">Time</span>
-                          <span className="text-slate-300">
-                            {new Date(bid.timestamp).toLocaleTimeString()}
-                          </span>
-                        </div>
-                        {task.budgetUsdc !== null && (
-                          <div className="flex items-center justify-between">
-                            <span className="text-slate-500">Budget</span>
-                            <span className="text-violet-400 font-medium">{task.budgetUsdc.toFixed(2)} USDC</span>
-                          </div>
-                        )}
-                        <div className="flex items-center justify-between">
-                          <span className="text-slate-500">Status</span>
-                          <span className={config.color}>{config.label}</span>
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Right: Smart Contract Links */}
-                    <div className="space-y-2">
-                      <h5 className="text-[10px] font-medium text-slate-500 uppercase tracking-wide flex items-center gap-1.5">
-                        <Link2 size={10} />
-                        Smart Contracts
-                      </h5>
-                      <div className="space-y-1.5 p-2.5 bg-slate-900/60 rounded-lg border border-slate-700/30">
-                        {[
-                          { label: "OrderBook", desc: "Job & bid matching", url: task.contractLinks.orderBook },
-                          { label: "Escrow", desc: "Payment escrow", url: task.contractLinks.escrow },
-                          { label: "AgentRegistry", desc: "Agent verification", url: task.contractLinks.agentRegistry },
-                        ].map((c) => (
-                          <a
-                            key={c.label}
-                            href={c.url}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="flex items-center justify-between py-1.5 px-2 rounded-md text-[11px] text-slate-400 hover:text-violet-400 hover:bg-slate-800/60 transition-all group"
-                          >
-                            <span className="flex flex-col">
-                              <span className="flex items-center gap-1.5 font-medium">
-                                <FileText size={10} className="text-slate-500 group-hover:text-violet-400 transition-colors" />
-                                {c.label}
-                              </span>
-                              <span className="text-[9px] text-slate-600 ml-4">{c.desc}</span>
-                            </span>
-                            <ExternalLink size={10} className="opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0" />
-                          </a>
-                        ))}
-                      </div>
-                      <p className="text-[9px] text-slate-600 px-1">
-                        Flare Coston2 Testnet
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              </motion.div>
-            ) : null
-          )}
-        </AnimatePresence>
       </motion.div>
     );
   };
@@ -632,6 +449,10 @@ export default function Marketplace() {
       0%, 100% { opacity: 0.1; transform: scale(1); }
       50% { opacity: 0.3; transform: scale(1.1); }
     }
+    @keyframes ticker {
+      0% { transform: translateX(0); }
+      100% { transform: translateX(-50%); }
+    }
     .grid-line {
       stroke: #6366f1;
       stroke-width: 0.5;
@@ -644,6 +465,9 @@ export default function Marketplace() {
       fill: #a78bfa;
       opacity: 0;
       animation: pulse-glow 3s ease-in-out infinite;
+    }
+    .ticker-scroll {
+      animation: ticker 30s linear infinite;
     }
   `;
 
@@ -702,6 +526,32 @@ export default function Marketplace() {
           </defs>
           <rect width="100%" height="100%" fill="url(#gridMarket)" />
         </svg>
+
+        {/* Live Ticker Bar */}
+        <div className="relative z-10 bg-slate-900/80 border-b border-slate-800/50 overflow-hidden">
+          <div className="flex items-center h-8">
+            <div className="flex-shrink-0 px-4 bg-violet-500/20 h-full flex items-center border-r border-slate-800/50">
+              <Activity size={12} className="text-violet-400 mr-2 animate-pulse" />
+              <span className="text-xs font-medium text-violet-300">LIVE</span>
+            </div>
+            <div className="flex-1 overflow-hidden">
+              <div className="ticker-scroll flex items-center gap-8 px-4 whitespace-nowrap">
+                {[...recentExecutions, ...recentExecutions].map((task, i) => (
+                  <span key={`${task.id}-${i}`} className="text-xs text-slate-400 flex items-center gap-2">
+                    <span className={`w-1.5 h-1.5 rounded-full ${
+                      task.status === "completed" ? "bg-emerald-400" : "bg-red-400"
+                    }`} />
+                    <span className="text-slate-500">{task.jobId.slice(0, 6)}</span>
+                    <span>{task.title.slice(0, 30)}</span>
+                    <span className={task.status === "completed" ? "text-emerald-400" : "text-red-400"}>
+                      {task.status === "completed" ? "Settled" : "Failed"}
+                    </span>
+                  </span>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
 
         {/* Header */}
         <div className="relative z-10 max-w-7xl mx-auto px-6 pt-6">
@@ -898,47 +748,13 @@ export default function Marketplace() {
                     {selectedTask.description}
                   </p>
 
-                  {/* Tags + Budget */}
+                  {/* Tags */}
                   <div className="flex flex-wrap gap-1.5 mb-3">
                     {selectedTask.tags.map((tag) => (
                       <span key={tag} className="text-[10px] px-1.5 py-0.5 bg-slate-800 text-slate-400 rounded">
                         {tag}
                       </span>
                     ))}
-                    {selectedTask.budgetUsdc !== null && (
-                      <span className="text-[10px] px-1.5 py-0.5 bg-violet-500/10 text-violet-400 rounded font-medium">
-                        Budget: {selectedTask.budgetUsdc.toFixed(2)} USDC
-                      </span>
-                    )}
-                  </div>
-
-                  {/* Smart Contract Links */}
-                  <div className="mb-3 p-2.5 bg-slate-800/40 rounded-lg border border-slate-700/30">
-                    <h5 className="text-[10px] font-medium text-slate-500 uppercase tracking-wide mb-2 flex items-center gap-1.5">
-                      <Link2 size={10} />
-                      Smart Contracts
-                    </h5>
-                    <div className="space-y-1.5">
-                      {[
-                        { label: "OrderBook", url: selectedTask.contractLinks.orderBook },
-                        { label: "Escrow", url: selectedTask.contractLinks.escrow },
-                        { label: "AgentRegistry", url: selectedTask.contractLinks.agentRegistry },
-                      ].map((c) => (
-                        <a
-                          key={c.label}
-                          href={c.url}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="flex items-center justify-between text-[11px] text-slate-400 hover:text-violet-400 transition-colors group"
-                        >
-                          <span className="flex items-center gap-1.5">
-                            <FileText size={10} className="text-slate-500" />
-                            {c.label}
-                          </span>
-                          <ExternalLink size={10} className="opacity-0 group-hover:opacity-100 transition-opacity" />
-                        </a>
-                      ))}
-                    </div>
                   </div>
 
                   {/* Bids Section */}
@@ -957,76 +773,21 @@ export default function Marketplace() {
                                 <BidIcon size={11} className="text-cyan-400" />
                               </div>
                               <div className="flex-1 min-w-0">
-                                <div className="flex items-center gap-1">
-                                  {bid.explorerLink ? (
-                                    <a
-                                      href={bid.explorerLink}
-                                      target="_blank"
-                                      rel="noopener noreferrer"
-                                      className="text-[11px] font-medium text-slate-300 hover:text-violet-400 transition-colors truncate"
-                                    >
-                                      {bid.agent}
-                                    </a>
-                                  ) : (
-                                    <span className="text-[11px] font-medium text-slate-300 truncate">{bid.agent}</span>
-                                  )}
-                                  {bid.isVerified && <BadgeCheck size={10} className="text-emerald-400 flex-shrink-0" />}
-                                </div>
+                                <span className="text-[11px] font-medium text-slate-300 truncate block">{bid.agent}</span>
                                 <div className="flex items-center gap-2 text-[10px] text-slate-500">
                                   <span className="flex items-center gap-0.5">
                                     <Star size={8} />
-                                    {bid.reputation.toFixed(1)}
+                                    {bid.reputation}
                                   </span>
                                   <span>{bid.eta}</span>
                                 </div>
                               </div>
                               <span className="text-[11px] font-medium text-cyan-400 flex-shrink-0">
-                                {bid.priceFormatted}
+                                {bid.price}
                               </span>
                             </div>
                           );
                         })}
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Winner Section */}
-                  {selectedTask.winner && (
-                    <div className="mb-3 p-2.5 bg-emerald-500/5 rounded-lg border border-emerald-500/20">
-                      <h5 className="text-[10px] font-medium text-emerald-400 uppercase tracking-wide mb-2 flex items-center gap-1.5">
-                        <CheckCircle size={10} />
-                        Winner
-                      </h5>
-                      <div className="flex items-center gap-2">
-                        <div className="w-7 h-7 rounded-md bg-emerald-500/10 flex items-center justify-center">
-                          {(() => { const WI = getIcon(selectedTask.winner.agentIcon); return <WI size={13} className="text-emerald-400" />; })()}
-                        </div>
-                        <div className="flex-1">
-                          <div className="flex items-center gap-1">
-                            {selectedTask.winner.explorerLink ? (
-                              <a
-                                href={selectedTask.winner.explorerLink}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="text-xs font-medium text-emerald-300 hover:text-emerald-200 transition-colors"
-                              >
-                                {selectedTask.winner.agent}
-                              </a>
-                            ) : (
-                              <span className="text-xs font-medium text-emerald-300">{selectedTask.winner.agent}</span>
-                            )}
-                            {selectedTask.winner.isVerified && <BadgeCheck size={11} className="text-emerald-400" />}
-                          </div>
-                          <div className="flex items-center gap-2 text-[10px] text-slate-500">
-                            <span className="flex items-center gap-0.5">
-                              <Star size={8} />
-                              {selectedTask.winner.reputation.toFixed(1)}
-                            </span>
-                          </div>
-                        </div>
-                        <span className="text-sm font-bold text-emerald-400">
-                          {selectedTask.winner.winnerPriceFormatted}
-                        </span>
                       </div>
                     </div>
                   )}

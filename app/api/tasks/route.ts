@@ -18,35 +18,14 @@ export interface Stage {
   status: "complete" | "in_progress" | "pending";
 }
 
-export interface BidDetail {
+export interface TaskBid {
   id: string;
   agent: string;
-  agentId: number | null;
   agentIcon: string;
-  price: number | null;
-  priceFormatted: string;
+  price: string;
   reputation: number;
   eta: string;
-  isVerified: boolean;
-  explorerLink: string | null;
   timestamp: string;
-}
-
-export interface WinnerInfo {
-  agent: string;
-  agentId: number | null;
-  agentIcon: string;
-  winnerPrice: number | null;
-  winnerPriceFormatted: string;
-  reputation: number;
-  isVerified: boolean;
-  explorerLink: string | null;
-}
-
-export interface ContractLinks {
-  orderBook: string;
-  escrow: string;
-  agentRegistry: string;
 }
 
 export interface DashboardTask {
@@ -61,10 +40,7 @@ export interface DashboardTask {
   tags: string[];
   createdAt: string;
   stages: Stage[];
-  budgetUsdc: number | null;
-  bids: BidDetail[];
-  winner: WinnerInfo | null;
-  contractLinks: ContractLinks;
+  bids: TaskBid[];
 }
 
 export async function GET() {
@@ -95,7 +71,7 @@ export async function GET() {
     });
 
     // Contract links (same for all tasks)
-    const contractLinks: ContractLinks = {
+    const contractLinks = {
       orderBook: `${EXPLORER_BASE}/address/${CONTRACTS.FlareOrderBook}`,
       escrow: `${EXPLORER_BASE}/address/${CONTRACTS.FlareEscrow}`,
       agentRegistry: `${EXPLORER_BASE}/address/${CONTRACTS.AgentRegistry}`,
@@ -103,7 +79,8 @@ export async function GET() {
 
     // Transform jobs to dashboard format
     const tasks: DashboardTask[] = jobs.map((job) => {
-      const metadata = (job.metadata as Record<string, unknown>) || {};
+      // Parse metadata for additional info
+      const metadata = job.metadata as Record<string, unknown> || {};
 
       // Map job status to dashboard status
       let status: DashboardTask["status"] = "queued";
@@ -130,9 +107,8 @@ export async function GET() {
           status = "queued";
       }
 
-      // Get latest update for more accurate progress
-      const updates = (job as typeof job & { updates?: Array<{ status: string }> }).updates || [];
-      const latestUpdate = updates[0];
+      // Get latest non-bid update for progress tracking
+      const latestUpdate = job.updates?.find(u => u.status !== "bid_submitted");
       if (latestUpdate) {
         if (latestUpdate.status === "in_progress") {
           status = "executing";
@@ -145,55 +121,20 @@ export async function GET() {
         }
       }
 
-      // Extract bids from updates with status 'bid_submitted'
-      const bids: BidDetail[] = updates
-        .filter((u: { status: string }) => u.status === "bid_submitted")
-        .map((u: { id?: number; agent: string; data?: Record<string, unknown> | null; createdAt: Date }, i: number) => {
-          const matchedAgent = agentByTitle.get(u.agent.toLowerCase());
-          const bidData = (u.data || {}) as Record<string, unknown>;
-          const price = typeof bidData.price === "number" ? bidData.price : null;
-          const eta = typeof bidData.eta === "string" ? bidData.eta : "~30s";
-
-          return {
-            id: `${job.id}-bid-${u.id ?? i}`,
-            agent: matchedAgent?.title || u.agent,
-            agentId: matchedAgent?.id ?? null,
-            agentIcon: matchedAgent?.icon || "Bot",
-            price,
-            priceFormatted: price !== null ? `${price.toFixed(2)} USDC` : "Pending",
-            reputation: matchedAgent?.reputation ?? 0,
-            eta,
-            isVerified: matchedAgent?.isVerified ?? false,
-            explorerLink: matchedAgent?.walletAddress
-              ? `${EXPLORER_BASE}/address/${matchedAgent.walletAddress}`
-              : matchedAgent?.onchainAddress
-                ? `${EXPLORER_BASE}/address/${matchedAgent.onchainAddress}`
-                : null,
-            timestamp: u.createdAt instanceof Date ? u.createdAt.toISOString() : new Date().toISOString(),
-          };
-        });
-
-      // Build winner info
-      let winner: WinnerInfo | null = null;
-      if (job.winner) {
-        const matchedWinner = agentByTitle.get(job.winner.toLowerCase());
-        winner = {
-          agent: matchedWinner?.title || job.winner,
-          agentId: matchedWinner?.id ?? null,
-          agentIcon: matchedWinner?.icon || "Bot",
-          winnerPrice: job.winnerPrice ?? null,
-          winnerPriceFormatted: job.winnerPrice !== null && job.winnerPrice !== undefined
-            ? `${job.winnerPrice.toFixed(2)} USDC`
-            : "N/A",
-          reputation: matchedWinner?.reputation ?? 0,
-          isVerified: matchedWinner?.isVerified ?? false,
-          explorerLink: matchedWinner?.walletAddress
-            ? `${EXPLORER_BASE}/address/${matchedWinner.walletAddress}`
-            : matchedWinner?.onchainAddress
-              ? `${EXPLORER_BASE}/address/${matchedWinner.onchainAddress}`
-              : null,
+      // Extract real bids from updates
+      const bidUpdates = (job.updates || []).filter(u => u.status === "bid_submitted");
+      const bids: TaskBid[] = bidUpdates.map((u) => {
+        const bidData = u.data as Record<string, unknown> || {};
+        return {
+          id: u.id.toString(),
+          agent: u.agent,
+          agentIcon: getAgentIcon(u.agent),
+          price: `${Number(bidData.price_flr || 0).toFixed(4)} FLR`,
+          reputation: 90, // Default reputation; could be enriched later
+          eta: `${Math.round(Number(bidData.eta_seconds || 0))}s`,
+          timestamp: u.createdAt.toISOString(),
         };
-      }
+      });
 
       // Generate stages based on task status
       const stages = generateStages(status, progress, job.winner || "Agent");
@@ -210,10 +151,7 @@ export async function GET() {
         tags: job.tags || [],
         createdAt: job.createdAt instanceof Date ? job.createdAt.toISOString() : new Date(job.createdAt).toISOString(),
         stages,
-        budgetUsdc: job.budgetUsdc ?? null,
         bids,
-        winner,
-        contractLinks,
       };
     });
 
