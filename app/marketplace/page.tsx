@@ -1,5 +1,5 @@
 "use client";
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import {
   Bot,
   Phone,
@@ -139,6 +139,7 @@ export default function Marketplace() {
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
   const [activeFilter, setActiveFilter] = useState<"all" | "bids" | "executing" | "settled">("all");
   const [recentExecutions, setRecentExecutions] = useState<Task[]>([]);
+  const isInitialLoad = useRef(true);
 
   // Fetch tasks from API
   const fetchTasks = useCallback(async () => {
@@ -157,7 +158,10 @@ export default function Marketplace() {
       console.error("Error fetching tasks:", err);
       setError("Failed to load tasks");
     } finally {
-      setLoading(false);
+      if (isInitialLoad.current) {
+        setLoading(false);
+        isInitialLoad.current = false;
+      }
     }
   }, []);
 
@@ -262,10 +266,7 @@ export default function Marketplace() {
       : null;
 
     return (
-      <motion.div
-        initial={{ opacity: 0, x: -20 }}
-        animate={{ opacity: 1, x: 0 }}
-        transition={{ delay: index * 0.05 }}
+      <div
         onClick={() => setSelectedTask(isSelected ? null : task)}
         className={`group relative overflow-hidden cursor-pointer transition-all duration-200 ${
           isSelected
@@ -427,7 +428,7 @@ export default function Marketplace() {
             <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-amber-500/50 to-transparent" />
           </div>
         )}
-      </motion.div>
+      </div>
     );
   };
 
@@ -469,12 +470,7 @@ export default function Marketplace() {
     const config = getStatusConfig(task.status);
 
     return (
-      <motion.div
-        initial={{ opacity: 0, y: 10 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: index * 0.1 }}
-        className="flex items-center gap-3 py-2 border-b border-slate-800/50 last:border-0"
-      >
+      <div className="flex items-center gap-3 py-2 border-b border-slate-800/50 last:border-0">
         <div className={`w-8 h-8 rounded-lg ${config.bg} flex items-center justify-center`}>
           {config.icon}
         </div>
@@ -488,7 +484,7 @@ export default function Marketplace() {
             {new Date(task.createdAt).toLocaleTimeString()}
           </p>
         </div>
-      </motion.div>
+      </div>
     );
   };
 
@@ -760,21 +756,19 @@ export default function Marketplace() {
 
               {/* Order Book Rows */}
               <div className="bg-slate-900/30 backdrop-blur-sm rounded-b-xl border border-slate-800/50 border-t-0 divide-y divide-slate-800/30 max-h-[500px] overflow-y-auto">
-                <AnimatePresence mode="popLayout">
-                  {filteredTasks.length > 0 ? (
-                    filteredTasks.map((task, index) => (
-                      <OrderBookRow key={task.id} task={task} index={index} />
-                    ))
-                  ) : (
-                    <div className="py-12 text-center">
-                      <div className="w-16 h-16 rounded-2xl bg-slate-800/50 flex items-center justify-center mx-auto mb-4">
-                        <Gavel size={28} className="text-slate-600" />
-                      </div>
-                      <h3 className="text-lg font-medium text-slate-400 mb-2">No orders found</h3>
-                      <p className="text-sm text-slate-500">Orders will appear here when tasks are created</p>
+                {filteredTasks.length > 0 ? (
+                  filteredTasks.map((task, index) => (
+                    <OrderBookRow key={task.id} task={task} index={index} />
+                  ))
+                ) : (
+                  <div className="py-12 text-center">
+                    <div className="w-16 h-16 rounded-2xl bg-slate-800/50 flex items-center justify-center mx-auto mb-4">
+                      <Gavel size={28} className="text-slate-600" />
                     </div>
-                  )}
-                </AnimatePresence>
+                    <h3 className="text-lg font-medium text-slate-400 mb-2">No orders found</h3>
+                    <p className="text-sm text-slate-500">Orders will appear here when tasks are created</p>
+                  </div>
+                )}
               </div>
             </div>
 
