@@ -12,6 +12,7 @@ contract AgentRegistry is Ownable {
     }
 
     struct Agent {
+        address developer;
         string name;
         string metadataURI;
         string[] capabilities;
@@ -27,8 +28,8 @@ contract AgentRegistry is Ownable {
 
     address public reputationOracle;
 
-    event AgentRegistered(address indexed wallet, string name, string metadataURI);
-    event AgentUpdated(address indexed wallet, Status status);
+    event AgentRegistered(address indexed agent, address indexed developer, string name, string metadataURI);
+    event AgentUpdated(address indexed agent, Status status);
     event ReputationOracleUpdated(address indexed oracle);
     event ReputationSynced(address indexed wallet, uint256 reputation);
 
@@ -42,13 +43,15 @@ contract AgentRegistry is Ownable {
     }
 
     function registerAgent(
+        address agentAddress,
         string calldata name,
         string calldata metadataURI,
         string[] calldata capabilities
     ) external {
-        Agent storage profile = agents[msg.sender];
+        Agent storage profile = agents[agentAddress];
         require(profile.status == Status.Unregistered, "AgentRegistry: already registered");
 
+        profile.developer = msg.sender;
         profile.name = name;
         profile.metadataURI = metadataURI;
         _setCapabilities(profile, capabilities);
@@ -56,22 +59,24 @@ contract AgentRegistry is Ownable {
         profile.createdAt = block.timestamp;
         profile.updatedAt = block.timestamp;
 
-        if (!isIndexed[msg.sender]) {
-            agentIndex.push(msg.sender);
-            isIndexed[msg.sender] = true;
+        if (!isIndexed[agentAddress]) {
+            agentIndex.push(agentAddress);
+            isIndexed[agentAddress] = true;
         }
 
-        emit AgentRegistered(msg.sender, name, metadataURI);
+        emit AgentRegistered(agentAddress, msg.sender, name, metadataURI);
     }
 
     function updateAgent(
+        address agentAddress,
         string calldata name,
         string calldata metadataURI,
         string[] calldata capabilities,
         Status status
     ) external {
-        Agent storage profile = agents[msg.sender];
+        Agent storage profile = agents[agentAddress];
         require(profile.status != Status.Unregistered, "AgentRegistry: not registered");
+        require(profile.developer == msg.sender, "AgentRegistry: not developer");
         require(status != Status.Unregistered, "AgentRegistry: invalid status");
 
         profile.name = name;
@@ -80,7 +85,7 @@ contract AgentRegistry is Ownable {
         profile.status = status;
         profile.updatedAt = block.timestamp;
 
-        emit AgentUpdated(msg.sender, status);
+        emit AgentUpdated(agentAddress, status);
     }
 
     function adminUpdateStatus(address agent, Status status) external onlyOwner {
@@ -134,6 +139,10 @@ contract AgentRegistry is Ownable {
 
     function isAgentActive(address wallet) external view returns (bool) {
         return agents[wallet].status == Status.Active;
+    }
+
+    function getDeveloper(address agent) external view returns (address) {
+        return agents[agent].developer;
     }
 
     function agentCount() external view returns (uint256) {

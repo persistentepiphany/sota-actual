@@ -89,7 +89,10 @@ export interface AgentStakingInterface extends Interface {
     functionFragment: "agentRegistry",
     values?: undefined
   ): string;
-  encodeFunctionData(functionFragment: "cashout", values?: undefined): string;
+  encodeFunctionData(
+    functionFragment: "cashout",
+    values: [AddressLike]
+  ): string;
   encodeFunctionData(
     functionFragment: "creditEarnings",
     values: [AddressLike, BigNumberish]
@@ -141,13 +144,16 @@ export interface AgentStakingInterface extends Interface {
     functionFragment: "setMinimumStake",
     values: [BigNumberish]
   ): string;
-  encodeFunctionData(functionFragment: "stake", values?: undefined): string;
+  encodeFunctionData(functionFragment: "stake", values: [AddressLike]): string;
   encodeFunctionData(functionFragment: "stakes", values: [AddressLike]): string;
   encodeFunctionData(
     functionFragment: "transferOwnership",
     values: [AddressLike]
   ): string;
-  encodeFunctionData(functionFragment: "unstake", values?: undefined): string;
+  encodeFunctionData(
+    functionFragment: "unstake",
+    values: [AddressLike]
+  ): string;
 
   decodeFunctionResult(
     functionFragment: "agentRegistry",
@@ -364,7 +370,7 @@ export interface AgentStaking extends BaseContract {
 
   agentRegistry: TypedContractMethod<[], [string], "view">;
 
-  cashout: TypedContractMethod<[], [void], "nonpayable">;
+  cashout: TypedContractMethod<[agent: AddressLike], [void], "nonpayable">;
 
   creditEarnings: TypedContractMethod<
     [agent: AddressLike, amount: BigNumberish],
@@ -416,7 +422,7 @@ export interface AgentStaking extends BaseContract {
     "nonpayable"
   >;
 
-  stake: TypedContractMethod<[], [void], "payable">;
+  stake: TypedContractMethod<[agent: AddressLike], [void], "payable">;
 
   stakes: TypedContractMethod<
     [arg0: AddressLike],
@@ -438,7 +444,7 @@ export interface AgentStaking extends BaseContract {
     "nonpayable"
   >;
 
-  unstake: TypedContractMethod<[], [void], "nonpayable">;
+  unstake: TypedContractMethod<[agent: AddressLike], [void], "nonpayable">;
 
   getFunction<T extends ContractMethod = ContractMethod>(
     key: string | FunctionFragment
@@ -449,7 +455,7 @@ export interface AgentStaking extends BaseContract {
   ): TypedContractMethod<[], [string], "view">;
   getFunction(
     nameOrSignature: "cashout"
-  ): TypedContractMethod<[], [void], "nonpayable">;
+  ): TypedContractMethod<[agent: AddressLike], [void], "nonpayable">;
   getFunction(
     nameOrSignature: "creditEarnings"
   ): TypedContractMethod<
@@ -509,7 +515,7 @@ export interface AgentStaking extends BaseContract {
   ): TypedContractMethod<[minimumStake_: BigNumberish], [void], "nonpayable">;
   getFunction(
     nameOrSignature: "stake"
-  ): TypedContractMethod<[], [void], "payable">;
+  ): TypedContractMethod<[agent: AddressLike], [void], "payable">;
   getFunction(
     nameOrSignature: "stakes"
   ): TypedContractMethod<
@@ -530,7 +536,7 @@ export interface AgentStaking extends BaseContract {
   ): TypedContractMethod<[newOwner: AddressLike], [void], "nonpayable">;
   getFunction(
     nameOrSignature: "unstake"
-  ): TypedContractMethod<[], [void], "nonpayable">;
+  ): TypedContractMethod<[agent: AddressLike], [void], "nonpayable">;
 
   getEvent(
     key: "CashoutLoss"

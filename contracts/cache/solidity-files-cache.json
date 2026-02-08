@@ -2,8 +2,8 @@
   "_format": "hh-sol-cache-2",
   "files": {
     "D:\\SOTA\\contracts\\contracts\\AgentRegistry.sol": {
-      "lastModificationDate": 1770402475042,
-      "contentHash": "75447c07032aa2d8a6ed8b7fb3a23ac4",
+      "lastModificationDate": 1770509968297,
+      "contentHash": "f5ca7a217152ecea7fe3366c28b79ff4",
       "sourceName": "contracts/AgentRegistry.sol",
       "solcConfig": {
         "version": "0.8.24",
@@ -114,8 +114,8 @@
       ]
     },
     "D:\\SOTA\\contracts\\contracts\\AgentStaking.sol": {
-      "lastModificationDate": 1770508047719,
-      "contentHash": "badf6006fa5400e4864625f970dcc1ac",
+      "lastModificationDate": 1770510008063,
+      "contentHash": "1036e6e1d4172a2478f18c4e65045934",
       "sourceName": "contracts/AgentStaking.sol",
       "solcConfig": {
         "version": "0.8.24",

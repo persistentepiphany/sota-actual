@@ -3,7 +3,8 @@ import { ethers } from "hardhat";
 
 describe("AgentStaking", function () {
   let deployer: any;
-  let dev: any; // agent dev who stakes
+  let dev: any; // developer wallet who registers + stakes
+  let agent: any; // operational agent address
   let poster: any;
   let other: any;
 
@@ -26,7 +27,7 @@ describe("AgentStaking", function () {
   }
 
   beforeEach(async function () {
-    [deployer, dev, poster, other] = await ethers.getSigners();
+    [deployer, dev, agent, poster, other] = await ethers.getSigners();
 
     // Deploy AgentRegistry
     agentRegistry = await ethers.deployContract("AgentRegistry", [
@@ -52,18 +53,18 @@ describe("AgentStaking", function () {
     await staking.waitForDeployment();
   });
 
-  // ─── Helper: register agent and make it active ────────────
-  async function registerAgent(signer: any) {
+  // ─── Helper: developer registers an agent address ────────────
+  async function registerAgent(developer: any, agentAddr: string) {
     await agentRegistry
-      .connect(signer)
-      .registerAgent("TestAgent", "ipfs://meta", ["data_analysis"]);
+      .connect(developer)
+      .registerAgent(agentAddr, "TestAgent", "ipfs://meta", ["data_analysis"]);
   }
 
-  // ─── Helper: deactivate agent ─────────────────────────────
-  async function deactivateAgent(signer: any) {
+  // ─── Helper: developer deactivates an agent ─────────────────
+  async function deactivateAgent(developer: any, agentAddr: string) {
     await agentRegistry
-      .connect(signer)
-      .updateAgent("TestAgent", "ipfs://meta", ["data_analysis"], 2); // 2 = Inactive
+      .connect(developer)
+      .updateAgent(agentAddr, "TestAgent", "ipfs://meta", ["data_analysis"], 2); // 2 = Inactive
   }
 
   // ═══════════════════════════════════════════════════════════
@@ -71,53 +72,61 @@ describe("AgentStaking", function () {
   // ═══════════════════════════════════════════════════════════
 
   describe("stake()", function () {
-    it("should allow an active agent to stake", async function () {
-      await registerAgent(dev);
+    it("should allow developer to stake for an active agent", async function () {
+      await registerAgent(dev, agent.address);
 
       await expect(
-        staking.connect(dev).stake({ value: MINIMUM_STAKE })
+        staking.connect(dev).stake(agent.address, { value: MINIMUM_STAKE })
       )
         .to.emit(staking, "Staked")
-        .withArgs(dev.address, MINIMUM_STAKE);
+        .withArgs(agent.address, MINIMUM_STAKE);
 
-      const info = await staking.getStakeInfo(dev.address);
+      const info = await staking.getStakeInfo(agent.address);
       expect(info.isStaked).to.be.true;
       expect(info.stakedAmount).to.equal(MINIMUM_STAKE);
       expect(info.accumulatedEarnings).to.equal(0);
     });
 
     it("should reject stake below minimum", async function () {
-      await registerAgent(dev);
+      await registerAgent(dev, agent.address);
 
       await expect(
-        staking.connect(dev).stake({ value: ethers.parseEther("10") })
+        staking.connect(dev).stake(agent.address, { value: ethers.parseEther("10") })
       ).to.be.revertedWith("AgentStaking: below minimum stake");
     });
 
     it("should reject stake if agent not active in registry", async function () {
-      // dev has not registered
+      // agent has not been registered
       await expect(
-        staking.connect(dev).stake({ value: MINIMUM_STAKE })
-      ).to.be.revertedWith("AgentStaking: agent not active in registry");
+        staking.connect(dev).stake(agent.address, { value: MINIMUM_STAKE })
+      ).to.be.revertedWith("AgentStaking: not developer");
     });
 
     it("should reject double stake", async function () {
-      await registerAgent(dev);
-      await staking.connect(dev).stake({ value: MINIMUM_STAKE });
+      await registerAgent(dev, agent.address);
+      await staking.connect(dev).stake(agent.address, { value: MINIMUM_STAKE });
 
       await expect(
-        staking.connect(dev).stake({ value: MINIMUM_STAKE })
+        staking.connect(dev).stake(agent.address, { value: MINIMUM_STAKE })
       ).to.be.revertedWith("AgentStaking: already staked");
     });
 
     it("should accept stake above minimum", async function () {
-      await registerAgent(dev);
+      await registerAgent(dev, agent.address);
       const amount = ethers.parseEther("100");
 
-      await staking.connect(dev).stake({ value: amount });
+      await staking.connect(dev).stake(agent.address, { value: amount });
 
-      const info = await staking.getStakeInfo(dev.address);
+      const info = await staking.getStakeInfo(agent.address);
       expect(info.stakedAmount).to.equal(amount);
+    });
+
+    it("should reject non-developer from staking", async function () {
+      await registerAgent(dev, agent.address);
+
+      await expect(
+        staking.connect(other).stake(agent.address, { value: MINIMUM_STAKE })
+      ).to.be.revertedWith("AgentStaking: not developer");
     });
   });
 
@@ -127,8 +136,8 @@ describe("AgentStaking", function () {
 
   describe("creditEarnings()", function () {
     beforeEach(async function () {
-      await registerAgent(dev);
-      await staking.connect(dev).stake({ value: MINIMUM_STAKE });
+      await registerAgent(dev, agent.address);
+      await staking.connect(dev).stake(agent.address, { value: MINIMUM_STAKE });
 
       // Set escrow to deployer for direct testing
       await staking.connect(deployer).setEscrow(deployer.address);
@@ -140,12 +149,12 @@ describe("AgentStaking", function () {
       await expect(
         staking
           .connect(deployer)
-          .creditEarnings(dev.address, amount, { value: amount })
+          .creditEarnings(agent.address, amount, { value: amount })
       )
         .to.emit(staking, "EarningsCredited")
-        .withArgs(dev.address, amount);
+        .withArgs(agent.address, amount);
 
-      const info = await staking.getStakeInfo(dev.address);
+      const info = await staking.getStakeInfo(agent.address);
       expect(info.accumulatedEarnings).to.equal(amount);
     });
 
@@ -155,12 +164,12 @@ describe("AgentStaking", function () {
 
       await staking
         .connect(deployer)
-        .creditEarnings(dev.address, a1, { value: a1 });
+        .creditEarnings(agent.address, a1, { value: a1 });
       await staking
         .connect(deployer)
-        .creditEarnings(dev.address, a2, { value: a2 });
+        .creditEarnings(agent.address, a2, { value: a2 });
 
-      const info = await staking.getStakeInfo(dev.address);
+      const info = await staking.getStakeInfo(agent.address);
       expect(info.accumulatedEarnings).to.equal(a1 + a2);
     });
 
@@ -169,7 +178,7 @@ describe("AgentStaking", function () {
       await expect(
         staking
           .connect(other)
-          .creditEarnings(dev.address, amount, { value: amount })
+          .creditEarnings(agent.address, amount, { value: amount })
       ).to.be.revertedWith("AgentStaking: caller is not escrow");
     });
 
@@ -177,7 +186,7 @@ describe("AgentStaking", function () {
       await expect(
         staking
           .connect(deployer)
-          .creditEarnings(dev.address, ethers.parseEther("10"), {
+          .creditEarnings(agent.address, ethers.parseEther("10"), {
             value: ethers.parseEther("5"),
           })
       ).to.be.revertedWith("AgentStaking: value mismatch");
@@ -201,23 +210,23 @@ describe("AgentStaking", function () {
     const earnings = ethers.parseEther("10");
 
     beforeEach(async function () {
-      await registerAgent(dev);
-      await staking.connect(dev).stake({ value: MINIMUM_STAKE });
+      await registerAgent(dev, agent.address);
+      await staking.connect(dev).stake(agent.address, { value: MINIMUM_STAKE });
       await staking.connect(deployer).setEscrow(deployer.address);
 
       // Credit some earnings
       await staking
         .connect(deployer)
-        .creditEarnings(dev.address, earnings, { value: earnings });
+        .creditEarnings(agent.address, earnings, { value: earnings });
     });
 
     it("should pay 1x earnings on win when pool is empty", async function () {
       // Even number = win
       const ts = await currentTimestamp();
-      await mockRandom.setRandomNumber(42, true, ts); // 42 is even → win
+      await mockRandom.setRandomNumber(42, true, ts); // 42 is even -> win
 
       const balBefore = await ethers.provider.getBalance(dev.address);
-      const tx = await staking.connect(dev).cashout();
+      const tx = await staking.connect(dev).cashout(agent.address);
       const receipt = await tx.wait();
       const gasCost = receipt.gasUsed * receipt.gasPrice;
       const balAfter = await ethers.provider.getBalance(dev.address);
@@ -225,17 +234,17 @@ describe("AgentStaking", function () {
       // Pool is empty, so bonus = 0, payout = earnings only
       expect(balAfter - balBefore + gasCost).to.equal(earnings);
 
-      const info = await staking.getStakeInfo(dev.address);
+      const info = await staking.getStakeInfo(agent.address);
       expect(info.accumulatedEarnings).to.equal(0);
       expect(info.wins).to.equal(1);
       expect(info.losses).to.equal(0);
     });
 
     it("should pay 2x earnings on win when pool has enough", async function () {
-      // First, seed the pool by having a loss
-      // Credit earnings to 'other', make them lose
-      await registerAgent(other);
-      await staking.connect(other).stake({ value: MINIMUM_STAKE });
+      // First, seed the pool by having a loss with another agent
+      // Register other as both developer and agent for simplicity
+      await registerAgent(other, other.address);
+      await staking.connect(other).stake(other.address, { value: MINIMUM_STAKE });
       const otherEarnings = ethers.parseEther("20");
       await staking
         .connect(deployer)
@@ -246,7 +255,7 @@ describe("AgentStaking", function () {
       // Odd number = lose
       let ts = await currentTimestamp();
       await mockRandom.setRandomNumber(43, true, ts);
-      await staking.connect(other).cashout();
+      await staking.connect(other).cashout(other.address);
 
       // Pool should now have 20 FLR
       expect(await staking.getPoolSize()).to.equal(otherEarnings);
@@ -256,7 +265,7 @@ describe("AgentStaking", function () {
       await mockRandom.setRandomNumber(42, true, ts);
 
       const balBefore = await ethers.provider.getBalance(dev.address);
-      const tx = await staking.connect(dev).cashout();
+      const tx = await staking.connect(dev).cashout(agent.address);
       const receipt = await tx.wait();
       const gasCost = receipt.gasUsed * receipt.gasPrice;
       const balAfter = await ethers.provider.getBalance(dev.address);
@@ -270,24 +279,24 @@ describe("AgentStaking", function () {
         otherEarnings - earnings
       );
 
-      const info = await staking.getStakeInfo(dev.address);
+      const info = await staking.getStakeInfo(agent.address);
       expect(info.wins).to.equal(1);
     });
 
     it("should lose earnings to pool on loss", async function () {
       const ts = await currentTimestamp();
-      await mockRandom.setRandomNumber(43, true, ts); // 43 is odd → lose
+      await mockRandom.setRandomNumber(43, true, ts); // 43 is odd -> lose
 
       const poolBefore = await staking.getPoolSize();
 
-      await expect(staking.connect(dev).cashout())
+      await expect(staking.connect(dev).cashout(agent.address))
         .to.emit(staking, "CashoutLoss")
-        .withArgs(dev.address, earnings);
+        .withArgs(agent.address, earnings);
 
       const poolAfter = await staking.getPoolSize();
       expect(poolAfter - poolBefore).to.equal(earnings);
 
-      const info = await staking.getStakeInfo(dev.address);
+      const info = await staking.getStakeInfo(agent.address);
       expect(info.accumulatedEarnings).to.equal(0);
       expect(info.losses).to.equal(1);
       expect(info.wins).to.equal(0);
@@ -296,27 +305,25 @@ describe("AgentStaking", function () {
     it("should cap win bonus to available pool", async function () {
       // Seed pool with only 3 FLR (less than the 10 FLR earnings)
       const smallPool = ethers.parseEther("3");
-      // Send FLR directly to the staking contract to seed pool
-      // We'll use another agent's loss to seed a small pool
-      await registerAgent(other);
-      await staking.connect(other).stake({ value: MINIMUM_STAKE });
+      await registerAgent(other, other.address);
+      await staking.connect(other).stake(other.address, { value: MINIMUM_STAKE });
       await staking
         .connect(deployer)
         .creditEarnings(other.address, smallPool, { value: smallPool });
 
       let ts = await currentTimestamp();
       await mockRandom.setRandomNumber(43, true, ts); // lose
-      await staking.connect(other).cashout();
+      await staking.connect(other).cashout(other.address);
 
       // Pool = 3 FLR
       expect(await staking.getPoolSize()).to.equal(smallPool);
 
-      // Dev wins → should get earnings + min(earnings, pool) = 10 + 3 = 13
+      // Dev wins -> should get earnings + min(earnings, pool) = 10 + 3 = 13
       ts = await currentTimestamp();
       await mockRandom.setRandomNumber(42, true, ts); // win
 
       const balBefore = await ethers.provider.getBalance(dev.address);
-      const tx = await staking.connect(dev).cashout();
+      const tx = await staking.connect(dev).cashout(agent.address);
       const receipt = await tx.wait();
       const gasCost = receipt.gasUsed * receipt.gasPrice;
       const balAfter = await ethers.provider.getBalance(dev.address);
@@ -332,16 +339,16 @@ describe("AgentStaking", function () {
       // Cash out first to drain earnings
       const ts = await currentTimestamp();
       await mockRandom.setRandomNumber(43, true, ts);
-      await staking.connect(dev).cashout();
+      await staking.connect(dev).cashout(agent.address);
 
-      await expect(staking.connect(dev).cashout()).to.be.revertedWith(
+      await expect(staking.connect(dev).cashout(agent.address)).to.be.revertedWith(
         "AgentStaking: no earnings"
       );
     });
 
     it("should reject cashout if not staked", async function () {
-      await expect(staking.connect(other).cashout()).to.be.revertedWith(
-        "AgentStaking: not staked"
+      await expect(staking.connect(other).cashout(other.address)).to.be.revertedWith(
+        "AgentStaking: not developer"
       );
     });
 
@@ -349,7 +356,7 @@ describe("AgentStaking", function () {
       const ts = await currentTimestamp();
       await mockRandom.setRandomNumber(42, false, ts); // not secure
 
-      await expect(staking.connect(dev).cashout()).to.be.revertedWith(
+      await expect(staking.connect(dev).cashout(agent.address)).to.be.revertedWith(
         "AgentStaking: random number not secure"
       );
     });
@@ -359,9 +366,15 @@ describe("AgentStaking", function () {
       // Set timestamp to 200 seconds ago (beyond 120s max age)
       await mockRandom.setRandomNumber(42, true, ts - 200);
 
-      await expect(staking.connect(dev).cashout()).to.be.revertedWith(
+      await expect(staking.connect(dev).cashout(agent.address)).to.be.revertedWith(
         "AgentStaking: random number too stale"
       );
+    });
+
+    it("should reject non-developer from cashing out", async function () {
+      await expect(
+        staking.connect(other).cashout(agent.address)
+      ).to.be.revertedWith("AgentStaking: not developer");
     });
   });
 
@@ -371,22 +384,22 @@ describe("AgentStaking", function () {
 
   describe("unstake()", function () {
     beforeEach(async function () {
-      await registerAgent(dev);
-      await staking.connect(dev).stake({ value: MINIMUM_STAKE });
+      await registerAgent(dev, agent.address);
+      await staking.connect(dev).stake(agent.address, { value: MINIMUM_STAKE });
     });
 
-    it("should return stake after deactivation", async function () {
-      await deactivateAgent(dev);
+    it("should return stake to developer after deactivation", async function () {
+      await deactivateAgent(dev, agent.address);
 
       const balBefore = await ethers.provider.getBalance(dev.address);
-      const tx = await staking.connect(dev).unstake();
+      const tx = await staking.connect(dev).unstake(agent.address);
       const receipt = await tx.wait();
       const gasCost = receipt.gasUsed * receipt.gasPrice;
       const balAfter = await ethers.provider.getBalance(dev.address);
 
       expect(balAfter - balBefore + gasCost).to.equal(MINIMUM_STAKE);
 
-      const info = await staking.getStakeInfo(dev.address);
+      const info = await staking.getStakeInfo(agent.address);
       expect(info.isStaked).to.be.false;
       expect(info.stakedAmount).to.equal(0);
     });
@@ -396,30 +409,38 @@ describe("AgentStaking", function () {
       const earnings = ethers.parseEther("15");
       await staking
         .connect(deployer)
-        .creditEarnings(dev.address, earnings, { value: earnings });
+        .creditEarnings(agent.address, earnings, { value: earnings });
 
-      await deactivateAgent(dev);
+      await deactivateAgent(dev, agent.address);
 
       const poolBefore = await staking.getPoolSize();
 
-      await expect(staking.connect(dev).unstake())
+      await expect(staking.connect(dev).unstake(agent.address))
         .to.emit(staking, "Unstaked")
-        .withArgs(dev.address, MINIMUM_STAKE, earnings);
+        .withArgs(agent.address, MINIMUM_STAKE, earnings);
 
       const poolAfter = await staking.getPoolSize();
       expect(poolAfter - poolBefore).to.equal(earnings);
     });
 
     it("should reject unstake if agent is still active", async function () {
-      await expect(staking.connect(dev).unstake()).to.be.revertedWith(
+      await expect(staking.connect(dev).unstake(agent.address)).to.be.revertedWith(
         "AgentStaking: agent still active"
       );
     });
 
     it("should reject unstake if not staked", async function () {
-      await expect(staking.connect(other).unstake()).to.be.revertedWith(
-        "AgentStaking: not staked"
+      await expect(staking.connect(other).unstake(other.address)).to.be.revertedWith(
+        "AgentStaking: not developer"
       );
+    });
+
+    it("should reject non-developer from unstaking", async function () {
+      await deactivateAgent(dev, agent.address);
+
+      await expect(
+        staking.connect(other).unstake(agent.address)
+      ).to.be.revertedWith("AgentStaking: not developer");
     });
   });
 
@@ -429,27 +450,27 @@ describe("AgentStaking", function () {
 
   describe("Views", function () {
     it("isStaked returns false for non-staked agent", async function () {
-      expect(await staking.isStaked(dev.address)).to.be.false;
+      expect(await staking.isStaked(agent.address)).to.be.false;
     });
 
     it("isStaked returns true for staked agent", async function () {
-      await registerAgent(dev);
-      await staking.connect(dev).stake({ value: MINIMUM_STAKE });
-      expect(await staking.isStaked(dev.address)).to.be.true;
+      await registerAgent(dev, agent.address);
+      await staking.connect(dev).stake(agent.address, { value: MINIMUM_STAKE });
+      expect(await staking.isStaked(agent.address)).to.be.true;
     });
 
     it("previewCashout returns correct values", async function () {
-      await registerAgent(dev);
-      await staking.connect(dev).stake({ value: MINIMUM_STAKE });
+      await registerAgent(dev, agent.address);
+      await staking.connect(dev).stake(agent.address, { value: MINIMUM_STAKE });
       await staking.connect(deployer).setEscrow(deployer.address);
 
       const earnings = ethers.parseEther("10");
       await staking
         .connect(deployer)
-        .creditEarnings(dev.address, earnings, { value: earnings });
+        .creditEarnings(agent.address, earnings, { value: earnings });
 
       const [previewEarnings, maxPayout] = await staking.previewCashout(
-        dev.address
+        agent.address
       );
       // Pool is empty, so max payout = earnings (no bonus)
       expect(previewEarnings).to.equal(earnings);
@@ -538,66 +559,66 @@ describe("AgentStaking", function () {
     });
 
     it("should route FLR payout to staking for staked provider", async function () {
-      // Register + stake dev as agent
-      await registerAgent(dev);
-      await staking.connect(dev).stake({ value: MINIMUM_STAKE });
+      // Developer registers agent and stakes
+      await registerAgent(dev, agent.address);
+      await staking.connect(dev).stake(agent.address, { value: MINIMUM_STAKE });
 
-      // Create and assign a job
+      // Create and assign a job (agent is the operational provider)
       const deadline =
         (await ethers.provider.getBlock("latest"))!.timestamp + 86400;
       await orderBook
         .connect(poster)
         .createJob("ipfs://job", ethers.parseUnits("10", 18), deadline);
-      await orderBook.connect(poster).assignProvider(1, dev.address);
+      await orderBook.connect(poster).assignProvider(1, agent.address);
 
       // Fund escrow: 10 USD => 400 FLR
       const flrNeeded = ethers.parseUnits("400", 18);
       await escrow
         .connect(poster)
-        .fundJob(1, dev.address, ethers.parseUnits("10", 18), {
+        .fundJob(1, agent.address, ethers.parseUnits("10", 18), {
           value: flrNeeded,
         });
 
-      // Complete + FDC attest
+      // Agent completes work + FDC attest
       const proof = ethers.keccak256(ethers.toUtf8Bytes("done"));
-      await orderBook.connect(dev).markCompleted(1, proof);
+      await orderBook.connect(agent).markCompleted(1, proof);
       await fdcVerifier.connect(deployer).manualConfirmDelivery(1);
 
-      // Release — should route to staking, not directly to dev
+      // Release -- should route to staking, not directly to agent
       await escrow.connect(poster).releaseToProvider(1);
 
-      // 400 FLR - 2% fee = 392 FLR credited as earnings
+      // 400 FLR - 2% fee = 392 FLR credited as earnings (keyed by agent address)
       const expectedEarnings = ethers.parseUnits("392", 18);
-      const info = await staking.getStakeInfo(dev.address);
+      const info = await staking.getStakeInfo(agent.address);
       expect(info.accumulatedEarnings).to.equal(expectedEarnings);
     });
 
     it("should pay directly to non-staked provider", async function () {
-      // dev is NOT staked
-      await registerAgent(dev);
+      // Developer registers agent but does NOT stake
+      await registerAgent(dev, agent.address);
 
       const deadline =
         (await ethers.provider.getBlock("latest"))!.timestamp + 86400;
       await orderBook
         .connect(poster)
         .createJob("ipfs://job", ethers.parseUnits("10", 18), deadline);
-      await orderBook.connect(poster).assignProvider(1, dev.address);
+      await orderBook.connect(poster).assignProvider(1, agent.address);
 
       const flrNeeded = ethers.parseUnits("400", 18);
       await escrow
         .connect(poster)
-        .fundJob(1, dev.address, ethers.parseUnits("10", 18), {
+        .fundJob(1, agent.address, ethers.parseUnits("10", 18), {
           value: flrNeeded,
         });
 
       const proof = ethers.keccak256(ethers.toUtf8Bytes("done"));
-      await orderBook.connect(dev).markCompleted(1, proof);
+      await orderBook.connect(agent).markCompleted(1, proof);
       await fdcVerifier.connect(deployer).manualConfirmDelivery(1);
 
-      // Should go directly to dev
-      const balBefore = await ethers.provider.getBalance(dev.address);
+      // Should go directly to agent (the provider address)
+      const balBefore = await ethers.provider.getBalance(agent.address);
       await escrow.connect(poster).releaseToProvider(1);
-      const balAfter = await ethers.provider.getBalance(dev.address);
+      const balAfter = await ethers.provider.getBalance(agent.address);
 
       const expectedPayout = ethers.parseUnits("392", 18);
       expect(balAfter - balBefore).to.equal(expectedPayout);

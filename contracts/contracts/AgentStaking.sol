@@ -90,17 +90,21 @@ contract AgentStaking is Ownable, ReentrancyGuard {
 
     /**
      * @notice Stake FLR to activate an agent. Requires the agent to be
-     *         Active in AgentRegistry.
+     *         Active in AgentRegistry. Only the developer wallet can stake.
      */
-    function stake() external payable {
-        require(msg.value >= minimumStake, "AgentStaking: below minimum stake");
-        require(!stakes[msg.sender].isStaked, "AgentStaking: already staked");
+    function stake(address agent) external payable {
         require(
-            agentRegistry.isAgentActive(msg.sender),
+            agentRegistry.getDeveloper(agent) == msg.sender,
+            "AgentStaking: not developer"
+        );
+        require(msg.value >= minimumStake, "AgentStaking: below minimum stake");
+        require(!stakes[agent].isStaked, "AgentStaking: already staked");
+        require(
+            agentRegistry.isAgentActive(agent),
             "AgentStaking: agent not active in registry"
         );
 
-        stakes[msg.sender] = StakeInfo({
+        stakes[agent] = StakeInfo({
             stakedAmount: msg.value,
             accumulatedEarnings: 0,
             wins: 0,
@@ -108,7 +112,7 @@ contract AgentStaking is Ownable, ReentrancyGuard {
             isStaked: true
         });
 
-        emit Staked(msg.sender, msg.value);
+        emit Staked(agent, msg.value);
     }
 
     /**
@@ -129,9 +133,15 @@ contract AgentStaking is Ownable, ReentrancyGuard {
      *         Uses Flare RandomNumberV2 to determine outcome.
      *         Win: receive min(2x earnings, earnings + pool).
      *         Lose: earnings go to the shared loss pool.
+     *         Only the developer wallet can cash out. Payout goes to developer.
      */
-    function cashout() external nonReentrant {
-        StakeInfo storage info = stakes[msg.sender];
+    function cashout(address agent) external nonReentrant {
+        require(
+            agentRegistry.getDeveloper(agent) == msg.sender,
+            "AgentStaking: not developer"
+        );
+
+        StakeInfo storage info = stakes[agent];
         require(info.isStaked, "AgentStaking: not staked");
         require(info.accumulatedEarnings > 0, "AgentStaking: no earnings");
 
@@ -162,25 +172,31 @@ contract AgentStaking is Ownable, ReentrancyGuard {
             (bool ok, ) = msg.sender.call{value: payout}("");
             require(ok, "AgentStaking: payout failed");
 
-            emit CashoutWin(msg.sender, payout);
+            emit CashoutWin(agent, payout);
         } else {
             // LOSE — earnings go to pool
             lossPool += earnings;
             info.losses++;
 
-            emit CashoutLoss(msg.sender, earnings);
+            emit CashoutLoss(agent, earnings);
         }
     }
 
     /**
      * @notice Unstake and reclaim the staked FLR. Agent must NOT be Active
      *         in AgentRegistry. Uncashed earnings are forfeited to the pool.
+     *         Only the developer wallet can unstake. Stake returned to developer.
      */
-    function unstake() external nonReentrant {
-        StakeInfo storage info = stakes[msg.sender];
+    function unstake(address agent) external nonReentrant {
+        require(
+            agentRegistry.getDeveloper(agent) == msg.sender,
+            "AgentStaking: not developer"
+        );
+
+        StakeInfo storage info = stakes[agent];
         require(info.isStaked, "AgentStaking: not staked");
         require(
-            !agentRegistry.isAgentActive(msg.sender),
+            !agentRegistry.isAgentActive(agent),
             "AgentStaking: agent still active"
         );
 
@@ -198,7 +214,7 @@ contract AgentStaking is Ownable, ReentrancyGuard {
         (bool ok, ) = msg.sender.call{value: stakeAmount}("");
         require(ok, "AgentStaking: unstake transfer failed");
 
-        emit Unstaked(msg.sender, stakeAmount, forfeited);
+        emit Unstaked(agent, stakeAmount, forfeited);
     }
 
     // ─── Views ──────────────────────────────────────────────
