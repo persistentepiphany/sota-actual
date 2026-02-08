@@ -1,17 +1,20 @@
 {
   "network": "flare-coston2",
   "chainId": 114,
-  "deployedAt": "2026-02-06T23:26:30.749Z",
+  "deployedAt": "2026-02-08T01:32:21.124Z",
   "deployer": "0x0dAAB919d45dC217d0F496341083fb6F5e4cBC34",
   "flareIntegration": {
     "ftsoUsage": "FLR/USD price feed for job quoting and escrow funding validation",
-    "fdcUsage": "Web2 delivery-status attestation gates escrow release (trustless)"
+    "fdcUsage": "Web2 delivery-status attestation gates escrow release (trustless)",
+    "randomNumberV2Usage": "50/50 cashout gamble on agent earnings via RandomNumberV2"
   },
   "contracts": {
     "FTSOPriceConsumer": "0x5aE53C3eDc102b29B3329CF2331d11560d6D50A9",
     "FDCVerifier": "0x703b88b606f7be816BdaF93587D8553C65F47776",
     "FlareOrderBook": "0x390413F0c7826523403760E086775DA9004aD004",
-    "FlareEscrow": "0x3b87ef622951c827F0730906A6F07ad6AB16A5C9",
-    "AgentRegistry": "0xc62a1e98543c42c475cd37e63188a29f098b35D4"
+    "FlareEscrow": "0xA961AA0d21C2F24a20B6bdAD683f1DaFA45CFc73",
+    "AgentRegistry": "0x46aDDBd334de452746443798d32C7C7C5fC8Dd16",
+    "AgentStaking": "0xD381Bf340de5E4b9b16e382913121B6E2fA1E6Af",
+    "RandomNumberV2": "0x5CdF9eAF3EB8b44fB696984a1420B56A7575D250"
   }
 }

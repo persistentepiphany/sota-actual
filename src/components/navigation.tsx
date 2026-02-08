@@ -9,6 +9,7 @@ import {
   Menu,
   X,
   Code2,
+  Coins,
   LogIn,
   LogOut,
 } from "lucide-react";
@@ -20,6 +21,7 @@ const navItems: NavMenuItem[] = [
   { href: "/agents", label: "Agents", icon: Bot },
   { href: "/marketplace", label: "Marketplace", icon: Store },
   { href: "/developers", label: "Developers", icon: Code2 },
+  { href: "/developers/payout", label: "Payout", icon: Coins },
 ];
 
 export default function Navigation() {
